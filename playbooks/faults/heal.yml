@@ -1,0 +1,9 @@
+- name: healing a fault
+  hosts: control
+  vars:
+      run_id: "run1"
+  tasks:
+    - name: healing a fault
+      become_user: ubuntu
+      shell: |
+        python3 /mnt/vectorized/tests/fault.heal.py {{ run_id }}

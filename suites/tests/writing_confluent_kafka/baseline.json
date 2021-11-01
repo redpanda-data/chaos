@@ -1,0 +1,15 @@
+{
+    "name": "writing / confluent-kafka / baseline",
+    "scenario": "single_table_single_fault",
+    "workload": {
+        "name": "writing / confluent-kafka",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ]
+    },
+    "fault": null,
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

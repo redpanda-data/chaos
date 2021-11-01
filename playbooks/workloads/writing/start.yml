@@ -1,0 +1,7 @@
+- name: starting workload
+  hosts: control
+  tasks:
+    - name: start workload
+      become_user: ubuntu
+      shell: |
+        python3 /mnt/vectorized/tests/workload.start.py

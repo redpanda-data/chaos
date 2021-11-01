@@ -1,0 +1,60 @@
+version: '3'
+services:
+  redpanda1:
+    build:
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    privileged: true
+    container_name: redpanda1
+    hostname: redpanda1
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda2:
+    build:
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    privileged: true
+    container_name: redpanda2
+    hostname: redpanda2
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda3:
+    build:
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    privileged: true
+    container_name: redpanda3
+    hostname: redpanda3
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  control:
+    build:
+      context: .
+      dockerfile: ./docker/control/Dockerfile
+    privileged: true
+    container_name: control
+    hostname: control
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
+  client1:
+    build:
+      context: .
+      dockerfile: ./docker/client/Dockerfile
+    privileged: true
+    container_name: client1
+    hostname: client1
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+networks:
+  chaos:
+    driver: bridge

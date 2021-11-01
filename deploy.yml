@@ -1,0 +1,269 @@
+- name: assert only one nvme drive
+  hosts: redpanda:client:control
+  tasks:
+  - set_fact: 
+      nvme_device: '{{ hostvars[inventory_hostname].ansible_devices.keys() | map("regex_search", "nvme.*") | select("string") | list }}'
+  - assert:
+      that: '{{ nvme_device | length == 1 }}'
+  - set_fact: 
+      nvme_device: '{{ "/dev/" + nvme_device[0] }}'
+
+- name: mount nvme disk
+  hosts: redpanda:client:control
+  tasks:
+    - block:
+      - name: create xfs file system
+        filesystem:
+          fstype: xfs
+          dev: '{{ nvme_device }}'
+      - name: mount the device
+        mount:
+          path: /mnt/vectorized
+          src: '{{ nvme_device }}'
+          fstype: xfs
+          state: mounted
+      - name: change permissions of the mount point
+        file:
+          path: /mnt/vectorized
+          owner: ubuntu
+          group: ubuntu
+      - name: write nodes files
+        shell: |
+          rm -rf /mnt/vectorized/redpanda.nodes
+          {% for host in groups['redpanda'] %}
+          echo "{{ hostvars[host].private_ip }} {{ groups['redpanda'].index(host) }}" >> /mnt/vectorized/redpanda.nodes
+          {% endfor %}
+          rm -rf /mnt/vectorized/client.nodes
+          {% for host in groups['client'] %}
+          echo "{{ hostvars[host].private_ip }} {{ groups['client'].index(host) }}" >> /mnt/vectorized/client.nodes
+          {% endfor %}
+
+- name: copy control scripts
+  hosts: redpanda:client
+  tasks:
+    - name: copy control scripts
+      copy:
+        src: control
+        dest: /mnt/vectorized/
+        owner: ubuntu
+        group: ubuntu
+    - name: Changing perm of "redpanda.start.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/redpanda.start.sh mode=a+x
+    - name: Changing perm of "redpanda.alive.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/redpanda.alive.sh mode=a+x
+    - name: Changing perm of "redpanda.stop.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/redpanda.stop.sh mode=a+x
+    - name: Changing perm of "writing.kafka-clients.start.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.kafka-clients.start.sh mode=a+x
+    - name: Changing perm of "writing.kafka-clients.alive.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.kafka-clients.alive.sh mode=a+x
+    - name: Changing perm of "writing.kafka-clients.stop.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.kafka-clients.stop.sh mode=a+x
+    - name: Changing perm of "writing.confluent-kafka.start.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.confluent-kafka.start.sh mode=a+x
+    - name: Changing perm of "writing.confluent-kafka.alive.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.confluent-kafka.alive.sh mode=a+x
+    - name: Changing perm of "writing.confluent-kafka.stop.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/writing.confluent-kafka.stop.sh mode=a+x
+    - name: Changing perm of "redpanda.clean.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/redpanda.clean.sh mode=a+x
+    - name: Changing perm of "network.isolate.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/network.isolate.sh mode=a+x
+    - name: Changing perm of "network.heal.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/network.heal.sh mode=a+x
+    - name: Changing perm of "network.heal.all.sh", adding "+x"
+      file: dest=/mnt/vectorized/control/network.heal.all.sh mode=a+x
+
+- name: install redpanda
+  hosts: redpanda:client:control
+  vars:
+    deb_path: "{{ lookup('env', 'DEB_PATH') }}"
+    deb_name: "{{ deb_path | basename }}"
+  tasks:
+    - name: copy deb
+      copy:
+        src: "{{ deb_path }}"
+        dest: /mnt/vectorized/{{ deb_name }}
+    - name: install deb
+      become_user: root
+      shell: |
+        dpkg --force-confold -i /mnt/vectorized/{{ deb_name }}
+    - name: disable redpanda systemd service
+      systemd:
+        name: redpanda
+        state: stopped
+        enabled: no
+
+- name: configure redpanda
+  hosts: redpanda
+  tasks:
+    - name: create redpanda data dir
+      file:
+        state: directory
+        path: /mnt/vectorized/redpanda/data
+        owner: ubuntu
+        group: ubuntu
+    - name: create redpanda coredump dir
+      file:
+        state: directory
+        path: /mnt/vectorized/redpanda/coredump
+        owner: ubuntu
+        group: ubuntu
+    - name: configure redpanda
+      shell: |
+        {% if hostvars[groups['redpanda'][0]].id == hostvars[inventory_hostname].id %}
+        rpk config bootstrap \
+        --id {{ groups['redpanda'].index(inventory_hostname) }} \
+        --self {{ hostvars[inventory_hostname].private_ip }}
+        {% else %}
+        rpk config bootstrap \
+        --id {{ groups['redpanda'].index(inventory_hostname) }} \
+        --self {{ hostvars[inventory_hostname].private_ip }} \
+        --ips {{ hostvars[groups['redpanda'][0]].private_ip }}
+        {% endif %}
+        rpk config set redpanda.default_topic_partitions 1
+        rpk config set redpanda.default_topic_replications 3
+        rpk config set redpanda.transaction_coordinator_replication 3
+        rpk config set redpanda.id_allocator_replication 3
+        rpk config set redpanda.enable_leader_balancer false
+        rpk config set redpanda.enable_auto_rebalance_on_node_add false
+        rpk config set redpanda.enable_idempotence true
+        rpk config set redpanda.enable_transactions true
+        rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data"
+        rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump"
+        rpk redpanda mode production
+        rpk redpanda tune all
+
+- name: upload ssh keys
+  hosts: control
+  tasks:
+    - name: check .ssh dir exists
+      file:
+        path: /home/ubuntu/.ssh
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: 0700
+    - name: copy keys
+      copy:
+        src: ~/.ssh/id_ed25519
+        dest: /home/ubuntu/.ssh/id_ed25519
+        owner: ubuntu
+        group: ubuntu
+        mode: 0600
+    - name: add redpanda nodes to known hosts
+      shell: |
+        {% for host in groups['redpanda'] %}
+        ssh-keyscan {{ hostvars[host].private_ip }} >> /home/ubuntu/.ssh/known_hosts
+        {% endfor %}
+    - name: add client nodes to known hosts
+      shell: |
+        {% for host in groups['client'] %}
+        ssh-keyscan {{ hostvars[host].private_ip }} >> /home/ubuntu/.ssh/known_hosts
+        {% endfor %}
+
+- name: install client dependencies
+  hosts: client
+  tasks:
+    - name: install pip
+      package: 
+        name: python3-pip
+        state: present
+        update_cache: yes
+    - name: add pip dependencies
+      become_user: root
+      shell: |
+        pip3 install sh
+        pip3 install flask
+        pip3 install confluent_kafka
+    - name: install java
+      package: 
+        name: openjdk-11-jdk
+        state: present
+        update_cache: yes
+    - name: install maven
+      package: 
+        name: maven
+        state: present
+        update_cache: yes
+
+- name: install control dependencies
+  hosts: control
+  tasks:
+    - name: install pip
+      package: 
+        name: python3-pip
+        state: present
+        update_cache: yes
+    - name: add pip dependencies
+      become_user: root
+      shell: |
+        pip3 install sh
+        pip3 install flask
+        pip3 install confluent_kafka
+    - name: install gnuplot
+      package: 
+        name: gnuplot
+        state: present
+        update_cache: yes
+    - name: create experiments dir
+      file:
+        state: directory
+        path: /mnt/vectorized/experiments
+        owner: ubuntu
+        group: ubuntu
+        recurse: true
+    - name: create faults dir
+      file:
+        state: directory
+        path: /mnt/vectorized/faults
+        owner: ubuntu
+        group: ubuntu
+        recurse: true
+    - name: copy chaos harness
+      copy:
+        src: harness
+        dest: /mnt/vectorized/
+        owner: ubuntu
+        group: ubuntu
+        mode: 0600
+    - name: copy test suite config
+      copy:
+        src: suites
+        dest: /mnt/vectorized/
+        owner: ubuntu
+        group: ubuntu
+        mode: 0600
+
+- name: preparing workload
+  hosts: client:control
+  tasks:
+    - name: creating workload dir
+      file:
+        path: /mnt/vectorized/workloads
+        owner: ubuntu
+        group: ubuntu
+        state: directory
+        recurse: true
+    - name: copy workload/writing
+      copy:
+        src: workloads/writing
+        dest: /mnt/vectorized/workloads
+        owner: ubuntu
+        group: ubuntu
+        mode: 0600
+
+- name: building workload
+  hosts: client
+  tasks:
+    - name: create workloads/logs dir
+      file:
+        state: directory
+        path: /mnt/vectorized/workloads/logs
+        owner: ubuntu
+        group: ubuntu
+        recurse: true
+    - name: build writing/app
+      shell: |
+        cd /mnt/vectorized/workloads/writing/kafka-clients
+        mvn clean dependency:copy-dependencies package

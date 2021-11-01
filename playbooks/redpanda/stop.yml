@@ -1,0 +1,5 @@
+- name: stopping redpanda
+  hosts: redpanda
+  tasks:
+    - shell: |
+        /mnt/vectorized/control/redpanda.stop.sh

@@ -1,0 +1,13 @@
+- name: download
+  hosts: control
+  tasks:
+    - name: archive experiments
+      become_user: ubuntu
+      shell: |
+        cd /mnt/vectorized
+        tar -czf /mnt/vectorized/experiments.tar.gz /mnt/vectorized/experiments
+    - name: download
+      become_user: ubuntu
+      fetch:
+        src: /mnt/vectorized/experiments.tar.gz
+        dest: experiments

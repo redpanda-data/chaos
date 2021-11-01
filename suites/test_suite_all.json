@@ -1,0 +1,19 @@
+{
+    "name": "all",
+    "tests": [
+        "writing_kafka_clients/baseline.json",
+        "writing_kafka_clients/isolate_controller.json",
+        "writing_kafka_clients/isolate_follower.json",
+        "writing_kafka_clients/isolate_leader.json",
+        "writing_kafka_clients/kill_follower.json",
+        "writing_kafka_clients/kill_leader.json",
+        "writing_kafka_clients/leadership_transfer.json",
+        "writing_confluent_kafka/baseline.json",
+        "writing_confluent_kafka/isolate_controller.json",
+        "writing_confluent_kafka/isolate_follower.json",
+        "writing_confluent_kafka/isolate_leader.json",
+        "writing_confluent_kafka/kill_follower.json",
+        "writing_confluent_kafka/kill_leader.json",
+        "writing_confluent_kafka/leadership_transfer.json"
+    ]
+}

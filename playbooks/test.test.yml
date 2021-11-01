@@ -1,0 +1,13 @@
+- name: run chaos testing test
+  hosts: control
+  vars:
+    test_path: "writing_kafka_clients/baseline.json"
+    repeat: 1
+  tasks:
+    - become_user: ubuntu
+      shell: |
+        now=$(date +"%s")
+        python3 /mnt/vectorized/harness/test.test.py --run_id $now --test /mnt/vectorized/suites/tests/{{ test_path }} --repeat {{ repeat }} > /mnt/vectorized/experiments/latest.log 2>&1
+        rm /mnt/vectorized/experiments/latest.log
+      async: 3600
+      poll: 10

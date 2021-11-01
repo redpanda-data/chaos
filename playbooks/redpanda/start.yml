@@ -1,0 +1,5 @@
+- name: starting redpanda
+  hosts: redpanda
+  tasks:
+    - shell: |
+        /mnt/vectorized/control/redpanda.start.sh
