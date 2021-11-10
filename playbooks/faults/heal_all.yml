@@ -1,7 +1,0 @@
-- name: healing all faults
-  hosts: redpanda
-  tasks:
-    - name: healing all faults
-      become_user: ubuntu
-      shell: |
-        /mnt/vectorized/control/network.heal.all.sh

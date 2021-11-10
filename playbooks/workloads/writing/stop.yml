@@ -1,7 +1,0 @@
-- name: stopping / analyzing workload
-  hosts: control
-  tasks:
-    - name: stopping the workload
-      become_user: ubuntu
-      shell: |
-        python3 /mnt/vectorized/tests/workload.stop.py
