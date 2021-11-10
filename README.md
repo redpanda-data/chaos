@@ -1,4 +1,4 @@
-Set `DEB_PATH` with path to the redpanda deb package
+Set `DEB_PATH` with path to the redpanda deb package (build redpanda with `task rp:build` then assemble .deb package with `task rp:build-pkg PKG_FORMATS=deb`; usually it is assembled to `vbuild/release/clang/dist/debian/redpanda_0.0-dev-0000000_amd64.deb`)
 
 ## Test on AWS (terraform & ansible)
 
