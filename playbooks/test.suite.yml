@@ -8,6 +8,6 @@
       shell: |
         now=$(date +"%s")
         python3 /mnt/vectorized/harness/test.suite.py --run_id $now --suite /mnt/vectorized/suites/{{ suite_path }} --repeat {{ repeat }} > /mnt/vectorized/experiments/latest.log 2>&1
-        rm /mnt/vectorized/experiments/latest.log
+        rm -f /mnt/vectorized/experiments/latest.log
       async: 21600
       poll: 10
