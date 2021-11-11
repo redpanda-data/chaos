@@ -28,14 +28,14 @@ class IsolateControllerFault:
         controller_leader = None
         while controller_leader == None:
             logger.debug("getting controller leader")
-            controller_leader = scenario.redpanda_cluster.get_leader("controller", 3, 0, namespace="redpanda")
+            controller_leader = scenario.redpanda_cluster.get_leader("controller", 0, namespace="redpanda")
             if controller_leader == None:
                 sleep(1)
         logger.debug(f"controller leader: {controller_leader}")
         
         leader = None
         while leader == None:
-            leader = scenario.redpanda_cluster.get_leader(scenario.topic, scenario.replication, scenario.partition)
+            leader = scenario.redpanda_cluster.get_leader(scenario.topic, scenario.partition)
             if leader == None:
                 sleep(1)
         logger.debug("leader: " + leader)

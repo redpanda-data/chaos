@@ -86,7 +86,7 @@ class SingleTopicSingleFault:
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
         # waiting for the controller before creating a topic
-        self.redpanda_cluster.wait_leader("controller", 3, 0, "redpanda", timeout_s=20)
+        self.redpanda_cluster.wait_leader("controller", 0, "redpanda", replication=3, timeout_s=20)
 
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
         self.redpanda_cluster.create_topic(self.topic, self.replication, self.partition+1)
@@ -112,17 +112,16 @@ class SingleTopicSingleFault:
             logger.info(f"warming up for 20s")
             sleep(20)
             
-            topic_leader = self.redpanda_cluster.wait_leader(self.topic, self.replication, self.partition, timeout_s=10)
+            topic_leader = self.redpanda_cluster.wait_leader(self.topic, self.partition, timeout_s=10)
             logger.debug(f"leader of \"{self.topic}\": {topic_leader.ip} (id={topic_leader.id})")
             
-            # todo: do not use replication in get_leader requests
-            controller_leader = self.redpanda_cluster.wait_leader("controller", 3, 0, "redpanda", timeout_s=10)
+            controller_leader = self.redpanda_cluster.wait_leader("controller", 0, "redpanda", timeout_s=10)
             logger.debug(f"controller leader: {controller_leader.ip} (id={controller_leader.id})")
 
             if topic_leader == controller_leader:
                 target = self.redpanda_cluster.any_node_but(controller_leader)
-                self.redpanda_cluster.transfer_leadership_to(target, "kafka", self.topic, self.partition, self.replication)
-                self.redpanda_cluster.wait_leader_is(target, "kafka", self.topic, self.partition, self.replication, timeout_s=10)
+                self.redpanda_cluster.transfer_leadership_to(target, "kafka", self.topic, self.partition)
+                self.redpanda_cluster.wait_leader_is(target, "kafka", self.topic, self.partition, timeout_s=10)
                 continue
             
             break
