@@ -9,11 +9,16 @@ import spark.*;
 // java -cp $(pwd)/target/tx-performance-1.0-SNAPSHOT.jar:$(pwd)/target/dependency/* io.vectorized.App
 public class App
 {
-    public static class Params {
+    public static class WorkflowSettings {
+        public int concurrency;
+    }
+    
+    public static class InitBody {
         public String experiment;
         public String server;
         public String brokers;
         public String topic;
+        public WorkflowSettings settings;
     }
 
     public static class Info {
@@ -39,7 +44,8 @@ public class App
     }
 
     State state = State.FRESH;
-    Params params = null;
+    
+    InitBody params = null;
     Workload workload = null;
 
     void run() throws Exception {
@@ -70,7 +76,8 @@ public class App
             state = State.INITIALIZED;
 
             Gson gson = new Gson();
-            params = gson.fromJson(req.body(), Params.class);
+            
+            params = gson.fromJson(req.body(), InitBody.class);
             File root = new File(params.experiment);
 
             if (!root.mkdir()) {

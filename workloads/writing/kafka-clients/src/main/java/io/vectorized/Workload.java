@@ -11,6 +11,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.util.ArrayList;
 
 public class Workload {
     public volatile long succeeded_writes = 0;
@@ -18,13 +19,18 @@ public class Workload {
     public volatile long timedout_writes = 0;
     public volatile boolean is_active = false;
     
-    private volatile App.Params args;
-    private volatile Thread thread;
+    private volatile App.InitBody args;
+    private volatile ArrayList<Thread> threads;
     private BufferedWriter opslog;
     private long past_us;
     private long before_us = -1;
+    private long last_op = 0;
 
-    public Workload(App.Params args) {
+    synchronized long get_op() {
+        return ++this.last_op;
+    }
+
+    public Workload(App.InitBody args) {
         this.args = args;
     }
 
@@ -38,20 +44,30 @@ public class Workload {
         is_active = true;
         past_us = 0;
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
-        thread = new Thread(() -> { 
-            try {
-                process(0);
-            } catch(Exception e) {
-                System.out.println(e);
-                e.printStackTrace();
-            }
-        });
-        thread.start();
+        
+        threads = new ArrayList<>();
+        for (int i=0;i<this.args.settings.concurrency;i++) {
+            final var j=i;
+            threads.add(new Thread(() -> { 
+                try {
+                    process(j);
+                } catch(Exception e) {
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
+            }));
+        }
+        
+        for (var th : threads) {
+            th.start();
+        }
     }
 
     public void stop() throws Exception {
         is_active = false;
-        thread.join();
+        for (var th : threads) {
+            th.join();
+        }
         if (opslog != null) {
             opslog.flush();
             opslog.close();
@@ -105,12 +121,11 @@ public class Workload {
 
 
         Producer<String, String> producer = null;
-        long op = 0;
 
         log(thread_id, "started\t" + args.server);
 
         while (is_active) {
-            op++;
+            long op = get_op();
             
             try {
                 if (producer == null) {

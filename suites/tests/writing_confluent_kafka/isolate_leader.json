@@ -6,7 +6,10 @@
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
-        ]
+        ],
+        "settings": {
+            "concurrency": 1
+        }
     },
     "fault": "isolate_leader",
     "checks": [

@@ -1,7 +1,8 @@
 import sys
 import os.path
-from chaos.workloads.writing_analysis import consistency
-from chaos.workloads.writing_analysis import stat
+import json
+from chaos.workloads.writing import consistency
+from chaos.workloads.writing import stat
 
 check_type = sys.argv[1]
 config_filename = sys.argv[2]

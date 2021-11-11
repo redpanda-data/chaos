@@ -98,7 +98,7 @@ class SingleTopicSingleFault:
 
         for node in workload_cluster.nodes:
             logger.info(f"init workload with brokers=\"{self.redpanda_cluster.brokers()}\" and topic=\"{self.topic}\" on {node.ip}")
-            workload_cluster.init(node, node.ip, self.redpanda_cluster.brokers(), self.topic, experiment_id)
+            workload_cluster.init(node, node.ip, self.redpanda_cluster.brokers(), self.topic, experiment_id, self.config["workload"]["settings"])
 
         for node in workload_cluster.nodes:
             logger.info(f"starting workload on {node.ip}")

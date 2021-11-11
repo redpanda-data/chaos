@@ -189,8 +189,8 @@ def collect(config, workload_dir):
                 throughput_bucket.time_us += 1000000
 
         with open("workload.log", "r") as workload_file:
-            op_start = None
-            attempt_start = None
+            op_starts = {}
+            attempt_starts = {}
 
             for line in workload_file:
                 parts = line.rstrip().split('\t')
@@ -198,6 +198,10 @@ def collect(config, workload_dir):
                 thread_id = int(parts[0])
                 if thread_id not in last_state:
                     last_state[thread_id] = State.INIT
+                if thread_id not in op_starts:
+                    op_starts[thread_id] = None
+                if thread_id not in attempt_starts:
+                    attempt_starts[thread_id] = None
 
                 if parts[2] not in cmds:
                     raise Exception(f"unknown cmd \"{parts[2]}\"")
@@ -221,11 +225,11 @@ def collect(config, workload_dir):
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
-                    attempt_start = last_time + delta_us
-                    tick(attempt_start, throughput_history)
-                    if op_start == None:
-                        op_start = attempt_start
-                    last_time = attempt_start
+                    attempt_starts[thread_id] = last_time + delta_us
+                    tick(attempt_starts[thread_id], throughput_history)
+                    if op_starts[thread_id] == None:
+                        op_starts[thread_id] = attempt_starts[thread_id]
+                    last_time = attempt_starts[thread_id]
                 elif new_state == State.CONSTRUCTED:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -234,19 +238,19 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     throughput_bucket.count+=1
                     last_time = end
-                    op_start = None
+                    op_starts[thread_id] = None
                     if should_measure:
-                        availability_history.append([int((op_start-started)/1000), end-op_start])
-                        latency_ok_history.append([int((end-started)/1000), end-attempt_start])
+                        availability_history.append([int((op_starts[thread_id]-started)/1000), end-op_starts[thread_id]])
+                        latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
                 elif new_state == State.SENDING:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
-                    attempt_start = last_time + delta_us
-                    tick(attempt_start, throughput_history)
-                    if op_start == None:
-                        op_start = attempt_start
-                    last_time = attempt_start
+                    attempt_starts[thread_id] = last_time + delta_us
+                    tick(attempt_starts[thread_id], throughput_history)
+                    if op_starts[thread_id] == None:
+                        op_starts[thread_id] = attempt_starts[thread_id]
+                    last_time = attempt_starts[thread_id]
                 elif new_state == State.OK:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -256,9 +260,9 @@ def collect(config, workload_dir):
                     throughput_bucket.count+=1
                     last_time = end
                     if should_measure:
-                        availability_history.append([int((op_start-started)/1000), end-op_start])
-                        latency_ok_history.append([int((end-started)/1000), end-attempt_start])
-                    op_start = None
+                        availability_history.append([int((op_starts[thread_id]-started)/1000), end-op_starts[thread_id]])
+                        latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
+                    op_starts[thread_id] = None
                 elif new_state == State.ERROR:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -267,7 +271,7 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     last_time = end
                     if should_measure:
-                        latency_err_history.append([int((end-started)/1000), end-attempt_start])
+                        latency_err_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
                 elif new_state == State.TIMEOUT:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -276,7 +280,7 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     last_time = end
                     if should_measure:
-                        latency_timeout_history.append([int((end-started)/1000), end-attempt_start])
+                        latency_timeout_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
                 elif new_state == State.EVENT:
                     ts_us = None
                     if last_time == None:

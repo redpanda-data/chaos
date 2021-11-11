@@ -68,6 +68,7 @@ class Params:
         self.server = cfg["server"]
         self.brokers = cfg["brokers"]
         self.topic = cfg["topic"]
+        self.settings = cfg["settings"]
 
 class Workload:
     def __init__(self, args):
@@ -80,15 +81,28 @@ class Workload:
         self.mutex = Lock()
         self.opslog = None
         self.past_us = 0
+        self.last_op = 0
     
+    def get_op(self):
+        op = None
+        self.mutex.acquire()
+        op = self.last_op
+        self.last_op += 1
+        self.mutex.release()
+        return op
+
     def start(self):
         mkdir("-p", os.path.join(self.args.experiment, self.args.server))
         
         self.is_active = True
         self.opslog = open(os.path.join(self.args.experiment, self.args.server, "workload.log"), "w")
-        thread = threading.Thread(target=lambda: self.process(0))
-        thread.start()
-        self.threads.append(thread)
+        
+        for i in range(0, self.args.settings["concurrency"]):
+            thread = threading.Thread(target=lambda i=i: self.process(i))
+            self.threads.append(thread)
+        
+        for thread in self.threads:
+            thread.start()
     
     def stop(self):
         self.is_active = False
@@ -110,15 +124,11 @@ class Workload:
     
     def process(self, thread_id):
         client = SyncClient(self.args.brokers)
-        tick = time.time()
-        started = tick
-        count = 0
-        op = 0
 
         self.log(thread_id, f"started\t{self.args.server}")
 
         while self.is_active:
-            op+=1
+            op = self.get_op()
 
             try:
                 if client.producer == None:
@@ -142,12 +152,6 @@ class Workload:
                 offset = result["offset"]
                 self.log(thread_id, f"ok\t{offset}")
                 self.succeeded_ops += 1
-                count += 1
-                now = time.time()
-                if now - tick > 1:
-                    print(f"{int(now-started)}\t{count}")
-                    tick = now
-                    count = 0
             except KafkaException as err:
                 code = err.args[0].code()
                 if code == KafkaError._MSG_TIMED_OUT:
