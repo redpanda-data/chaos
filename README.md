@@ -1,3 +1,5 @@
+# How to use chaos testing
+
 Set `DEB_PATH` with path to the redpanda deb package (build redpanda with `task rp:build` then assemble .deb package with `task rp:build-pkg PKG_FORMATS=deb`; usually it is assembled to `vbuild/release/clang/dist/debian/redpanda_0.0-dev-0000000_amd64.deb`)
 
 ## Test on AWS (terraform & ansible)
@@ -59,3 +61,7 @@ Run a specific test:
 Copy test & redpanda logs (find them in the `results` folder):
 
     ./fetch.docker.logs.sh
+
+# Dev help
+
+[Example](https://github.com/vectorizedio/chaos/pull/1) of adding new workload (writing sub-workflow)
