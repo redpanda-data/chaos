@@ -1,6 +1,7 @@
 {
     "name": "all",
     "tests": [
+        "writing_list_offsets/isolate_leader.json",
         "writing_kafka_clients/baseline.json",
         "writing_kafka_clients/isolate_controller.json",
         "writing_kafka_clients/isolate_follower.json",

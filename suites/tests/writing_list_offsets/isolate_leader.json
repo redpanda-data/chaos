@@ -1,0 +1,18 @@
+{
+    "name": "writing / list-offsets / isolate leader",
+    "scenario": "single_table_single_fault",
+    "workload": {
+        "name": "writing / list-offsets",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 1
+        }
+    },
+    "fault": "isolate_leader",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
