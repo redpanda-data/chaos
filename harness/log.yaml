@@ -13,6 +13,14 @@ loggers:
     level: DEBUG
     handlers: [console]
     propagate: no
+  consistency:
+    level: DEBUG
+    handlers: []
+    propagate: no
+  stat:
+    level: DEBUG
+    handlers: []
+    propagate: no
 root:
   level: WARNING
   handlers: [console]

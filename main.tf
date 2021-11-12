@@ -17,7 +17,7 @@ resource "aws_vpc" "chaos_vpc" {
   cidr_block = "10.0.0.0/16"
 
   tags = {
-    Name = "rystsov-chaos"
+    Name = "chaos"
   }
 }
 
@@ -40,7 +40,7 @@ resource "aws_subnet" "chaos_subnet" {
 /////////////////////////////
 
 resource "aws_security_group" "redpanda_kafka" {
-    name = "rystsov-redpanda-security"
+    name = "chaos-redpanda-security"
     vpc_id = aws_vpc.chaos_vpc.id
 
     ingress {
@@ -67,7 +67,7 @@ resource "aws_security_group" "redpanda_kafka" {
 }
 
 resource "aws_key_pair" "ssh" {
-  key_name   = "rystsov-key"
+  key_name   = "chaos-key"
   public_key = file(var.public_key_path)
 }
 
@@ -81,7 +81,7 @@ resource "aws_instance" "redpanda" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "rystsov-redpanda"
+      Name = "chaos-redpanda"
   }
 
   connection {
@@ -101,7 +101,7 @@ resource "aws_instance" "client" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "rystsov-client"
+      Name = "chaos-client"
   }
 
   connection {
@@ -121,7 +121,7 @@ resource "aws_instance" "control" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "rystsov-client"
+      Name = "chaos-client"
   }
 
   connection {
