@@ -5,21 +5,11 @@ from sh import mkdir
 import traceback
 from confluent_kafka import Consumer, TopicPartition, OFFSET_BEGINNING
 from chaos.checks.result import Result
+from chaos.workloads.writing.log_utils import State, cmds, transitions, phantoms
 import logging
 import os
 
 logger = logging.getLogger("consistency")
-
-class State(Enum):
-    INIT = 0
-    STARTED = 1
-    CONSTRUCTING = 2
-    CONSTRUCTED = 3
-    SENDING = 4
-    OK = 5
-    ERROR = 6
-    TIMEOUT = 7
-    EVENT = 8
 
 class Write:
     def __init__(self):
@@ -29,29 +19,6 @@ class Write:
         self.started = None
         self.finished = None
         self.max_offset = None
-
-cmds = {
-    "started": State.STARTED,
-    "constructing": State.CONSTRUCTING,
-    "constructed": State.CONSTRUCTED,
-    "msg": State.SENDING,
-    "ok": State.OK,
-    "err": State.ERROR,
-    "time": State.TIMEOUT,
-    "event": State.EVENT
-}
-
-transitions = {
-    State.INIT: [State.STARTED, State.EVENT],
-    State.EVENT: [State.EVENT],
-    State.STARTED: [State.CONSTRUCTING],
-    State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
-    State.CONSTRUCTED: [State.SENDING],
-    State.SENDING: [State.OK, State.ERROR, State.TIMEOUT],
-    State.OK: [State.SENDING],
-    State.ERROR: [State.SENDING, State.CONSTRUCTING],
-    State.TIMEOUT: [State.SENDING]
-}
 
 def validate(config, workload_dir):
     logger.setLevel(logging.DEBUG)
@@ -86,9 +53,10 @@ def validate(config, workload_dir):
                     raise Exception(f"unknown cmd \"{parts[2]}\"")
                 new_state = cmds[parts[2]]
 
-                if new_state not in transitions[last_state[thread_id]]:
-                    raise Exception(f"unknown transition {last_state[thread_id]} -> {new_state}")
-                last_state[thread_id] = new_state
+                if new_state not in phantoms:
+                    if new_state not in transitions[last_state[thread_id]]:
+                        raise Exception(f"unknown transition {last_state[thread_id]} -> {new_state}")
+                    last_state[thread_id] = new_state
 
                 if new_state == State.STARTED:
                     ts_us = None
@@ -153,6 +121,11 @@ def validate(config, workload_dir):
                     err_writes[write.op] = write
                 elif new_state == State.EVENT:
                     pass
+                elif new_state == State.VIOLATION:
+                    parts = line.rstrip().split('\t', 3)
+                    msg = parts[3]
+                    has_violation = True
+                    logger.error(msg)
                 else:
                     raise Exception(f"unknown state: {new_state}")
 

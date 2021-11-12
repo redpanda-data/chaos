@@ -1,4 +1,3 @@
-from enum import Enum
 from sh import gnuplot, rm, cd
 import jinja2
 import sys
@@ -6,6 +5,7 @@ import traceback
 import json
 import os
 from chaos.checks.result import Result
+from chaos.workloads.writing.log_utils import State, cmds, transitions, phantoms
 import logging
 
 logger = logging.getLogger("stat")
@@ -101,44 +101,10 @@ plot 'throughput.log' using ($1/1000):2 title "throughput (1s)" with line lt rgb
 unset multiplot
 """
 
-class State(Enum):
-    INIT = 0
-    STARTED = 1
-    CONSTRUCTING = 2
-    CONSTRUCTED = 3
-    SENDING = 4
-    OK = 5
-    ERROR = 6
-    TIMEOUT = 7
-    EVENT = 8
-
 class Throughput:
     def __init__(self):
         self.count = 0
         self.time_us = 0
-
-cmds = {
-    "started": State.STARTED,
-    "constructing": State.CONSTRUCTING,
-    "constructed": State.CONSTRUCTED,
-    "msg": State.SENDING,
-    "ok": State.OK,
-    "err": State.ERROR,
-    "time": State.TIMEOUT,
-    "event": State.EVENT
-}
-
-transitions = {
-    State.INIT: [State.STARTED, State.EVENT],
-    State.EVENT: [State.EVENT],
-    State.STARTED: [State.CONSTRUCTING],
-    State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
-    State.CONSTRUCTED: [State.SENDING],
-    State.SENDING: [State.OK, State.ERROR, State.TIMEOUT],
-    State.OK: [State.SENDING],
-    State.ERROR: [State.SENDING, State.CONSTRUCTING],
-    State.TIMEOUT: [State.SENDING]
-}
 
 def collect(config, workload_dir):
     logger.setLevel(logging.DEBUG)
@@ -207,9 +173,10 @@ def collect(config, workload_dir):
                     raise Exception(f"unknown cmd \"{parts[2]}\"")
                 new_state = cmds[parts[2]]
 
-                if new_state not in transitions[last_state[thread_id]]:
-                    raise Exception(f"unknown transition {last_state[thread_id]} -> {new_state}")
-                last_state[thread_id] = new_state
+                if new_state not in phantoms:
+                    if new_state not in transitions[last_state[thread_id]]:
+                        raise Exception(f"unknown transition {last_state[thread_id]} -> {new_state}")
+                    last_state[thread_id] = new_state
 
                 if new_state == State.STARTED:
                     ts_us = None
@@ -300,6 +267,8 @@ def collect(config, workload_dir):
                             faults.append(int((ts_us - started)/1000))
                         elif name=="healed":
                             recoveries.append(int((ts_us - started)/1000))
+                elif new_state == State.VIOLATION:
+                    pass
                 else:
                     raise Exception(f"unknown state: {new_state}")
 
