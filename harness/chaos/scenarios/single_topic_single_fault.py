@@ -10,6 +10,7 @@ import time
 import requests
 from chaos.checks.all import CHECKS
 from chaos.faults.all import FAULTS
+from chaos.faults.types import FaultType
 from chaos.workloads.all import WORKLOADS, wait_all_workloads_killed
 from time import sleep
 from chaos.checks.result import Result
@@ -137,7 +138,7 @@ class SingleTopicSingleFault:
         if fault == None:
             logger.info(f"wait for 180 seconds to record steady state")
             sleep(180)
-        elif fault.fault_type=="RECOVERABLE":
+        elif fault.fault_type==FaultType.RECOVERABLE:
             logger.info(f"wait for 60 seconds to record steady state")
             sleep(60)
             for node in workload_cluster.nodes:
@@ -158,7 +159,7 @@ class SingleTopicSingleFault:
                 workload_cluster.emit_event(node, "healed")
             logger.info(f"wait for 60 seconds to record recovering state")
             sleep(60)
-        elif fault.fault_type=="ONEOFF":
+        elif fault.fault_type==FaultType.ONEOFF:
             logger.info(f"wait for 60 seconds to record steady state")
             sleep(60)
             for node in workload_cluster.nodes:
@@ -170,6 +171,8 @@ class SingleTopicSingleFault:
                 workload_cluster.emit_event(node, "healed")
             logger.info(f"wait for 120 seconds to record impacted / recovering state")
             sleep(120)
+        else:
+            raise Exception(f"Unknown fault type {fault.fault_type}")
 
         logger.info(f"stopping workload everywhere")
         workload_cluster.stop_everywhere()

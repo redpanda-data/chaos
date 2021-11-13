@@ -1,0 +1,3 @@
+class FaultType:
+    RECOVERABLE = "RECOVERABLE"
+    ONEOFF = "ONEOFF"

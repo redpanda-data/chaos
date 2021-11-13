@@ -1,11 +1,12 @@
 from time import sleep
 import logging
+from chaos.faults.types import FaultType
 
 logger = logging.getLogger("chaos")
 
 class LeadershipTransferFault:
     def __init__(self):
-        self.fault_type = "ONEOFF"
+        self.fault_type = FaultType.ONEOFF
         self.name = "leadership transfer"
 
     def execute(self, scenario):

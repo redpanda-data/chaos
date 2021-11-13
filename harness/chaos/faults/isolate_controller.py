@@ -1,12 +1,13 @@
 from time import sleep
 from sh import ssh
 import logging
+from chaos.faults.types import FaultType
 
 logger = logging.getLogger("chaos")
 
 class IsolateControllerFault:
     def __init__(self):
-        self.fault_type = "RECOVERABLE"
+        self.fault_type = FaultType.RECOVERABLE
         self.controller = None
         self.rest = []
         self.name = "isolate controller"

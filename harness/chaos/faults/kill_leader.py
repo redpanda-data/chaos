@@ -1,12 +1,13 @@
 from time import sleep
 from sh import ssh
 import logging
+from chaos.faults.types import FaultType
 
 logger = logging.getLogger("chaos")
 
 class KillLeaderFault:
     def __init__(self):
-        self.fault_type = "RECOVERABLE"
+        self.fault_type = FaultType.RECOVERABLE
         self.leader = None
         self.name = "kill a topic's leader"
 
