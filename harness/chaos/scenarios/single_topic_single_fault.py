@@ -27,7 +27,7 @@ SUPPORTED_WORKLOADS = {
 }
 
 SUPPORTED_FAULTS = [
-    "isolate_controller", "isolate_follower", "isolate_leader", "kill_follower", "kill_leader", "leadership_transfer", "baseline"
+    "isolate_controller", "isolate_follower", "isolate_leader", "kill_follower", "kill_leader", "leadership_transfer", "baseline", "reconfigure_11_kill"
 ]
 
 SUPPORTED_CHECKS = [
