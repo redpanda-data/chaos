@@ -8,31 +8,17 @@ class IsolateLeaderFault:
     def __init__(self):
         self.fault_type = "RECOVERABLE"
         self.leader = None
-        self.followers = None
+        self.rest = []
         self.name = "isolate leader"
     
-    def export(self):
-        return {
-            "leader": self.leader,
-            "followers": self.followers
-        }
-    
-    def load(self, data):
-        self.leader = data["leader"]
-        self.followers = data["followers"]
-
     def inject(self, scenario):
-        self.leader = None
-        self.followers = []
-        while self.leader == None:
-            self.leader = scenario.redpanda_cluster.get_leader(scenario.topic, scenario.partition)
-            if self.leader == None:
-                sleep(1)
-        logger.debug("leader: " + self.leader)
+        self.leader = scenario.redpanda_cluster.wait_leader(scenario.topic, partition=scenario.partition, timeout_s=10)
+        logger.debug(f"isolating {scenario.topic}'s leader: {self.leader.ip}")
+
         for node in scenario.redpanda_cluster.nodes:
-            if node.ip != self.leader:
-                self.followers.append(node.ip)
-        ssh("ubuntu@"+self.leader, "/mnt/vectorized/control/network.isolate.sh", *self.followers)
+            if node != self.leader:
+                self.rest.append(node.ip)
+        ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/network.isolate.sh", *self.rest)
     
     def heal(self, scenario):
-        ssh("ubuntu@"+self.leader, "/mnt/vectorized/control/network.heal.sh", *self.followers)
+        ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/network.heal.sh", *self.rest)

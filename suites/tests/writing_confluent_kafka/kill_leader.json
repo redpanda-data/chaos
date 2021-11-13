@@ -1,6 +1,8 @@
 {
     "name": "writing / confluent-kafka / kill leader",
     "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
     "workload": {
         "name": "writing / confluent-kafka",
         "checks": [

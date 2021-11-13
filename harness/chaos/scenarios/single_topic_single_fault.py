@@ -35,11 +35,11 @@ SUPPORTED_CHECKS = [
 
 class SingleTopicSingleFault:
     def __init__(self):
-        self.topic = "topic1"
-        self.replication = 3
-        self.partition = 0
         self.redpanda_cluster = None
         self.config = None
+        self.topic = None
+        self.partition = None
+        self.replication = None
     
     def validate(self, config):
         if config["workload"]["name"] not in SUPPORTED_WORKLOADS:
@@ -52,8 +52,10 @@ class SingleTopicSingleFault:
     
     def execute(self, config, experiment_id):
         self.config = copy.deepcopy(config)
+        self.topic = self.config["topic"]
+        self.replication = self.config["replication"]
+        self.partition = 0
         self.config["experiment_id"] = experiment_id
-        self.config["topic"] = self.topic
         self.config["result"] = Result.PASSED
         logger.info(f"starting experiment {self.config['name']} (id={experiment_id})")
         
@@ -85,11 +87,13 @@ class SingleTopicSingleFault:
         self.redpanda_cluster.launch_everywhere()
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
-        # waiting for the controller before creating a topic
-        self.redpanda_cluster.wait_leader("controller", 0, "redpanda", replication=3, timeout_s=20)
+        # waiting for the controller to be up before creating a topic
+        self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=3, timeout_s=20)
 
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
-        self.redpanda_cluster.create_topic(self.topic, self.replication, self.partition+1)
+        self.redpanda_cluster.create_topic(self.topic, self.replication, 1)
+        # waiting for the topic to come online
+        self.redpanda_cluster.wait_leader(self.topic, replication=self.replication, timeout_s=20)
 
         logger.info(f"launching workload service")
         workload_cluster.launch_everywhere()
@@ -112,16 +116,16 @@ class SingleTopicSingleFault:
             logger.info(f"warming up for 20s")
             sleep(20)
             
-            topic_leader = self.redpanda_cluster.wait_leader(self.topic, self.partition, timeout_s=10)
+            topic_leader = self.redpanda_cluster.wait_leader(self.topic, timeout_s=10)
             logger.debug(f"leader of \"{self.topic}\": {topic_leader.ip} (id={topic_leader.id})")
             
-            controller_leader = self.redpanda_cluster.wait_leader("controller", 0, "redpanda", timeout_s=10)
+            controller_leader = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
             logger.debug(f"controller leader: {controller_leader.ip} (id={controller_leader.id})")
 
             if topic_leader == controller_leader:
-                target = self.redpanda_cluster.any_node_but(controller_leader)
-                self.redpanda_cluster.transfer_leadership_to(target, "kafka", self.topic, self.partition)
-                self.redpanda_cluster.wait_leader_is(target, "kafka", self.topic, self.partition, timeout_s=10)
+                target = self.redpanda_cluster.any_node_but(topic_leader)
+                self.redpanda_cluster.transfer_leadership_to(target, "redpanda", "controller", 0)
+                self.redpanda_cluster.wait_leader_is(target, "redpanda", "controller", 0, timeout_s=10)
                 continue
             
             break

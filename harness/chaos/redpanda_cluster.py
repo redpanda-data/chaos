@@ -13,6 +13,11 @@ class RedpandaNode:
         self.ip = ip
         self.id = id
 
+class ReplicasInfo:
+    def __init__(self):
+        self.replicas = []
+        self.leader = None
+
 class TimeoutException(Exception):
     pass
 
@@ -85,12 +90,12 @@ class RedpandaCluster:
     def create_topic(self, topic, replication, partitions):
         ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions)
     
-    def get_leader(self, topic, partition=0, namespace="kafka", replication=None):
+    def get_replicas(self, topic, partition=0, namespace="kafka", replication=None):
         last_leader = -1
         replicas = None
         for node in self.nodes:
             ip = node.ip
-            logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" leader from {node.ip}")
+            logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" details from {node.ip}")
             meta = self.get_details(node, namespace, topic, partition)
             if meta == None:
                 return None
@@ -117,20 +122,26 @@ class RedpandaCluster:
                 return None
             if last_leader != meta["leader_id"]:
                 return None
+        info = ReplicasInfo()
         for node in self.nodes:
             if node.id==last_leader:
-                return node.ip
-        return None
+                info.leader = node
+            if node.id in replicas:
+                info.replicas.append(node)
+                del replicas[node.id]
+        if len(replicas) != 0:
+            raise Exception(f"Can't find replicas {','.join(replicas.keys())} in the cluster")
+        return info
     
-    def wait_leader(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
+    def wait_replicas(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
         begin = time.time()
-        topic_leader = None
-        while topic_leader == None:
+        info = None
+        while info == None:
             if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't find leader for {namespace}/{topic}/{partition} within {timeout_s} sec")
+                raise TimeoutException(f"can't fetch stable replicas for {namespace}/{topic}/{partition} within {timeout_s} sec")
             try:
-                topic_leader = self.get_leader(topic, partition, namespace, replication=replication)
-                if topic_leader == None:
+                info = self.get_replicas(topic, partition=partition, namespace=namespace, replication=replication)
+                if info == None:
                     sleep(1)
             except:
                 e, v = sys.exc_info()[:2]
@@ -139,10 +150,11 @@ class RedpandaCluster:
                 logger.error(v)
                 logger.error(trace)
                 sleep(1)
-        for node in self.nodes:
-            if node.ip == topic_leader:
-                return node
-        raise Exception(f"node {topic_leader} isn't part of the cluster")
+        return info
+    
+    def wait_leader(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
+        info = self.wait_replicas(topic, partition=partition, namespace=namespace, replication=replication, timeout_s=timeout_s)
+        return info.leader
     
     def wait_leader_is(self, target, namespace, topic, partition, timeout_s=10):
         begin = time.time()

@@ -1,6 +1,8 @@
 {
     "name": "writing / list-offsets / isolate leader",
     "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
     "workload": {
         "name": "writing / list-offsets",
         "checks": [

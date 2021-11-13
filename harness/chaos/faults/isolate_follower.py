@@ -10,49 +10,32 @@ class IsolateFollowerFault:
         self.follower = None
         self.rest = []
         self.name = "isolate follower"
-    
-    def export(self):
-        return {
-            "follower": self.follower,
-            "rest": self.rest
-        }
-    
-    def load(self, data):
-        self.follower = data["follower"]
-        self.rest = data["rest"]
 
     def inject(self, scenario):
+        controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
+        logger.debug(f"controller's leader: {controller.ip}")
+        
+        replicas_info = scenario.redpanda_cluster.wait_replicas(scenario.topic, partition=scenario.partition, timeout_s=10)
+        if len(replicas_info.replicas)==1:
+            raise Exception(f"topic {scenario.topic} has replication factor of 1: can't find a follower")
+
         self.follower = None
-        self.rest = []
+        for replica in replicas_info.replicas:
+            if replica == replicas_info.leader:
+                continue
+            if self.follower == None:
+                self.follower = replica
+            if replica != controller:
+                self.follower = replica
         
-        controller_leader = None
-        while controller_leader == None:
-            logger.debug("getting controller leader")
-            controller_leader = scenario.redpanda_cluster.get_leader("controller", 0, namespace="redpanda")
-            if controller_leader == None:
-                sleep(1)
-        logger.debug(f"controller leader: {controller_leader}")
-        
-        leader = None
-        while leader == None:
-            leader = scenario.redpanda_cluster.get_leader(scenario.topic, scenario.partition)
-            if leader == None:
-                sleep(1)
-        logger.debug("leader: " + leader)
-
-        if leader == controller_leader:
-            raise Exception(f"controller leader ({controller_leader}) can't match topic's leader ({leader})")
-
         for node in scenario.redpanda_cluster.nodes:
-            if self.follower != None:
-                self.rest.append(node.ip)
-            elif node.ip == leader:
-                self.rest.append(leader)
-            elif node.ip == controller_leader:
-                self.rest.append(controller_leader)
-            else:
-                self.follower = node.ip
-        ssh("ubuntu@"+self.follower, "/mnt/vectorized/control/network.isolate.sh", *self.rest)
+            if node == self.follower:
+                continue
+            self.rest.append(node.ip)
+        
+        logger.debug(f"isolating {scenario.topic}'s follower: {self.follower.ip}")
+
+        ssh("ubuntu@"+self.follower.ip, "/mnt/vectorized/control/network.isolate.sh", *self.rest)
     
     def heal(self, scenario):
-        ssh("ubuntu@"+self.follower, "/mnt/vectorized/control/network.heal.sh", *self.rest)
+        ssh("ubuntu@"+self.follower.ip, "/mnt/vectorized/control/network.heal.sh", *self.rest)

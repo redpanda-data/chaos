@@ -9,46 +9,26 @@ class KillFollowerFault:
         self.fault_type = "RECOVERABLE"
         self.follower = None
         self.name = "kill a topic's follower"
-    
-    def export(self):
-        return {
-            "follower": self.follower
-        }
-    
-    def load(self, data):
-        self.follower = data["follower"]
 
     def inject(self, scenario):
-        self.follower = None
+        controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
+        logger.debug(f"controller's leader: {controller.ip}")
         
-        controller_leader = None
-        while controller_leader == None:
-            logger.debug("getting controller leader")
-            controller_leader = scenario.redpanda_cluster.get_leader("controller", 0, namespace="redpanda")
-            if controller_leader == None:
-                sleep(1)
-        logger.debug(f"controller leader: {controller_leader}")
-        
-        leader = None
-        while leader == None:
-            leader = scenario.redpanda_cluster.get_leader(scenario.topic, scenario.partition)
-            if leader == None:
-                sleep(1)
-        logger.debug("leader: " + leader)
+        replicas_info = scenario.redpanda_cluster.wait_replicas(scenario.topic, partition=scenario.partition, timeout_s=10)
+        if len(replicas_info.replicas)==1:
+            raise Exception(f"topic {scenario.topic} has replication factor of 1: can't find a follower")
 
-        if leader == controller_leader:
-            raise Exception(f"controller leader ({controller_leader}) can't match topic's leader ({leader})")
+        self.follower = None
+        for replica in replicas_info.replicas:
+            if replica == replicas_info.leader:
+                continue
+            if self.follower == None:
+                self.follower = replica
+            if replica != controller:
+                self.follower = replica
         
-        for node in scenario.redpanda_cluster.nodes:
-            if node.ip == leader:
-                continue
-            elif node.ip == controller_leader:
-                continue
-            else:
-                self.follower = node.ip
-                break
-        logger.debug("follower: " + self.follower)
-        ssh("ubuntu@"+self.follower, "/mnt/vectorized/control/redpanda.stop.sh")
+        logger.debug(f"killing {scenario.topic}'s follower: {self.follower.ip}")
+        ssh("ubuntu@"+self.follower.ip, "/mnt/vectorized/control/redpanda.stop.sh")
     
     def heal(self, scenario):
-        ssh("ubuntu@"+self.follower, "/mnt/vectorized/control/redpanda.start.sh")
+        ssh("ubuntu@"+self.follower.ip, "/mnt/vectorized/control/redpanda.start.sh")
