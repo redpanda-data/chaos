@@ -5,6 +5,7 @@ from chaos.faults.kill_follower import KillFollowerFault
 from chaos.faults.kill_leader import KillLeaderFault
 from chaos.faults.leadership_transfer import LeadershipTransferFault
 from chaos.faults.reconfigure_11_kill import Reconfigure11KillFault
+from chaos.faults.reconfigure_313 import Reconfigure313Fault
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -13,5 +14,6 @@ FAULTS = {
     "kill_follower": KillFollowerFault,
     "kill_leader": KillLeaderFault,
     "leadership_transfer": LeadershipTransferFault,
-    "reconfigure_11_kill": Reconfigure11KillFault
+    "reconfigure_11_kill": Reconfigure11KillFault,
+    "reconfigure_313": Reconfigure313Fault
 }
