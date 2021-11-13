@@ -8,6 +8,10 @@ variable "private_key_path" {
   default     = "~/.ssh/id_ed25519"
 }
 
+variable "username" {
+  description = "Prefix for the created AWS resources"
+}
+
 provider "aws" {
   region = "us-west-2"
 }
@@ -17,7 +21,7 @@ resource "aws_vpc" "chaos_vpc" {
   cidr_block = "10.0.0.0/16"
 
   tags = {
-    Name = "chaos"
+    Name = "chaos-${var.username}"
   }
 }
 
@@ -40,7 +44,7 @@ resource "aws_subnet" "chaos_subnet" {
 /////////////////////////////
 
 resource "aws_security_group" "redpanda_kafka" {
-    name = "chaos-redpanda-security"
+    name = "chaos-${var.username}-security"
     vpc_id = aws_vpc.chaos_vpc.id
 
     ingress {
@@ -67,7 +71,7 @@ resource "aws_security_group" "redpanda_kafka" {
 }
 
 resource "aws_key_pair" "ssh" {
-  key_name   = "chaos-key"
+  key_name   = "chaos-${var.username}-key"
   public_key = file(var.public_key_path)
 }
 
@@ -81,7 +85,7 @@ resource "aws_instance" "redpanda" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "chaos-redpanda"
+      Name = "chaos-${var.username}-redpanda"
   }
 
   connection {
@@ -101,7 +105,7 @@ resource "aws_instance" "client" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "chaos-client"
+      Name = "chaos-${var.username}-client"
   }
 
   connection {
@@ -121,7 +125,7 @@ resource "aws_instance" "control" {
   vpc_security_group_ids = [aws_security_group.redpanda_kafka.id]
 
   tags = {
-      Name = "chaos-client"
+      Name = "chaos-${var.username}-client"
   }
 
   connection {
