@@ -180,9 +180,9 @@ class SingleTopicSingleFault:
                 workload_cluster.emit_event(node, "injecting")
             logger.info(f"injecting {fault.name}")
             fault.execute(self)
-            logger.info(f"healed {fault.name}")
+            logger.info(f"injected {fault.name}")
             for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "healed")
+                workload_cluster.emit_event(node, "injected")
             logger.info(f"wait for 120 seconds to record impacted / recovering state")
             sleep(120)
         else:

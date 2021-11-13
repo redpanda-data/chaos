@@ -263,9 +263,9 @@ def collect(config, workload_dir):
                         should_measure = True
                         started = ts_us
                     if should_measure:
-                        if name=="injecting":
+                        if name=="injecting" or name=="injected":
                             faults.append(int((ts_us - started)/1000))
-                        elif name=="healed":
+                        elif name=="healing" or name=="healed":
                             recoveries.append(int((ts_us - started)/1000))
                 elif new_state == State.VIOLATION:
                     pass
