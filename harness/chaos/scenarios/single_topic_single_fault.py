@@ -34,6 +34,18 @@ SUPPORTED_CHECKS = [
     "redpanda_process_liveness"
 ]
 
+def normalize_fault(cfg_fault):
+    if cfg_fault == None:
+        return None
+    if isinstance(cfg_fault, str):
+        return {
+            "name": cfg_fault
+        }
+    elif isinstance(cfg_fault, dict):
+        return cfg_fault
+    else:
+        raise Exception(f"unknown fault type: {type(cfg_fault)}")
+
 class SingleTopicSingleFault:
     def __init__(self):
         self.redpanda_cluster = None
@@ -45,8 +57,10 @@ class SingleTopicSingleFault:
     def validate(self, config):
         if config["workload"]["name"] not in SUPPORTED_WORKLOADS:
             raise Exception(f"unknown workload: {config['workload']}")
-        if config["fault"] != None and config["fault"] not in SUPPORTED_FAULTS:
-            raise Exception(f"unknown fault: {config['fault']}")
+        if config["fault"] != None:
+            fault = normalize_fault(config["fault"])
+            if fault["name"] not in SUPPORTED_FAULTS:
+                raise Exception(f"unknown fault: {fault['name']}")
         for check in config["checks"]:
             if check["name"] not in SUPPORTED_CHECKS:
                 raise Exception(f"unknown check: {check['name']}")
@@ -69,9 +83,9 @@ class SingleTopicSingleFault:
 
         self.redpanda_cluster = RedpandaCluster("/mnt/vectorized/redpanda.nodes")
 
-        fault = self.config["fault"]
+        fault = normalize_fault(self.config["fault"])
         if fault != None:
-            fault = FAULTS[fault]()
+            fault = FAULTS[fault["name"]](fault)
         
         self.config["brokers"] = self.redpanda_cluster.brokers()
 

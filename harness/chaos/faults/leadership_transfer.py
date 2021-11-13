@@ -5,7 +5,7 @@ from chaos.faults.types import FaultType
 logger = logging.getLogger("chaos")
 
 class LeadershipTransferFault:
-    def __init__(self):
+    def __init__(self, fault_config):
         self.fault_type = FaultType.ONEOFF
         self.name = "leadership transfer"
 

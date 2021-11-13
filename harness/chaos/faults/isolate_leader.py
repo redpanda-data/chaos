@@ -6,7 +6,7 @@ from chaos.faults.types import FaultType
 logger = logging.getLogger("chaos")
 
 class IsolateLeaderFault:
-    def __init__(self):
+    def __init__(self, fault_config):
         self.fault_type = FaultType.RECOVERABLE
         self.leader = None
         self.rest = []
