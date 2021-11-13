@@ -2,11 +2,12 @@ FROM ubuntu:20.04
 LABEL maintainer="Denis Rystsov <denis@vectorized.io>"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG REDPANDA_DEB
+ARG USER_ID
 RUN apt-get update -y
 RUN apt-get install -y wget iptables ssh python3-pip sudo
 RUN apt-get install -y iputils-ping vim tmux less openjdk-11-jdk maven
 RUN adduser --disabled-password --gecos "" ubuntu
-RUN usermod -aG sudo ubuntu
+RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p /mnt/vectorized
 RUN mkdir -p /home/ubuntu/.ssh
