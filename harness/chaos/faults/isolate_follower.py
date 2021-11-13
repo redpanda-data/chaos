@@ -15,7 +15,7 @@ class IsolateFollowerFault:
         controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
         logger.debug(f"controller's leader: {controller.ip}")
         
-        replicas_info = scenario.redpanda_cluster.wait_replicas(scenario.topic, partition=scenario.partition, timeout_s=10)
+        replicas_info = scenario.redpanda_cluster.wait_details(scenario.topic, partition=scenario.partition, timeout_s=10)
         if len(replicas_info.replicas)==1:
             raise Exception(f"topic {scenario.topic} has replication factor of 1: can't find a follower")
 

@@ -13,10 +13,11 @@ class RedpandaNode:
         self.ip = ip
         self.id = id
 
-class ReplicasInfo:
+class PartitionDetails:
     def __init__(self):
         self.replicas = []
         self.leader = None
+        self.status = None
 
 class TimeoutException(Exception):
     pass
@@ -90,16 +91,35 @@ class RedpandaCluster:
     def create_topic(self, topic, replication, partitions):
         ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions)
     
-    def get_replicas(self, topic, partition=0, namespace="kafka", replication=None):
+    def reconfigure(self, leader, replicas, topic, partition=0, namespace="kafka"):
+        payload = []
+        for replica in replicas:
+            payload.append({
+                "node_id": replica.id,
+                "core": 0
+            })
+        r = requests.post(f"http://{leader.ip}:9644/v1/partitions/{namespace}/{topic}/{partition}/replicas", json=payload)
+        if r.status_code != 200:
+            logger.error(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
+            raise Exception(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
+
+    def _get_stable_details(self, topic, partition=0, namespace="kafka", replication=None):
         last_leader = -1
         replicas = None
+        status = None
         for node in self.nodes:
             ip = node.ip
             logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" details from {node.ip}")
-            meta = self.get_details(node, namespace, topic, partition)
+            meta = self._get_details(node, namespace, topic, partition)
             if meta == None:
                 return None
             if "replicas" not in meta:
+                return None
+            if "status" not in meta:
+                return None
+            if status == None:
+                status = meta["status"]
+            if status != meta["status"]:
                 return None
             if replicas == None:
                 replicas = {}
@@ -122,7 +142,8 @@ class RedpandaCluster:
                 return None
             if last_leader != meta["leader_id"]:
                 return None
-        info = ReplicasInfo()
+        info = PartitionDetails()
+        info.status = status
         for node in self.nodes:
             if node.id==last_leader:
                 info.leader = node
@@ -133,14 +154,14 @@ class RedpandaCluster:
             raise Exception(f"Can't find replicas {','.join(replicas.keys())} in the cluster")
         return info
     
-    def wait_replicas(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
+    def wait_details(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
         begin = time.time()
         info = None
         while info == None:
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't fetch stable replicas for {namespace}/{topic}/{partition} within {timeout_s} sec")
             try:
-                info = self.get_replicas(topic, partition=partition, namespace=namespace, replication=replication)
+                info = self._get_stable_details(topic, partition=partition, namespace=namespace, replication=replication)
                 if info == None:
                     sleep(1)
             except:
@@ -153,7 +174,7 @@ class RedpandaCluster:
         return info
     
     def wait_leader(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
-        info = self.wait_replicas(topic, partition=partition, namespace=namespace, replication=replication, timeout_s=timeout_s)
+        info = self.wait_details(topic, partition=partition, namespace=namespace, replication=replication, timeout_s=timeout_s)
         return info.leader
     
     def wait_leader_is(self, target, namespace, topic, partition, timeout_s=10):
@@ -166,7 +187,7 @@ class RedpandaCluster:
                 return
             sleep(1)
     
-    def get_details(self, node, namespace, topic, partition):
+    def _get_details(self, node, namespace, topic, partition):
         ip = node.ip
         r = requests.get(f"http://{ip}:9644/v1/partitions/{namespace}/{topic}/{partition}")
         if r.status_code != 200:
@@ -187,7 +208,7 @@ class RedpandaCluster:
         if node.id == target.id:
             logger.debug(f"leader is already there")
             return
-        meta = self.get_details(node, namespace, topic, partition)
+        meta = self._get_details(node, namespace, topic, partition)
         if meta == None:
             raise Exception("expected details got none")
 
