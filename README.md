@@ -64,4 +64,5 @@ Copy test & redpanda logs (find them in the `results` folder):
 
 # Dev help
 
-[Example](https://github.com/vectorizedio/chaos/pull/1) of adding new workload (writing sub-workflow)
+ - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new workload (writing sub-workflow)
+ - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new fault injection
