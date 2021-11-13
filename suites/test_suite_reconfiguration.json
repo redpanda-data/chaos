@@ -1,0 +1,8 @@
+{
+    "name": "all",
+    "tests": [
+        "writing_kafka_clients/reconfigure_11_kill.json",
+        "writing_kafka_clients/reconfigure_313.json",
+        "writing_kafka_clients/reconfigure_kill_11.json"
+    ]
+}
