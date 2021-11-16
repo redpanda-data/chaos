@@ -1,0 +1,21 @@
+{
+    "name": "writing / reads-writes / isolate follower",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writing / reads-writes",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 3,
+            "writes": 2
+        }
+    },
+    "fault": "isolate_follower",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

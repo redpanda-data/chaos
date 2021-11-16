@@ -28,5 +28,7 @@ RUN cd /mnt/vectorized/workloads/writing/kafka-clients && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/writing/list-offsets && \
     mvn clean dependency:copy-dependencies package
+RUN cd /mnt/vectorized/workloads/writing/reads-writes && \
+    mvn clean dependency:copy-dependencies package
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/workloads/writing
 CMD /mnt/vectorized/entrypoint.sh
