@@ -51,10 +51,13 @@ def normalize_fault(cfg_fault):
 class SingleTopicSingleFault:
     def __init__(self):
         self.redpanda_cluster = None
+        self.workload_cluster = None
         self.config = None
         self.topic = None
         self.partition = None
         self.replication = None
+        self.is_workload_log_fetched = False
+        self.is_redpanda_log_fetched = False
     
     def validate(self, config):
         if config["workload"]["name"] not in SUPPORTED_WORKLOADS:
@@ -67,21 +70,50 @@ class SingleTopicSingleFault:
             if check["name"] not in SUPPORTED_CHECKS:
                 raise Exception(f"unknown check: {check['name']}")
     
-    def execute(self, config, experiment_id):
-        self.config = copy.deepcopy(config)
-        self.topic = self.config["topic"]
-        self.replication = self.config["replication"]
-        self.partition = 0
-        self.config["experiment_id"] = experiment_id
-        self.config["result"] = Result.PASSED
-        logger.info(f"starting experiment {self.config['name']} (id={experiment_id})")
-        
-        mkdir("-p", f"/mnt/vectorized/experiments/{experiment_id}")
-        
+    def save_config(self):
+        with open(f"/mnt/vectorized/experiments/{self.config['experiment_id']}/info.json", "w") as info:
+            info.write(json.dumps(self.config, indent=2))
+    
+    def fetch_workload_logs(self):
+        if self.workload_cluster != None:
+            if self.is_workload_log_fetched:
+                return
+            logger.info(f"stopping workload everywhere")
+            self.workload_cluster.stop_everywhere()
+            self.workload_cluster.kill_everywhere()
+            self.workload_cluster.wait_killed(timeout_s=10)
+            for node in self.workload_cluster.nodes:
+                logger.info(f"fetching oplog from {node.ip}")
+                scp(
+                    "-r",
+                    f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/*",
+                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/")
+            self.is_workload_log_fetched = True
+    
+    def fetch_redpanda_logs(self):
+        if self.redpanda_cluster != None:
+            if self.is_redpanda_log_fetched:
+                return
+            logger.info(f"stopping redpanda")
+            self.redpanda_cluster.kill_everywhere()
+            self.redpanda_cluster.wait_killed(timeout_s=10)
+            mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
+            for node in self.redpanda_cluster.nodes:
+                mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
+                logger.info(f"fetching logs from {node.ip}")
+                scp(
+                    f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log",
+                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/log")
+            self.is_redpanda_log_fetched = True
+    
+    def _execute(self):
         logger.info(f"stopping workload everywhere (if running)")
         wait_all_workloads_killed("/mnt/vectorized/client.nodes")
 
-        workload_cluster = WORKLOADS[self.config["workload"]["name"]]("/mnt/vectorized/client.nodes")
+        self.workload_cluster = WORKLOADS[self.config["workload"]["name"]]("/mnt/vectorized/client.nodes")
+        self.config["workload"]["nodes"] = []
+        for node in self.workload_cluster.nodes:
+            self.config["workload"]["nodes"].append(node.ip)
 
         self.redpanda_cluster = RedpandaCluster("/mnt/vectorized/redpanda.nodes")
 
@@ -91,8 +123,7 @@ class SingleTopicSingleFault:
         
         self.config["brokers"] = self.redpanda_cluster.brokers()
 
-        with open(f"/mnt/vectorized/experiments/{experiment_id}/info.json", "w") as info:
-            info.write(json.dumps(self.config, indent=2))
+        self.save_config()
         
         logger.info(f"undoing faults")
         self.redpanda_cluster.heal()
@@ -113,22 +144,22 @@ class SingleTopicSingleFault:
         self.redpanda_cluster.wait_leader(self.topic, replication=self.replication, timeout_s=20)
 
         logger.info(f"launching workload service")
-        workload_cluster.launch_everywhere()
-        workload_cluster.wait_alive(timeout_s=10)
-        workload_cluster.wait_ready(timeout_s=10)
+        self.workload_cluster.launch_everywhere()
+        self.workload_cluster.wait_alive(timeout_s=10)
+        self.workload_cluster.wait_ready(timeout_s=10)
 
-        for node in workload_cluster.nodes:
+        for node in self.workload_cluster.nodes:
             logger.info(f"init workload with brokers=\"{self.redpanda_cluster.brokers()}\" and topic=\"{self.topic}\" on {node.ip}")
-            workload_cluster.init(node, node.ip, self.redpanda_cluster.brokers(), self.topic, experiment_id, self.config["workload"]["settings"])
+            self.workload_cluster.init(node, node.ip, self.redpanda_cluster.brokers(), self.topic, self.config['experiment_id'], self.config["workload"]["settings"])
 
-        for node in workload_cluster.nodes:
+        for node in self.workload_cluster.nodes:
             logger.info(f"starting workload on {node.ip}")
-            workload_cluster.start(node)
+            self.workload_cluster.start(node)
         
         logger.info(f"warming up")
         while True:
             logger.info(f"waiting for progress")
-            workload_cluster.wait_progress(timeout_s=10)
+            self.workload_cluster.wait_progress(timeout_s=10)
 
             logger.info(f"warming up for 20s")
             sleep(20)
@@ -148,8 +179,8 @@ class SingleTopicSingleFault:
             break
         
         logger.info(f"start measuring")
-        for node in workload_cluster.nodes:
-            workload_cluster.emit_event(node, "measure")
+        for node in self.workload_cluster.nodes:
+            self.workload_cluster.emit_event(node, "measure")
 
         if fault == None:
             logger.info(f"wait for 180 seconds to record steady state")
@@ -157,43 +188,40 @@ class SingleTopicSingleFault:
         elif fault.fault_type==FaultType.RECOVERABLE:
             logger.info(f"wait for 60 seconds to record steady state")
             sleep(60)
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "injecting")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "injecting")
             logger.info(f"injecting {fault.name}")
             fault.inject(self)
             logger.info(f"injected {fault.name}")
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "injected")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "injected")
             logger.info(f"wait for 60 seconds to record impacted state")
             sleep(60)
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "healing")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "healing")
             logger.info(f"healing {fault.name}")
             fault.heal(self)
             logger.info(f"healed {fault.name}")
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "healed")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "healed")
             logger.info(f"wait for 60 seconds to record recovering state")
             sleep(60)
         elif fault.fault_type==FaultType.ONEOFF:
             logger.info(f"wait for 60 seconds to record steady state")
             sleep(60)
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "injecting")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "injecting")
             logger.info(f"injecting {fault.name}")
             fault.execute(self)
             logger.info(f"injected {fault.name}")
-            for node in workload_cluster.nodes:
-                workload_cluster.emit_event(node, "injected")
+            for node in self.workload_cluster.nodes:
+                self.workload_cluster.emit_event(node, "injected")
             logger.info(f"wait for 120 seconds to record impacted / recovering state")
             sleep(120)
         else:
             raise Exception(f"Unknown fault type {fault.fault_type}")
 
-        logger.info(f"stopping workload everywhere")
-        workload_cluster.stop_everywhere()
-        workload_cluster.kill_everywhere()
-        workload_cluster.wait_killed(timeout_s=10)
+        self.fetch_workload_logs()
 
         for check_cfg in self.config["checks"]:
             check = CHECKS[check_cfg["name"]]
@@ -201,31 +229,39 @@ class SingleTopicSingleFault:
             for key in result:
                 check_cfg[key] = result[key]
             self.config["result"] = Result.more_severe(self.config["result"], check_cfg["result"])
-        
-        self.config["workload"]["nodes"] = []
-        for node in workload_cluster.nodes:
-            logger.info(f"fetching oplog from {node.ip}")
-            self.config["workload"]["nodes"].append(node.ip)
-            scp("-r", f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{experiment_id}/*", f"/mnt/vectorized/experiments/{experiment_id}/")
-        
-        with open(f"/mnt/vectorized/experiments/{experiment_id}/info.json", "w") as info:
-            info.write(json.dumps(self.config, indent=2))
+        self.save_config()
 
-        self.config = workload_cluster.analyze(copy.deepcopy(self.config))
-        logger.info(f"experiment {experiment_id} result: {self.config['result']}")
-        with open(f"/mnt/vectorized/experiments/{experiment_id}/info.json", "w") as info:
-            info.write(json.dumps(self.config, indent=2))
+        self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
+        logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
+        self.save_config()
         
-        logger.info(f"stopping redpanda")
-        self.redpanda_cluster.kill_everywhere()
-        self.redpanda_cluster.wait_killed(timeout_s=10)
-
-        mkdir(f"/mnt/vectorized/experiments/{experiment_id}/redpanda")
-        for node in self.redpanda_cluster.nodes:
-            mkdir(f"/mnt/vectorized/experiments/{experiment_id}/redpanda/{node.ip}")
-            logger.info(f"fetching logs from {node.ip}")
-            scp(
-                f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log",
-                f"/mnt/vectorized/experiments/{experiment_id}/redpanda/{node.ip}/log")
+        self.fetch_redpanda_logs()
         
         return self.config
+    
+    def execute(self, config, experiment_id):
+        self.config = copy.deepcopy(config)
+        self.topic = self.config["topic"]
+        self.replication = self.config["replication"]
+        self.partition = 0
+        self.config["experiment_id"] = experiment_id
+        self.config["result"] = Result.PASSED
+        logger.info(f"starting experiment {self.config['name']} (id={self.config['experiment_id']})")
+        
+        mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}")
+        
+        try:
+            return self._execute()
+        except:
+            self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
+            self.save_config()
+            raise
+        finally:
+            try:
+                self.fetch_workload_logs()
+            except:
+                pass
+            try:
+                self.fetch_redpanda_logs()
+            except:
+                pass
