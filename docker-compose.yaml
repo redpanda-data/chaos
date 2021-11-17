@@ -15,6 +15,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
     privileged: true
     container_name: redpanda2
     hostname: redpanda2
@@ -26,6 +28,8 @@ services:
     build:
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
     privileged: true
     container_name: redpanda3
     hostname: redpanda3
@@ -33,21 +37,14 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
-  control:
-    build:
-      context: .
-      dockerfile: ./docker/control/Dockerfile
-    privileged: true
-    container_name: control
-    hostname: control
-    networks:
-      - chaos
-    volumes:
-      - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
   client1:
     build:
       context: .
       dockerfile: ./docker/client/Dockerfile
+    depends_on:
+      - "redpanda1"
+      - "redpanda2"
+      - "redpanda3"
     privileged: true
     container_name: client1
     hostname: client1
@@ -55,6 +52,22 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+  control:
+    build:
+      context: .
+      dockerfile: ./docker/control/Dockerfile
+    depends_on:
+      - "redpanda1"
+      - "redpanda2"
+      - "redpanda3"
+      - "client1"
+    privileged: true
+    container_name: control
+    hostname: control
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
 networks:
   chaos:
     driver: bridge

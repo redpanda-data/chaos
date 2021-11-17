@@ -7,6 +7,7 @@ if [ "$DEB_PATH" == "" ]; then
     exit 1
 fi
 
+docker-compose down || true
 docker-compose rm -f || true
 
 cp $DEB_PATH .

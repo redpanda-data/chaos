@@ -15,11 +15,12 @@ if [ "$repeat" == "" ]; then
     repeat="1"
 fi
 
-sudo -i -u ubuntu bash << EOF
-    if [ ! -f /home/ubuntu/.ssh/known_hosts ]; then
-        . /mnt/vectorized/known_hosts.sh
-    fi
+until [ -f /mnt/vectorized/ready ]; do
+    >&2 echo "control node isn't fully initialized; sleeping for 1s"
+    sleep 1s
+done
 
+sudo -i -u ubuntu bash << EOF
     python3 /mnt/vectorized/harness/test.suite.py --run_id $now --suite $suite_path --repeat $repeat
 EOF
 

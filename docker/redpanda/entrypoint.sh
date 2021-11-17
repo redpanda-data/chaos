@@ -1,15 +1,21 @@
 #!/bin/bash
 
-sleep 5s
+declare -A redpandas=( ["redpanda1"]="" ["redpanda2"]="" ["redpanda3"]="")
+declare -A node_ids=( ["redpanda1"]="0" ["redpanda2"]="1" ["redpanda3"]="2")
+
+for host in "${!redpandas[@]}"; do
+  redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
+  while [ "${redpandas[$host]}" == "" ]; do
+    sleep 1s
+    redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
+  done
+done
 
 mkdir -p /mnt/vectorized/redpanda/data
 mkdir -p /mnt/vectorized/redpanda/coredump
 
-declare -A ids=( ["redpanda1"]="0" ["redpanda2"]="1" ["redpanda3"]="2")
-
 me=$(hostname)
-myip=$(getent hosts $me | awk '{ print $1 }')
-seedip=$(getent hosts redpanda1 | awk '{ print $1 }')
+myip="${redpandas[$me]}"
 
 if [ "$me" == "redpanda1" ]; then
   rpk config bootstrap \
@@ -17,9 +23,9 @@ if [ "$me" == "redpanda1" ]; then
     --self $myip
 else
   rpk config bootstrap \
-    --id ${ids[$me]} \
+    --id ${node_ids[$me]} \
     --self $myip \
-    --ips $seedip
+    --ips "${redpandas[redpanda1]}"
 fi
 
 rpk config set redpanda.default_topic_partitions 1
@@ -36,13 +42,9 @@ rpk redpanda mode production
 rpk redpanda tune all
 
 rm -rf /mnt/vectorized/redpanda.nodes
-
-for name in redpanda1 redpanda2 redpanda3; do
-  ip=$(getent hosts $name | awk '{ print $1 }')
-  id=${ids[$name]}
-  echo "$ip $id" >> /mnt/vectorized/redpanda.nodes
+for host in "${!redpandas[@]}"; do
+  echo "${redpandas[$host]} ${node_ids[$host]}" >> /mnt/vectorized/redpanda.nodes
 done
-
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
 service ssh start

@@ -18,10 +18,8 @@ RUN dpkg --force-confold -i /mnt/vectorized/$REDPANDA_DEB
 RUN systemctl disable redpanda
 RUN systemctl disable wasm_engine
 COPY docker/control/entrypoint.sh /mnt/vectorized/entrypoint.sh
-COPY docker/control/known_hosts.sh /mnt/vectorized/known_hosts.sh
 COPY docker/control/test.test.sh /mnt/vectorized/test.test.sh
 COPY docker/control/test.suite.sh /mnt/vectorized/test.suite.sh
-RUN chown ubuntu:ubuntu /mnt/vectorized/known_hosts.sh
 RUN pip3 install sh
 RUN pip3 install flask
 RUN pip3 install pyyaml
