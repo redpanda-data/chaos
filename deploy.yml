@@ -45,34 +45,9 @@
       copy:
         src: control
         dest: /mnt/vectorized/
+        mode: "preserve"
         owner: ubuntu
         group: ubuntu
-    - name: Changing perm of "redpanda.start.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/redpanda.start.sh mode=a+x
-    - name: Changing perm of "redpanda.alive.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/redpanda.alive.sh mode=a+x
-    - name: Changing perm of "redpanda.stop.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/redpanda.stop.sh mode=a+x
-    - name: Changing perm of "writing.kafka-clients.start.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.kafka-clients.start.sh mode=a+x
-    - name: Changing perm of "writing.kafka-clients.alive.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.kafka-clients.alive.sh mode=a+x
-    - name: Changing perm of "writing.kafka-clients.stop.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.kafka-clients.stop.sh mode=a+x
-    - name: Changing perm of "writing.confluent-kafka.start.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.confluent-kafka.start.sh mode=a+x
-    - name: Changing perm of "writing.confluent-kafka.alive.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.confluent-kafka.alive.sh mode=a+x
-    - name: Changing perm of "writing.confluent-kafka.stop.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/writing.confluent-kafka.stop.sh mode=a+x
-    - name: Changing perm of "redpanda.clean.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/redpanda.clean.sh mode=a+x
-    - name: Changing perm of "network.isolate.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/network.isolate.sh mode=a+x
-    - name: Changing perm of "network.heal.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/network.heal.sh mode=a+x
-    - name: Changing perm of "network.heal.all.sh", adding "+x"
-      file: dest=/mnt/vectorized/control/network.heal.all.sh mode=a+x
 
 - name: install redpanda
   hosts: redpanda:client:control
