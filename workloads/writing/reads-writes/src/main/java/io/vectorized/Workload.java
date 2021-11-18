@@ -23,6 +23,7 @@ import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Queue;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.time.Duration;
 
@@ -34,6 +35,7 @@ public class Workload {
         public long last_offset;
         public boolean has_write_passed;
         public boolean is_expired;
+        public HashSet<Integer> has_seen = new HashSet<>();
     }
     
     public volatile long succeeded_writes = 0;
@@ -48,6 +50,9 @@ public class Workload {
     private long past_us;
     private long before_us = -1;
     private long last_op = 0;
+
+    private long last_success_us = -1;
+    private HashMap<Integer, Boolean> should_reset;
 
     long last_known_offset;
     Queue<Long> read_offsets;
@@ -64,6 +69,20 @@ public class Workload {
 
     public Workload(App.InitBody args) {
         this.args = args;
+    }
+
+    private synchronized void update_last_success() {
+        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
+    }
+
+    private synchronized void tick() {
+        var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
+        if (now_us - last_success_us > 10000*1000) {
+            for (var thread_id : should_reset.keySet()) {
+                should_reset.put(thread_id, true);
+            }
+            last_success_us = now_us;
+        }
     }
 
     public void start() throws Exception {
@@ -85,11 +104,13 @@ public class Workload {
         read_offsets = new LinkedList<>();
         semaphores = new HashMap<>();
         known_writes = new HashMap<>();
+        should_reset = new HashMap<>();
         
         int thread_id=0;
         write_threads = new ArrayList<>();
         for (int i=0;i<this.args.settings.writes;i++) {
             final var j=thread_id++;
+            should_reset.put(j, false);
             write_threads.add(new Thread(() -> { 
                 try {
                     writeProcess(j);
@@ -103,7 +124,8 @@ public class Workload {
         read_threads = new ArrayList<>();
         for (int i=0;i<this.args.settings.reads;i++) {
             final var j=thread_id++;
-            read_fronts.put(i, -1L);
+            should_reset.put(j, false);
+            read_fronts.put(j, -1L);
             read_threads.add(new Thread(() -> { 
                 try {
                     readProcess(j);
@@ -125,6 +147,13 @@ public class Workload {
 
     public void stop() throws Exception {
         is_active = false;
+        synchronized(this) {
+            for (var thread_id : semaphores.keySet()) {
+                try {
+                    semaphores.get(thread_id).release();
+                } catch (Exception e) { }
+            }
+        }
         for (var th : write_threads) {
             th.join();
         }
@@ -205,12 +234,25 @@ public class Workload {
 
         long prev_offset = -1;
         while (is_active) {
+            tick();
+
+            synchronized(this) {
+                if (should_reset.get(thread_id)) {
+                    should_reset.put(thread_id, false);
+                    consumer = null;
+                }
+            }
+
             try {
                 if (consumer == null) {
                     log(thread_id, "constructing");
                     consumer = new KafkaConsumer<>(props);
                     consumer.assign(tps);
-                    consumer.seekToBeginning(tps);
+                    if (prev_offset == -1) {
+                        consumer.seekToBeginning(tps);
+                    } else {
+                        consumer.seek(tp, prev_offset+1);
+                    }
                     log(thread_id, "constructed");
                     continue;
                 }
@@ -231,14 +273,15 @@ public class Workload {
                     continue;
                 }
 
+                long offset = record.offset();
+                long op = Long.parseLong(record.value());
+
                 synchronized(this) {
-                    long offset = record.offset();
                     last_known_offset = Math.max(last_known_offset, offset);
                     if (offset <= prev_offset) {
                         violation(thread_id, "reads must be monotonic but observed " + offset + " after " + prev_offset);
                     }
 
-                    long op = Long.parseLong(record.value());
                     if (!write_by_op.containsKey(op)) {
                         violation(thread_id, "read " + op + "@" + offset + ": duplication or truncation");
                     }
@@ -265,6 +308,7 @@ public class Workload {
                     if (write.curr_offset <= write.last_offset) {
                         violation(thread_id, "read " + op + "@" + offset + " while " + write.last_offset + " was already known when the write started");
                     }
+                    write.has_seen.add(thread_id);
 
                     read_fronts.put(thread_id, offset);
                     var min_front = offset;
@@ -274,27 +318,29 @@ public class Workload {
 
                     if (min_front == offset) {
                         var thread_known = known_writes.get(write.thread_id);
-                        if (thread_known.size()>0) {
-                            if (thread_known.peek() == offset) {
-                                thread_known.remove();
-                            } else if (thread_known.peek() < offset) {
-                                violation(thread_id, "read " + offset + " but skipped " + thread_known.peek());
+                        
+                        while (thread_known.size()>0 && thread_known.peek()<=offset) {
+                            var expiring_offset = thread_known.remove();
+                            if (!write_by_offset.containsKey(expiring_offset)) {
+                                violation(thread_id, "int. assert violation - 1");
+                            }
+                            var expiring_write = write_by_offset.get(expiring_offset);
+                            for (var read_thread_id : read_fronts.keySet()) {
+                                if (!expiring_write.has_seen.contains(read_thread_id)) {
+                                    violation(read_thread_id, "read " + read_fronts.get(read_thread_id) + " but skipped " + expiring_offset);
+                                }
+                            }
+                            if (expiring_write.has_write_passed) {
+                                write_by_offset.remove(expiring_offset);
+                                write_by_op.remove(expiring_write.op);
+                            } else {
+                                expiring_write.is_expired = true;
                             }
                         }
                     }
 
                     while (read_offsets.size() > 0 && read_offsets.peek() < min_front) {
                         var expired_offset = read_offsets.remove();
-                        if (!write_by_offset.containsKey(expired_offset)) {
-                            violation(thread_id, "int. assert violation");
-                        }
-                        var expired_write = write_by_offset.get(expired_offset);
-                        if (expired_write.has_write_passed) {
-                            write_by_offset.remove(expired_offset);
-                            write_by_op.remove(expired_write.op);
-                        } else {
-                            expired_write.is_expired = true;
-                        }
                         next_offset.remove(expired_offset);
                     }
                 }
@@ -341,9 +387,18 @@ public class Workload {
 
         Producer<String, String> producer = null;
 
-        log(thread_id, "started\t" + args.server);
+        log(thread_id, "started\t" + args.server + "\tproducer");
 
         while (is_active) {
+            tick();
+
+            synchronized(this) {
+                if (should_reset.get(thread_id)) {
+                    should_reset.put(thread_id, false);
+                    producer = null;
+                }
+            }
+
             long op = get_op();
             
             try {
@@ -381,6 +436,7 @@ public class Workload {
                 var offset = m.offset();
                 var should_acquire = true;
                 synchronized(this) {
+                    known_writes.get(thread_id).add(offset);
                     var write = write_by_op.get(op);
 
                     if (write.curr_offset == -1) {
@@ -400,8 +456,6 @@ public class Workload {
                         write_by_offset.remove(offset);
                         write_by_op.remove(op);
                         should_acquire = false;
-                    } else {
-                        known_writes.get(thread_id).add(offset);
                     }
 
                     last_known_offset = Math.max(last_known_offset, write.curr_offset);
@@ -410,6 +464,7 @@ public class Workload {
                     semaphore.acquire();
                 }
                 log(thread_id, "ok\t" + offset);
+                update_last_success();
             } catch (ExecutionException e) {
                 var cause = e.getCause();
                 if (cause != null) {

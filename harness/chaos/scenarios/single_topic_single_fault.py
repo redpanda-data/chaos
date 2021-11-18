@@ -79,7 +79,10 @@ class SingleTopicSingleFault:
             if self.is_workload_log_fetched:
                 return
             logger.info(f"stopping workload everywhere")
-            self.workload_cluster.stop_everywhere()
+            try:
+                self.workload_cluster.stop_everywhere()
+            except:
+                pass
             self.workload_cluster.kill_everywhere()
             self.workload_cluster.wait_killed(timeout_s=10)
             for node in self.workload_cluster.nodes:

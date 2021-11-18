@@ -28,11 +28,11 @@ transitions = {
     State.INIT: [State.STARTED],
     State.STARTED: [State.CONSTRUCTING],
     State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
-    State.CONSTRUCTED: [State.SENDING],
+    State.CONSTRUCTED: [State.SENDING, State.CONSTRUCTING],
     State.SENDING: [State.OK, State.ERROR, State.TIMEOUT],
-    State.OK: [State.SENDING],
+    State.OK: [State.SENDING, State.CONSTRUCTING],
     State.ERROR: [State.SENDING, State.CONSTRUCTING],
-    State.TIMEOUT: [State.SENDING]
+    State.TIMEOUT: [State.SENDING, State.CONSTRUCTING]
 }
 
 phantoms = [ State.EVENT, State.VIOLATION ]

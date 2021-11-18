@@ -182,15 +182,16 @@ class Workload:
         for check in config["workload"]["checks"]:
             if check["name"] == "consistency":
                 check["result"] = Result.PASSED
-                check["details"] = {}
                 for node in self.nodes:
-                    details = consistency.validate(config, f"/mnt/vectorized/experiments/{config['experiment_id']}/{node.ip}")
-                    check["details"][node.ip] = details["result"]
-                    check["result"] = Result.more_severe(check["result"], check["details"][node.ip])
+                    check[node.ip] =consistency.validate(config, f"/mnt/vectorized/experiments/{config['experiment_id']}/{node.ip}")
+                    check["result"] = Result.more_severe(check["result"], check[node.ip]["result"])
                 config["result"] = Result.more_severe(config["result"], check["result"])
             elif check["name"] == "stat":
+                check["result"] = Result.PASSED
                 for node in self.nodes:
                     check[node.ip] = stat.collect(config, f"/mnt/vectorized/experiments/{config['experiment_id']}/{node.ip}")
+                    check["result"] = Result.more_severe(check["result"], check[node.ip]["result"])
+                config["result"] = Result.more_severe(config["result"], check["result"])
             else:
                 raise Exception(f"Unknown requested check: {check['name']}")
         

@@ -205,10 +205,10 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     throughput_bucket.count+=1
                     last_time = end
-                    op_starts[thread_id] = None
                     if should_measure:
                         availability_history.append([int((op_starts[thread_id]-started)/1000), end-op_starts[thread_id]])
                         latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
+                    op_starts[thread_id] = None
                 elif new_state == State.SENDING:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -355,6 +355,7 @@ def collect(config, workload_dir):
         rm("percentiles.gnuplot")
 
         return {
+            "result": Result.PASSED,
             "latency_us": {
                 "min": min_latency_us,
                 "max": max_latency_us,
@@ -372,7 +373,9 @@ def collect(config, workload_dir):
         logger.debug(v)
         logger.debug(trace)
 
-        return {}
+        return {
+            "result": Result.UNKNOWN
+        }
     finally:
         handler.flush()
         handler.close()
