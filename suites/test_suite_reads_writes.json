@@ -6,6 +6,8 @@
         "writing_reads_writes/isolate_leader.json",
         "writing_reads_writes/kill_follower.json",
         "writing_reads_writes/kill_leader.json",
+        "writing_reads_writes/pause_follower.json",
+        "writing_reads_writes/pause_leader.json",
         "writing_reads_writes/leadership_transfer.json",
         "writing_reads_writes/reconfigure_313.json",
         "writing_reads_writes/reconfigure_kill_11.json"

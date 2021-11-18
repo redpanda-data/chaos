@@ -1,0 +1,20 @@
+{
+    "name": "writing / kafka-clients / pause follower",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writing / kafka-clients",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 2
+        }
+    },
+    "fault": "pause_follower",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

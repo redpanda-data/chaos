@@ -3,6 +3,8 @@ from chaos.faults.isolate_follower import IsolateFollowerFault
 from chaos.faults.isolate_leader import IsolateLeaderFault
 from chaos.faults.kill_follower import KillFollowerFault
 from chaos.faults.kill_leader import KillLeaderFault
+from chaos.faults.pause_follower import PauseFollowerFault
+from chaos.faults.pause_leader import PauseLeaderFault
 from chaos.faults.leadership_transfer import LeadershipTransferFault
 from chaos.faults.reconfigure_11_kill import Reconfigure11KillFault
 from chaos.faults.reconfigure_313 import Reconfigure313Fault
@@ -14,6 +16,8 @@ FAULTS = {
     "isolate_leader": IsolateLeaderFault,
     "kill_follower": KillFollowerFault,
     "kill_leader": KillLeaderFault,
+    "pause_follower": PauseFollowerFault,
+    "pause_leader": PauseLeaderFault,
     "leadership_transfer": LeadershipTransferFault,
     "reconfigure_11_kill": Reconfigure11KillFault,
     "reconfigure_313": Reconfigure313Fault,

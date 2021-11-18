@@ -1,0 +1,7 @@
+{
+    "name": "all",
+    "tests": [
+        "writing_kafka_clients/pause_follower.json",
+        "writing_kafka_clients/pause_leader.json"
+    ]
+}
