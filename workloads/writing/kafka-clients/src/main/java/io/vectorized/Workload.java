@@ -12,6 +12,7 @@ import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 
 public class Workload {
     public volatile long succeeded_writes = 0;
@@ -26,8 +27,25 @@ public class Workload {
     private long before_us = -1;
     private long last_op = 0;
 
+    private long last_success_us = -1;
+    private HashMap<Integer, Boolean> should_reset;
+
     synchronized long get_op() {
         return ++this.last_op;
+    }
+
+    private synchronized void update_last_success() {
+        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
+    }
+
+    private synchronized void tick() {
+        var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
+        if (now_us - last_success_us > 10000*1000) {
+            for (var thread_id : should_reset.keySet()) {
+                should_reset.put(thread_id, true);
+            }
+            last_success_us = now_us;
+        }
     }
 
     public Workload(App.InitBody args) {
@@ -45,9 +63,12 @@ public class Workload {
         past_us = 0;
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
+        should_reset = new HashMap<>();
+
         threads = new ArrayList<>();
         for (int i=0;i<this.args.settings.concurrency;i++) {
             final var j=i;
+            should_reset.put(j, false);
             threads.add(new Thread(() -> { 
                 try {
                     process(j);
@@ -125,6 +146,15 @@ public class Workload {
         log(thread_id, "started\t" + args.server);
 
         while (is_active) {
+            tick();
+
+            synchronized(this) {
+                if (should_reset.get(thread_id)) {
+                    should_reset.put(thread_id, false);
+                    producer = null;
+                }
+            }
+
             long op = get_op();
             
             try {
@@ -148,6 +178,7 @@ public class Workload {
                 var m = f.get();
                 succeeded_writes++;
                 log(thread_id, "ok\t" + m.offset());
+                update_last_success();
             } catch (ExecutionException e) {
                 var cause = e.getCause();
                 if (cause != null) {
