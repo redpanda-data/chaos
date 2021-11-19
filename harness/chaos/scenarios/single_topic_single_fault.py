@@ -1,9 +1,5 @@
 import os
-from sh import ssh
-from sh import scp
-from sh import python3
-from sh import cd
-from sh import mkdir
+from sh import ssh, scp, python3, cd, mkdir, rm
 import json
 import sh
 import time
@@ -88,10 +84,9 @@ class SingleTopicSingleFault:
             self.workload_cluster.wait_killed(timeout_s=10)
             for node in self.workload_cluster.nodes:
                 logger.info(f"fetching oplog from {node.ip}")
-                scp(
-                    "-r",
-                    f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/*",
-                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/")
+                mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}")
+                scp(f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/{node.ip}/workload.log",
+                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/workload.log")
             self.is_workload_log_fetched = True
     
     def fetch_redpanda_logs(self):
@@ -109,6 +104,11 @@ class SingleTopicSingleFault:
                     f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log",
                     f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/log")
             self.is_redpanda_log_fetched = True
+    
+    def remove_logs(self):
+        for node in self.workload_cluster.nodes:
+            rm("-rf", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/workload.log")
+        rm("-rf", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
     
     def _execute(self):
         logger.info(f"stopping workload everywhere (if running)")
@@ -240,6 +240,12 @@ class SingleTopicSingleFault:
         self.save_config()
         
         self.fetch_redpanda_logs()
+
+        if "settings" in self.config:
+            if "remove_logs_on_success" in self.config["settings"]:
+                if self.config["settings"]["remove_logs_on_success"]:
+                    if self.config["result"]==Result.PASSED:
+                        self.remove_logs()
         
         return self.config
     

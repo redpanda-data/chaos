@@ -11,5 +11,8 @@
         "writing_reads_writes/leadership_transfer.json",
         "writing_reads_writes/reconfigure_313.json",
         "writing_reads_writes/reconfigure_kill_11.json"
-    ]
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
 }

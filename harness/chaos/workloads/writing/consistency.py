@@ -1,7 +1,7 @@
 from enum import Enum
 import sys
 import json
-from sh import mkdir
+from sh import mkdir, rm
 import traceback
 from confluent_kafka import Consumer, TopicPartition, OFFSET_BEGINNING
 from chaos.checks.result import Result
@@ -22,10 +22,12 @@ class Write:
 
 def validate(config, workload_dir):
     logger.setLevel(logging.DEBUG)
-    path = os.path.join(workload_dir, "consistency.log")
-    handler = logging.FileHandler(path)
+    logger_handler_path = os.path.join(workload_dir, "consistency.log")
+    handler = logging.FileHandler(logger_handler_path)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
     logger.addHandler(handler)
+
+    has_errors = True
     
     try:
         key = None
@@ -217,6 +219,8 @@ def validate(config, workload_dir):
                 write = ok_writes[offset]
                 logger.error(f"lost message found {write.key}={write.op}@{offset}")
 
+        has_errors = has_violation
+
         return {
             "result": Result.FAILED if has_violation else Result.PASSED
         }
@@ -233,3 +237,6 @@ def validate(config, workload_dir):
         handler.flush()
         handler.close()
         logger.removeHandler(handler)
+
+        if not has_errors:
+            rm("-rf", logger_handler_path)

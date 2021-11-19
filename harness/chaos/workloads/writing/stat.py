@@ -108,20 +108,33 @@ class Throughput:
 
 def collect(config, workload_dir):
     logger.setLevel(logging.DEBUG)
-    path = os.path.join(workload_dir, "stat.log")
-    handler = logging.FileHandler(path)
+    logger_handler_path = os.path.join(workload_dir, "stat.log")
+    handler = logging.FileHandler(logger_handler_path)
     handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
     logger.addHandler(handler)
     
-    try:
-        cd(workload_dir)
+    percentiles_log_path = os.path.join(workload_dir, "percentiles.log")
+    latency_ok_log_path = os.path.join(workload_dir, "latency_ok.log")
+    latency_err_log_path = os.path.join(workload_dir, "latency_err.log")
+    latency_timeout_log_path = os.path.join(workload_dir, "latency_timeout.log")
+    throughput_log_path = os.path.join(workload_dir, "throughput.log")
+    availability_log_path = os.path.join(workload_dir, "availability.log")
 
-        percentiles = open("percentiles.log", "w")
-        latency_ok = open("latency_ok.log", "w")
-        latency_err = open("latency_err.log", "w")
-        latency_timeout = open("latency_timeout.log", "w")
-        throughput_log = open("throughput.log", "w")
-        availability_log = open("availability.log", "w")
+    workload_log_path = os.path.join(workload_dir, "workload.log")
+
+    overview_gnuplot_path = os.path.join(workload_dir, "overview.gnuplot")
+    availability_gnuplot_path = os.path.join(workload_dir, "availability.gnuplot")
+    percentiles_gnuplot_path = os.path.join(workload_dir, "percentiles.gnuplot")
+
+    has_errors = True
+
+    try:
+        percentiles = open(percentiles_log_path, "w")
+        latency_ok = open(latency_ok_log_path, "w")
+        latency_err = open(latency_err_log_path, "w")
+        latency_timeout = open(latency_timeout_log_path, "w")
+        throughput_log = open(throughput_log_path, "w")
+        availability_log = open(availability_log_path, "w")
 
         last_state = dict()
         last_time = None
@@ -154,7 +167,7 @@ def collect(config, workload_dir):
                 throughput_bucket.count = 0
                 throughput_bucket.time_us += 1000000
 
-        with open("workload.log", "r") as workload_file:
+        with open(workload_log_path, "r") as workload_file:
             op_starts = {}
             attempt_starts = {}
 
@@ -320,7 +333,7 @@ def collect(config, workload_dir):
         throughput_log.close()
         availability_log.close()
 
-        with open("overview.gnuplot", "w") as gnuplot_file:
+        with open(overview_gnuplot_path, "w") as gnuplot_file:
             gnuplot_file.write(
                 jinja2.Template(OVERVIEW).render(
                     title = config["name"],
@@ -331,28 +344,21 @@ def collect(config, workload_dir):
                     recoveries = recoveries,
                     throughput=int(max_throughput*1.2)))
 
-        with open("availability.gnuplot", "w") as gnuplot_file:
+        with open(availability_gnuplot_path, "w") as gnuplot_file:
             gnuplot_file.write(jinja2.Template(AVAILABILITY).render(
                 title = config["name"]))
 
-        with open("percentiles.gnuplot", "w") as latency_file:
+        with open(percentiles_gnuplot_path, "w") as latency_file:
             latency_file.write(jinja2.Template(LATENCY).render(
                 title = config["name"],
                 yrange = int(p99*1.2),
                 p99 = p99))
 
-        gnuplot("overview.gnuplot")
-        gnuplot("availability.gnuplot")
-        gnuplot("percentiles.gnuplot")
-        rm("percentiles.log")
-        rm("latency_ok.log")
-        rm("latency_err.log")
-        rm("latency_timeout.log")
-        rm("throughput.log")
-        rm("availability.log")
-        rm("availability.gnuplot")
-        rm("overview.gnuplot")
-        rm("percentiles.gnuplot")
+        gnuplot(overview_gnuplot_path, _cwd=workload_dir)
+        gnuplot(availability_gnuplot_path, _cwd=workload_dir)
+        gnuplot(percentiles_gnuplot_path, _cwd=workload_dir)
+
+        has_errors = False
 
         return {
             "result": Result.PASSED,
@@ -380,3 +386,16 @@ def collect(config, workload_dir):
         handler.flush()
         handler.close()
         logger.removeHandler(handler)
+
+        if not has_errors:
+            rm("-rf", logger_handler_path)
+
+        rm("-rf", percentiles_log_path)
+        rm("-rf", latency_ok_log_path)
+        rm("-rf", latency_err_log_path)
+        rm("-rf", latency_timeout_log_path)
+        rm("-rf", throughput_log_path)
+        rm("-rf", availability_log_path)
+        rm("-rf", overview_gnuplot_path)
+        rm("-rf", availability_gnuplot_path)
+        rm("-rf", percentiles_gnuplot_path)

@@ -8,5 +8,8 @@
         "writing_kafka_clients/kill_follower.json",
         "writing_kafka_clients/kill_leader.json",
         "writing_kafka_clients/leadership_transfer.json"
-    ]
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
 }

@@ -56,7 +56,7 @@ Run a specific test suite `n` times:
 
 Run a specific test:
 
-    ./docker/test.test.sh writing_kafka_clients/kill_leader.json
+    ./docker/test.test.sh writing_reads_writes/pause_leader.json
 
 Copy test & redpanda logs (find them in the `results` folder):
 

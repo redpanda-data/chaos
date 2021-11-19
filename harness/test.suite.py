@@ -33,6 +33,9 @@ suite = None
 with open(args.suite, "r") as suite_file:
     suite = json.load(suite_file)
 
+if "settings" not in suite:
+    suite["settings"] = {}
+
 tests = {}
 
 for test_path in suite["tests"]:
@@ -44,6 +47,11 @@ for test_path in suite["tests"]:
         raise Exception(f"test name must be unique {test['name']} has a duplicate")
     if test["scenario"] not in SCENARIOS:
         raise Exception(f"unknown scenario: {test['scenario']}")
+    if "settings" not in test:
+        test["settings"] = {}
+    for key in suite["settings"].keys():
+        test["settings"][key] = suite["settings"][key]
+    
     scenario = SCENARIOS[test["scenario"]]()
     scenario.validate(test)
     tests[test["name"]] = test

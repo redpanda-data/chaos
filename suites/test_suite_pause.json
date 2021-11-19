@@ -3,5 +3,8 @@
     "tests": [
         "writing_kafka_clients/pause_follower.json",
         "writing_kafka_clients/pause_leader.json"
-    ]
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
 }
