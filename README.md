@@ -30,13 +30,23 @@ Run a specific test:
 
 Copy test & redpanda logs (find them in the `results` folder):
 
-    ./fetch.aws.logs.sh
+    ./playbooks/fetch.logs.sh
 
 Cleanup:
 
     terraform destroy
 
 ## Test locally (docker & docker-compose)
+
+### All in one
+
+Run all tests with a single command:
+
+    ./docker/test.all.sh
+
+### Fine granularity
+
+Or use individual commands for fine granularity.
 
 Build docker images:
 
@@ -60,7 +70,7 @@ Run a specific test:
 
 Copy test & redpanda logs (find them in the `results` folder):
 
-    ./fetch.docker.logs.sh
+    ./docker/fetch.logs.sh
 
 # Dev help
 

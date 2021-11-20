@@ -2,4 +2,4 @@
 
 set -e
 
-docker-compose up --detach
+docker-compose -f docker/docker-compose.yaml --project-directory . up --detach
