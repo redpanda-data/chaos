@@ -4,7 +4,7 @@ set -e
 
 ./docker/rebuild.sh
 ./docker/up.sh
-./docker/test.test.sh writing_reads_writes/pause_leader.json
+./docker/test.suite.sh test_suite_all.json
 ./docker/fetch.logs.sh
 ./docker/down.sh
 python3 harness/combine.results.py

@@ -9,13 +9,42 @@
         "writing_kafka_clients/kill_follower.json",
         "writing_kafka_clients/kill_leader.json",
         "writing_kafka_clients/leadership_transfer.json",
+        "writing_kafka_clients/pause_follower.json",
+        "writing_kafka_clients/pause_leader.json",
+        "writing_kafka_clients/reconfigure_11_kill.json",
+        "writing_kafka_clients/reconfigure_313.json",
+        "writing_kafka_clients/reconfigure_kill_11.json",
+
         "writing_confluent_kafka/baseline.json",
         "writing_confluent_kafka/isolate_controller.json",
         "writing_confluent_kafka/isolate_follower.json",
         "writing_confluent_kafka/isolate_leader.json",
         "writing_confluent_kafka/kill_follower.json",
         "writing_confluent_kafka/kill_leader.json",
-        "writing_confluent_kafka/leadership_transfer.json"
+        "writing_confluent_kafka/leadership_transfer.json",
+
+        "writing_kafka_clients/idempotency/baseline.json",
+        "writing_kafka_clients/idempotency/isolate_follower.json",
+        "writing_kafka_clients/idempotency/isolate_leader.json",
+        "writing_kafka_clients/idempotency/kill_follower.json",
+        "writing_kafka_clients/idempotency/kill_leader.json",
+        "writing_kafka_clients/idempotency/leadership_transfer.json",
+        "writing_kafka_clients/idempotency/pause_follower.json",
+        "writing_kafka_clients/idempotency/pause_leader.json",
+        "writing_kafka_clients/idempotency/reconfigure_11_kill.json",
+        "writing_kafka_clients/idempotency/reconfigure_313.json",
+        "writing_kafka_clients/idempotency/reconfigure_kill_11.json",
+
+        "writing_reads_writes/baseline.json",
+        "writing_reads_writes/isolate_follower.json",
+        "writing_reads_writes/isolate_leader.json",
+        "writing_reads_writes/kill_follower.json",
+        "writing_reads_writes/kill_leader.json",
+        "writing_reads_writes/pause_follower.json",
+        "writing_reads_writes/pause_leader.json",
+        "writing_reads_writes/leadership_transfer.json",
+        "writing_reads_writes/reconfigure_313.json",
+        "writing_reads_writes/reconfigure_kill_11.json"
     ],
     "settings": {
         "remove_logs_on_success": true
