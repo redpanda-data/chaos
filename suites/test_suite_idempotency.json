@@ -1,0 +1,10 @@
+{
+    "name": "all",
+    "tests": [
+        "writing_kafka_clients/failing/kill_leader.json",
+        "writing_kafka_clients/idempotency/kill_leader.json"
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
+}
