@@ -27,3 +27,5 @@ redpanda_0.0-dev-0000000_amd64.deb
 id_ed25519.pub
 id_ed25519
 docker/bind_mounts/
+harness/chaos/__pycache__
+harness/chaos/checks/__pycache__

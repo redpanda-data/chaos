@@ -7,3 +7,4 @@ set -e
 ./docker/test.test.sh writing_reads_writes/pause_leader.json
 ./docker/fetch.logs.sh
 ./docker/down.sh
+python3 harness/combine.results.py
