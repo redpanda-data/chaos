@@ -23,9 +23,6 @@ import org.apache.kafka.clients.admin.OffsetSpec;
 import org.apache.kafka.clients.admin.ListOffsetsOptions;
 
 public class Workload {
-    public volatile long succeeded_writes = 0;
-    public volatile long failed_writes = 0;
-    public volatile long timedout_writes = 0;
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
@@ -35,6 +32,26 @@ public class Workload {
     private long known_offset;
     private long before_us = -1;
     private long last_op = 0;
+
+    private HashMap<Integer, App.OpsInfo> ops_info;
+
+    private synchronized void succeeded(int thread_id) {
+        ops_info.get(thread_id).succeeded_ops += 1;
+    }
+    private synchronized void timedout(int thread_id) {
+        ops_info.get(thread_id).timedout_ops += 1;
+    }
+    private synchronized void failed(int thread_id) {
+        ops_info.get(thread_id).failed_ops += 1;
+    }
+
+    public synchronized HashMap<String, App.OpsInfo> get_ops_info() {
+        HashMap<String, App.OpsInfo> result = new HashMap<>();
+        for (Integer key : ops_info.keySet()) {
+            result.put("" + key, ops_info.get(key).copy());
+        }
+        return result;
+    }
 
     synchronized long get_op() {
         return ++this.last_op;
@@ -65,10 +82,12 @@ public class Workload {
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
         threads = new ArrayList<>();
+        ops_info = new HashMap<>();
         int i=0;
 
         for (;i<this.args.settings.concurrency;i++) {
             final var j=i;
+            ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
                     process(j);
@@ -81,6 +100,7 @@ public class Workload {
 
         {
             final var j=i++;
+            ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
                     listOffsetProcess(j);
@@ -171,7 +191,7 @@ public class Workload {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
                 continue;
             }
             
@@ -179,7 +199,7 @@ public class Workload {
                 log(thread_id, "msg\t" + op);
                 var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
                 var m = f.get();
-                succeeded_writes++;
+                succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());
                 update_known_offset(m.offset());
             } catch (ExecutionException e) {
@@ -187,23 +207,23 @@ public class Workload {
                 if (cause != null) {
                     if (cause instanceof TimeoutException) {
                         log(thread_id, "time");
-                        timedout_writes++;
+                        timedout(thread_id);
                         continue;
                     } else if (cause instanceof NotLeaderOrFollowerException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         continue;
                     }
                 }
  
                 log(thread_id, "err");
                 System.out.println(e);
-                failed_writes++;
+                failed(thread_id);
             } catch (Exception e) {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
             }
         }
         producer.close();
@@ -256,7 +276,7 @@ public class Workload {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
                 continue;
             }
             
@@ -274,20 +294,20 @@ public class Workload {
                 var cause = e.getCause();
                 if (cause != null) {
                     if (cause instanceof TimeoutException) {
-                        timedout_writes++;
+                        timedout(thread_id);
                         continue;
                     } else if (cause instanceof NotLeaderOrFollowerException) {
-                        failed_writes++;
+                        failed(thread_id);
                         continue;
                     }
                 }
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
             } catch (Exception e) {
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
             }
         }
 

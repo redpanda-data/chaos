@@ -18,9 +18,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Workload {
-    public volatile long succeeded_writes = 0;
-    public volatile long failed_writes = 0;
-    public volatile long timedout_writes = 0;
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
@@ -32,13 +29,10 @@ public class Workload {
 
     private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
+    private HashMap<Integer, App.OpsInfo> ops_info;
 
     synchronized long get_op() {
         return ++this.last_op;
-    }
-
-    private synchronized void update_last_success() {
-        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
     }
 
     private synchronized void tick() {
@@ -67,11 +61,13 @@ public class Workload {
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
         should_reset = new HashMap<>();
+        ops_info = new HashMap<>();
 
         threads = new ArrayList<>();
         for (int i=0;i<this.args.settings.concurrency;i++) {
             final var j=i;
             should_reset.put(j, false);
+            ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
                     process(j);
@@ -111,6 +107,25 @@ public class Workload {
                         "\t" + (now_us - past_us) +
                         "\t" + message + "\n");
         past_us = now_us;
+    }
+
+    private synchronized void succeeded(int thread_id) {
+        ops_info.get(thread_id).succeeded_ops += 1;
+        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
+    }
+    private synchronized void timedout(int thread_id) {
+        ops_info.get(thread_id).timedout_ops += 1;
+    }
+    private synchronized void failed(int thread_id) {
+        ops_info.get(thread_id).failed_ops += 1;
+    }
+
+    public synchronized HashMap<String, App.OpsInfo> get_ops_info() {
+        HashMap<String, App.OpsInfo> result = new HashMap<>();
+        for (Integer key : ops_info.keySet()) {
+            result.put("" + key, ops_info.get(key).copy());
+        }
+        return result;
     }
 
     private void process(int thread_id) throws Exception {
@@ -177,7 +192,7 @@ public class Workload {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
                 continue;
             }
             
@@ -185,23 +200,22 @@ public class Workload {
                 log(thread_id, "msg\t" + op);
                 var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
                 var m = f.get();
-                succeeded_writes++;
+                succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());
-                update_last_success();
             } catch (ExecutionException e) {
                 var cause = e.getCause();
                 if (cause != null) {
                     if (cause instanceof TimeoutException) {
                         log(thread_id, "time");
-                        timedout_writes++;
+                        timedout(thread_id);
                         continue;
                     } else if (cause instanceof NotLeaderOrFollowerException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         continue;
                     } else if (cause instanceof OutOfOrderSequenceException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         System.out.println(e);
                         e.printStackTrace();
                         if (producer != null) {
@@ -213,7 +227,7 @@ public class Workload {
                         continue;
                     } else if (cause instanceof UnknownProducerIdException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         System.out.println(e);
                         e.printStackTrace();
                         if (producer != null) {
@@ -225,7 +239,7 @@ public class Workload {
                         continue;
                     } else if (cause instanceof KafkaException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         System.out.println(e);
                         e.printStackTrace();
                         if (producer != null) {
@@ -240,12 +254,12 @@ public class Workload {
  
                 log(thread_id, "err");
                 System.out.println(e);
-                failed_writes++;
+                failed(thread_id);
             } catch (Exception e) {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
             }
         }
         producer.close();

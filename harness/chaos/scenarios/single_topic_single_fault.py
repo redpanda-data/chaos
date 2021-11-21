@@ -30,7 +30,7 @@ SUPPORTED_FAULTS = [
 ]
 
 SUPPORTED_CHECKS = [
-    "redpanda_process_liveness"
+    "redpanda_process_liveness", "progress_during_fault"
 ]
 
 def normalize_fault(cfg_fault):
@@ -66,6 +66,13 @@ class SingleTopicSingleFault:
         for check in config["checks"]:
             if check["name"] not in SUPPORTED_CHECKS:
                 raise Exception(f"unknown check: {check['name']}")
+            if check["name"] == "progress_during_fault":
+                fault = normalize_fault(config["fault"])
+                if fault == None:
+                    raise Exception(f"progress_during_fault works only with faults, found None")
+                fault = FAULTS[fault["name"]](fault)
+                if fault.fault_type != FaultType.RECOVERABLE:
+                    raise Exception(f"progress_during_fault works only with {FaultType.RECOVERABLE} faults, found {fault.fault_type}")
     
     def save_config(self):
         with open(f"/mnt/vectorized/experiments/{self.config['experiment_id']}/info.json", "w") as info:
@@ -109,6 +116,12 @@ class SingleTopicSingleFault:
         for node in self.workload_cluster.nodes:
             rm("-rf", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/workload.log")
         rm("-rf", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
+    
+    def get_progress_during_fault(self):
+        for check_cfg in self.config["checks"]:
+            if check_cfg["name"] == "progress_during_fault":
+                return check_cfg
+        return None
     
     def _execute(self):
         logger.info(f"stopping workload everywhere (if running)")
@@ -199,8 +212,35 @@ class SingleTopicSingleFault:
             logger.info(f"injected {fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injected")
+            after_fault_info = {}
+            for node in self.workload_cluster.nodes:
+                after_fault_info[node.ip] = self.workload_cluster.info(node)
             logger.info(f"wait for 60 seconds to record impacted state")
             sleep(60)
+            before_heal_info = {}
+            for node in self.workload_cluster.nodes:
+                before_heal_info[node.ip] = self.workload_cluster.info(node)
+            progress_during_fault = self.get_progress_during_fault()
+            if progress_during_fault != None:
+                progress_during_fault["result"] = Result.PASSED
+                for ip in before_heal_info.keys():
+                    delta = before_heal_info[ip].succeeded_ops - after_fault_info[ip].succeeded_ops
+                    progress_during_fault[ip] = {
+                        "delta": delta
+                    }
+                    if delta < progress_during_fault["min-delta"]:
+                        progress_during_fault[ip]["result"] = Result.FAILED
+                    else:
+                        progress_during_fault[ip]["result"] = Result.PASSED
+                    progress_during_fault["result"] = Result.more_severe(
+                        progress_during_fault["result"],
+                        progress_during_fault[ip]["result"]
+                    )
+                self.config["result"] = Result.more_severe(
+                    self.config["result"],
+                    progress_during_fault["result"]
+                )
+                self.save_config()
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "healing")
             logger.info(f"healing {fault.name}")
@@ -228,6 +268,8 @@ class SingleTopicSingleFault:
         self.fetch_workload_logs()
 
         for check_cfg in self.config["checks"]:
+            if check_cfg["name"] == "progress_during_fault":
+                continue
             check = CHECKS[check_cfg["name"]]
             result = check().check(self)
             for key in result:

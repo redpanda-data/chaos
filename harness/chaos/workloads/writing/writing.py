@@ -21,6 +21,7 @@ class Info:
     def __init__(self):
         self.succeeded_ops = 0
         self.failed_ops = 0
+        self.timedout_ops = 0
         self.is_active = 0
 
 class Control:
@@ -167,6 +168,7 @@ class Workload:
         info = Info()
         info.succeeded_ops = r.json()["succeeded_ops"]
         info.failed_ops = r.json()["failed_ops"]
+        info.timedout_ops = r.json()["timedout_ops"]
         info.is_active = r.json()["is_active"]
         return info
     

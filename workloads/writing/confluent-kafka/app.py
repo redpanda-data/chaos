@@ -70,18 +70,52 @@ class Params:
         self.topic = cfg["topic"]
         self.settings = cfg["settings"]
 
-class Workload:
-    def __init__(self, args):
-        self.args = args
+class OpsInfo:
+    def __init__(self):
         self.succeeded_ops = 0
         self.failed_ops = 0
         self.timedout_ops = 0
+    
+    def as_dict(self):
+        return {
+            "succeeded_ops": self.succeeded_ops,
+            "failed_ops": self.failed_ops,
+            "timedout_ops": self.timedout_ops
+        }
+
+class Workload:
+    def __init__(self, args):
+        self.args = args
+        self.ops_info = {}
         self.is_active = False
         self.threads = []
         self.mutex = Lock()
         self.opslog = None
         self.past_us = 0
         self.last_op = 0
+    
+    def succeeded(self, thread_id):
+        self.mutex.acquire()
+        self.ops_info[thread_id].succeeded_ops += 1
+        self.mutex.release()
+    
+    def timedout(self, thread_id):
+        self.mutex.acquire()
+        self.ops_info[thread_id].timedout_ops += 1
+        self.mutex.release()
+    
+    def failed(self, thread_id):
+        self.mutex.acquire()
+        self.ops_info[thread_id].failed_ops += 1
+        self.mutex.release()
+    
+    def get_ops_info(self):
+        self.mutex.acquire()
+        result = {}
+        for key in self.ops_info.keys():
+            result[str(key)] = self.ops_info[key].as_dict()
+        self.mutex.release()
+        return result
     
     def get_op(self):
         op = None
@@ -98,6 +132,7 @@ class Workload:
         self.opslog = open(os.path.join(self.args.experiment, self.args.server, "workload.log"), "w")
         
         for i in range(0, self.args.settings["concurrency"]):
+            self.ops_info[i]=OpsInfo()
             thread = threading.Thread(target=lambda i=i: self.process(i))
             self.threads.append(thread)
         
@@ -135,11 +170,11 @@ class Workload:
                     self.log(thread_id, "constructing")
                     client.init()
                     self.log(thread_id, "constructed");
-                    self.succeeded_ops += 1
+                    self.succeeded(thread_id)
                     continue
             except:
                 self.log(thread_id, "err")
-                self.failed_ops += 1
+                self.failed(thread_id)
                 e, v = sys.exc_info()[:2]
                 trace = traceback.format_exc()
                 print(v)
@@ -151,20 +186,20 @@ class Workload:
                 result = client.produce(self.args.topic, self.args.server.encode('utf-8'), str(op).encode('utf-8'))
                 offset = result["offset"]
                 self.log(thread_id, f"ok\t{offset}")
-                self.succeeded_ops += 1
+                self.succeeded(thread_id)
             except KafkaException as err:
                 code = err.args[0].code()
                 if code == KafkaError._MSG_TIMED_OUT:
                     self.log(thread_id, "time")
-                    self.timedout_ops += 1
+                    self.timedout(thread_id)
                     print("timeout")
                 else:
                     self.log(thread_id, "err")
-                    self.failed_ops += 1
+                    self.failed(thread_id)
                     print(f"KafkaError with code: {code}")
             except:
                 self.log(thread_id, "err")
-                self.failed_ops += 1
+                self.failed(thread_id)
                 e, v = sys.exc_info()[:2]
                 trace = traceback.format_exc()
                 print(v)
@@ -207,12 +242,15 @@ class AppState:
             "succeeded_ops": 0,
             "failed_ops": 0,
             "timedout_ops": 0,
+            "threads": {},
             "is_active": False
         }
         if self.workload != None:
-            result["succeeded_ops"] = self.workload.succeeded_ops
-            result["failed_ops"] = self.workload.failed_ops
-            result["timedout_ops"] = self.workload.timedout_ops
+            result["threads"] = self.workload.get_ops_info()
+            for key in result["threads"].keys():
+                result["succeeded_ops"] += result["threads"][key]["succeeded_ops"]
+                result["failed_ops"] += result["threads"][key]["failed_ops"]
+                result["timedout_ops"] += result["threads"][key]["timedout_ops"]
             result["is_active"] = self.workload.is_active
         return result
     

@@ -2,6 +2,7 @@ package io.vectorized;
 
 import com.google.gson.Gson;
 import java.io.*;
+import java.util.HashMap;
 
 import static spark.Spark.*;
 import spark.*;
@@ -21,10 +22,23 @@ public class App
         public WorkflowSettings settings;
     }
 
-    public static class Info {
-        public boolean is_active;
+    public static class OpsInfo {
         public long succeeded_ops = 0;
         public long failed_ops = 0;
+        public long timedout_ops = 0;
+
+        public OpsInfo copy() {
+            var value = new OpsInfo();
+            value.succeeded_ops = succeeded_ops;
+            value.failed_ops = failed_ops;
+            value.timedout_ops = timedout_ops;
+            return value;
+        }
+    }
+
+    public static class Info extends OpsInfo {
+        public boolean is_active;
+        public HashMap<String, OpsInfo> threads = new HashMap<>();
     }
 
     static enum State {
@@ -61,10 +75,16 @@ public class App
             info.is_active = false;
             info.failed_ops = 0;
             info.succeeded_ops = 0;
+            info.timedout_ops = 0;
             if (workload != null) {
-                info.succeeded_ops = workload.succeeded_writes;
-                info.failed_ops = workload.failed_writes;
                 info.is_active = workload.is_active;
+                info.threads = workload.get_ops_info();
+                for (String key : info.threads.keySet()) {
+                    var value = info.threads.get(key);
+                    info.succeeded_ops += value.succeeded_ops;
+                    info.failed_ops += value.failed_ops;
+                    info.timedout_ops += value.timedout_ops;
+                }
             }
             return info;
         }, new JsonTransformer());

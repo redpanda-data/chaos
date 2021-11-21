@@ -39,9 +39,6 @@ public class Workload {
         public HashSet<Integer> has_seen = new HashSet<>();
     }
     
-    public volatile long succeeded_writes = 0;
-    public volatile long failed_writes = 0;
-    public volatile long timedout_writes = 0;
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
@@ -54,6 +51,7 @@ public class Workload {
 
     private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
+    private HashMap<Integer, App.OpsInfo> ops_info;
 
     long last_known_offset;
     Queue<Long> read_offsets;
@@ -63,6 +61,24 @@ public class Workload {
     HashMap<Long, WriteInfo> write_by_offset;
     HashMap<Integer, Queue<Long>> known_writes;
     HashMap<Integer, Semaphore> semaphores;
+
+    private synchronized void succeeded(int thread_id) {
+        ops_info.get(thread_id).succeeded_ops += 1;
+    }
+    private synchronized void timedout(int thread_id) {
+        ops_info.get(thread_id).timedout_ops += 1;
+    }
+    private synchronized void failed(int thread_id) {
+        ops_info.get(thread_id).failed_ops += 1;
+    }
+
+    public synchronized HashMap<String, App.OpsInfo> get_ops_info() {
+        HashMap<String, App.OpsInfo> result = new HashMap<>();
+        for (Integer key : ops_info.keySet()) {
+            result.put("" + key, ops_info.get(key).copy());
+        }
+        return result;
+    }
 
     synchronized long get_op() {
         return ++this.last_op;
@@ -106,12 +122,14 @@ public class Workload {
         semaphores = new HashMap<>();
         known_writes = new HashMap<>();
         should_reset = new HashMap<>();
+        ops_info = new HashMap<>();
         
         int thread_id=0;
         write_threads = new ArrayList<>();
         for (int i=0;i<this.args.settings.writes;i++) {
             final var j=thread_id++;
             should_reset.put(j, false);
+            ops_info.put(j, new App.OpsInfo());
             write_threads.add(new Thread(() -> { 
                 try {
                     writeProcess(j);
@@ -127,6 +145,7 @@ public class Workload {
             final var j=thread_id++;
             should_reset.put(j, false);
             read_fronts.put(j, -1L);
+            ops_info.put(j, new App.OpsInfo());
             read_threads.add(new Thread(() -> { 
                 try {
                     readProcess(j);
@@ -261,7 +280,7 @@ public class Workload {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
                 continue;
             }
 
@@ -413,7 +432,7 @@ public class Workload {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
                 continue;
             }
             
@@ -433,7 +452,6 @@ public class Workload {
                 }
                 var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
                 var m = f.get();
-                succeeded_writes++;
                 var offset = m.offset();
                 var should_acquire = true;
                 synchronized(this) {
@@ -465,21 +483,22 @@ public class Workload {
                     semaphore.acquire();
                 }
                 log(thread_id, "ok\t" + offset);
+                succeeded(thread_id);
                 update_last_success();
             } catch (ExecutionException e) {
                 var cause = e.getCause();
                 if (cause != null) {
                     if (cause instanceof TimeoutException) {
                         log(thread_id, "time");
-                        timedout_writes++;
+                        timedout(thread_id);
                         continue;
                     } else if (cause instanceof NotLeaderOrFollowerException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         continue;
                     } else if (cause instanceof KafkaException) {
                         log(thread_id, "err");
-                        failed_writes++;
+                        failed(thread_id);
                         System.out.println(e);
                         e.printStackTrace();
                         if (producer != null) {
@@ -494,12 +513,12 @@ public class Workload {
  
                 log(thread_id, "err");
                 System.out.println(e);
-                failed_writes++;
+                failed(thread_id);
             } catch (Exception e) {
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
-                failed_writes++;
+                failed(thread_id);
             }
         }
         producer.close();
