@@ -12,6 +12,8 @@ public class App
     public static class WorkflowSettings {
         public int writes;
         public int reads;
+        public int retries = 0;
+        public Boolean enable_idempotency = false;
     }
     
     public static class InitBody {

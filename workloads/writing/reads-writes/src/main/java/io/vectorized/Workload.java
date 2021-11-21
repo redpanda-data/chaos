@@ -12,6 +12,7 @@ import java.util.Collections;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.KafkaException;
 
 import javax.swing.plaf.synth.SynthButtonUI;
 
@@ -381,8 +382,8 @@ public class Workload {
         props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
         // default value: 300000
         props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
-        props.put(ProducerConfig.RETRIES_CONFIG, 0);
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false);
+        props.put(ProducerConfig.RETRIES_CONFIG, args.settings.retries);
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, args.settings.enable_idempotency);
 
 
         Producer<String, String> producer = null;
@@ -475,6 +476,18 @@ public class Workload {
                     } else if (cause instanceof NotLeaderOrFollowerException) {
                         log(thread_id, "err");
                         failed_writes++;
+                        continue;
+                    } else if (cause instanceof KafkaException) {
+                        log(thread_id, "err");
+                        failed_writes++;
+                        System.out.println(e);
+                        e.printStackTrace();
+                        if (producer != null) {
+                            try {
+                                producer.close();
+                                producer = null;
+                            } catch(Exception e2) {}
+                        }
                         continue;
                     }
                 }
