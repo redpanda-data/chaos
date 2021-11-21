@@ -218,9 +218,6 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     throughput_bucket.count+=1
                     last_time = end
-                    if should_measure:
-                        availability_history.append([int((op_starts[thread_id]-started)/1000), end-op_starts[thread_id]])
-                        latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
                     op_starts[thread_id] = None
                 elif new_state == State.SENDING:
                     if last_time == None:
