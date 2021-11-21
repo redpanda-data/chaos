@@ -18,6 +18,7 @@
     },
     "fault": "isolate_follower",
     "checks": [
-        { "name": "redpanda_process_liveness" }
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
     ]
 }
