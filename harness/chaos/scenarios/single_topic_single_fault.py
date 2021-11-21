@@ -108,8 +108,8 @@ class SingleTopicSingleFault:
                 mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
                 logger.info(f"fetching logs from {node.ip}")
                 scp(
-                    f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log",
-                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/log")
+                    f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log.*",
+                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/")
             self.is_redpanda_log_fetched = True
     
     def remove_logs(self):
