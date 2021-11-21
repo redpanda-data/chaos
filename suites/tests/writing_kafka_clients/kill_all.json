@@ -1,0 +1,20 @@
+{
+    "name": "writing / kafka-clients / kill all",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writing / kafka-clients",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 1
+        }
+    },
+    "fault": "kill_all",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
