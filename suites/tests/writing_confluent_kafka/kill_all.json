@@ -1,10 +1,10 @@
 {
-    "name": "writes / confluent-kafka / kill all",
+    "name": "writes / python / kill all",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writes / confluent-kafka",
+        "name": "writes / python",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
