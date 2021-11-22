@@ -9,7 +9,7 @@ def kafka_clients_workload(nodes_path):
     writing_java.launch = "/mnt/vectorized/control/writing.kafka-clients.start.sh"
     writing_java.alive = "/mnt/vectorized/control/writing.kafka-clients.alive.sh"
     writing_java.kill = "/mnt/vectorized/control/writing.kafka-clients.stop.sh"
-    writing_java.name = "writes / kafka-clients"
+    writing_java.name = "writes / java"
     return writing.Workload(writing_java, nodes_path)
 
 def confluent_kafka_workload(nodes_path):
@@ -39,7 +39,7 @@ def reads_writes_workload(nodes_path):
 WORKLOADS = {
     "reads-writes / java": reads_writes_workload,
     "list-offsets / java": list_offsets_workload,
-    "writes / kafka-clients": kafka_clients_workload,
+    "writes / java": kafka_clients_workload,
     "writes / confluent-kafka": confluent_kafka_workload
 }
 

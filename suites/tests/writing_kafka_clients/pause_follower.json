@@ -1,10 +1,10 @@
 {
-    "name": "writes / kafka-clients / pause follower",
+    "name": "writes / java / pause follower",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writes / kafka-clients",
+        "name": "writes / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }

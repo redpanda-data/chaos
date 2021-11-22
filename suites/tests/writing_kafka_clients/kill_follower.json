@@ -1,10 +1,10 @@
 {
-    "name": "writes / kafka-clients / kill follower",
+    "name": "writes / java / kill follower",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writes / kafka-clients",
+        "name": "writes / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
