@@ -25,7 +25,7 @@ def list_offsets_workload(nodes_path):
     writing_java.launch = "/mnt/vectorized/control/writing.list-offsets.start.sh"
     writing_java.alive = "/mnt/vectorized/control/writing.list-offsets.alive.sh"
     writing_java.kill = "/mnt/vectorized/control/writing.list-offsets.stop.sh"
-    writing_java.name = "writing / list-offsets"
+    writing_java.name = "writes / list-offsets"
     return writing.Workload(writing_java, nodes_path)
 
 def reads_writes_workload(nodes_path):
@@ -38,7 +38,7 @@ def reads_writes_workload(nodes_path):
 
 WORKLOADS = {
     "writing / reads-writes": reads_writes_workload,
-    "writing / list-offsets": list_offsets_workload,
+    "writes / list-offsets": list_offsets_workload,
     "writing / kafka-clients": kafka_clients_workload,
     "writing / confluent-kafka": confluent_kafka_workload
 }

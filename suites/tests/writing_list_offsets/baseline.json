@@ -1,10 +1,10 @@
 {
-    "name": "writing / list-offsets / baseline",
+    "name": "writes / list-offsets / baseline",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / list-offsets",
+        "name": "writes / list-offsets",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
