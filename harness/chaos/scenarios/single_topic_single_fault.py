@@ -19,7 +19,7 @@ from chaos.redpanda_cluster import RedpandaCluster
 logger = logging.getLogger("chaos")
 
 SUPPORTED_WORKLOADS = {
-    "writes / kafka-clients", "writes / confluent-kafka", "writes / list-offsets", "writing / reads-writes"
+    "writes / kafka-clients", "writes / confluent-kafka", "writes / list-offsets", "reads-writes / java"
 }
 
 SUPPORTED_FAULTS = [

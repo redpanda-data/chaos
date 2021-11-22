@@ -1,10 +1,10 @@
 {
-    "name": "writing / reads-writes / isolate leader (with idempotency)",
+    "name": "reads-writes / java / isolate leader (with idempotency)",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / reads-writes",
+        "name": "reads-writes / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }

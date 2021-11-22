@@ -1,10 +1,10 @@
 {
-    "name": "writing / reads-writes / kill during reconfiguring 1->1 (with idempotency)",
+    "name": "reads-writes / java / kill during reconfiguring 1->1 (with idempotency)",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 1,
     "workload": {
-        "name": "writing / reads-writes",
+        "name": "reads-writes / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
