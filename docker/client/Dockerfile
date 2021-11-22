@@ -23,12 +23,12 @@ RUN pip3 install sh
 RUN pip3 install flask
 RUN pip3 install confluent_kafka
 RUN mkdir -p /mnt/vectorized/workloads
-COPY workloads/writing /mnt/vectorized/workloads/writing
-RUN cd /mnt/vectorized/workloads/writing/kafka-clients && \
+COPY workloads /mnt/vectorized/workloads
+RUN cd /mnt/vectorized/workloads/writes/kafka-clients && \
     mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/writing/list-offsets && \
+RUN cd /mnt/vectorized/workloads/list-offsets && \
     mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/writing/reads-writes && \
+RUN cd /mnt/vectorized/workloads/reads-writes && \
     mvn clean dependency:copy-dependencies package
-RUN chown ubuntu:ubuntu -R /mnt/vectorized/workloads/writing
+RUN chown ubuntu:ubuntu -R /mnt/vectorized/workloads
 CMD /mnt/vectorized/entrypoint.sh
