@@ -1,10 +1,10 @@
 {
-    "name": "writing / kafka-clients / isolate leader",
+    "name": "writes / kafka-clients / isolate leader",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / kafka-clients",
+        "name": "writes / kafka-clients",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }

@@ -1,10 +1,10 @@
 {
-    "name": "writing / kafka-clients / reconfigure 3 -> 1 -> 3 (with idempotency)",
+    "name": "writes / kafka-clients / reconfigure 3 -> 1 -> 3 (with idempotency)",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / kafka-clients",
+        "name": "writes / kafka-clients",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }

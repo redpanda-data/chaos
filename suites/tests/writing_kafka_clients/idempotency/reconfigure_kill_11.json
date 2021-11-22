@@ -1,10 +1,10 @@
 {
-    "name": "writing / kafka-clients / kill during reconfiguring 1->1 (with idempotency)",
+    "name": "writes / kafka-clients / kill during reconfiguring 1->1 (with idempotency)",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 1,
     "workload": {
-        "name": "writing / kafka-clients",
+        "name": "writes / kafka-clients",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
