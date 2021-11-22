@@ -63,7 +63,7 @@ plot 'latency_ok.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7,
      'latency_timeout.log' using ($1/1000):2 notitle with points lt rgb "blue" pt 7
 
 set pointsize 0.2
-set yrange [0:{{ read_latency }}]
+set yrange [0:{{ write_latency }}]
 set xrange [0:{{ duration }}]
 set size 1, 0.2
 set origin 0, 0.2
@@ -383,9 +383,9 @@ def collect(config, workload_dir):
                 jinja2.Template(OVERVIEW).render(
                     title = config["name"],
                     duration=int(duration_ms/1000),
-                    small_latency=3*min_latency_us,
-                    read_latency=3*written_min,
-                    big_latency=int(max_latency_us*1.2),
+                    small_latency=2*min_latency_us,
+                    write_latency=2*written_min,
+                    big_latency=int(p99*1.2),
                     faults = faults,
                     recoveries = recoveries,
                     throughput=int(max_throughput*1.2)))

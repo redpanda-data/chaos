@@ -14,8 +14,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.KafkaException;
 
-import javax.swing.plaf.synth.SynthButtonUI;
-
 import java.lang.Thread;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
@@ -38,6 +36,8 @@ public class Workload {
         public long curr_offset;
         public long last_offset;
         public boolean has_write_passed;
+        public boolean has_write_failed;
+        public boolean should_backpressure;
         public boolean is_expired;
         public HashSet<Integer> has_seen = new HashSet<>();
     }
@@ -315,7 +315,6 @@ public class Workload {
                             violation(thread_id, "read " + offset + " after " + prev_offset + " while abother thread read " + next_offset.get(prev_offset));
                         }
                     } else {
-                        semaphores.get(write.thread_id).release();
                         next_offset.put(prev_offset, offset);
                         read_offsets.add(offset);
                     }
@@ -333,10 +332,17 @@ public class Workload {
                     }
                     if (write.has_seen.isEmpty()) {
                         write.seen_us = System.nanoTime() / 1000;
-                        log(write.thread_id, "ok\t" + offset);
-                        succeeded(write.thread_id);
+                        if (!write.has_write_failed) {
+                            log(write.thread_id, "ok\t" + offset + "\t" + op);
+                            succeeded(write.thread_id);
+                        }
                     }
                     write.has_seen.add(thread_id);
+
+                    if (write.should_backpressure) {
+                        write.should_backpressure = false;
+                        semaphores.get(write.thread_id).release();
+                    }
 
                     read_fronts.put(thread_id, offset);
                     var min_front = offset;
@@ -454,6 +460,8 @@ public class Workload {
                     info.curr_offset = -1;
                     info.last_offset = last_known_offset;
                     info.has_write_passed = false;
+                    info.has_write_failed = false;
+                    info.should_backpressure = false;
                     info.is_expired = false;
                     
                     write_by_op.put(op, info);
@@ -461,7 +469,7 @@ public class Workload {
                 var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
                 var m = f.get();
                 var offset = m.offset();
-                var should_acquire = true;
+                var should_acquire = false;
                 synchronized(this) {
                     known_writes.get(thread_id).add(offset);
                     var write = write_by_op.get(op);
@@ -483,7 +491,11 @@ public class Workload {
                     if (write.is_expired) {
                         write_by_offset.remove(offset);
                         write_by_op.remove(op);
-                        should_acquire = false;
+                    }
+                    
+                    if (write.has_seen.size() != read_fronts.size()) {
+                        write.should_backpressure = true;
+                        should_acquire = true;
                     }
 
                     last_known_offset = Math.max(last_known_offset, write.curr_offset);
@@ -493,6 +505,13 @@ public class Workload {
                 }
                 update_last_success();
             } catch (ExecutionException e) {
+                synchronized(this) {
+                    var write = write_by_op.get(op);
+                    write.has_write_failed = true;
+                    if (!write.has_seen.isEmpty()) {
+                        continue;
+                    }
+                }
                 var cause = e.getCause();
                 if (cause != null) {
                     if (cause instanceof TimeoutException) {
@@ -522,6 +541,13 @@ public class Workload {
                 System.out.println(e);
                 failed(thread_id);
             } catch (Exception e) {
+                synchronized(this) {
+                    var write = write_by_op.get(op);
+                    write.has_write_failed = true;
+                    if (!write.has_seen.isEmpty()) {
+                        continue;
+                    }
+                }
                 log(thread_id, "err");
                 System.out.println(e);
                 e.printStackTrace();
