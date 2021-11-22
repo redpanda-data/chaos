@@ -141,10 +141,6 @@ def collect(config, workload_dir):
 
         throughput = dict()
 
-        min_latency_us = None
-        max_latency_us = 0
-        duration_us = 0
-        max_throughput = 0
         faults = []
         recoveries = []
         info = None

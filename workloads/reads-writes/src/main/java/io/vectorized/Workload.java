@@ -31,6 +31,9 @@ import java.time.Duration;
 public class Workload {
     static class WriteInfo {
         public int thread_id;
+        public long started_us;
+        public long written_us;
+        public long seen_us;
         public long op;
         public long curr_offset;
         public long last_offset;
@@ -328,6 +331,11 @@ public class Workload {
                     if (write.curr_offset <= write.last_offset) {
                         violation(thread_id, "read " + op + "@" + offset + " while " + write.last_offset + " was already known when the write started");
                     }
+                    if (write.has_seen.isEmpty()) {
+                        write.seen_us = System.nanoTime() / 1000;
+                        log(write.thread_id, "ok\t" + offset);
+                        succeeded(write.thread_id);
+                    }
                     write.has_seen.add(thread_id);
 
                     read_fronts.put(thread_id, offset);
@@ -369,7 +377,7 @@ public class Workload {
     }
 
     private void writeProcess(int thread_id) throws Exception {
-        Semaphore semaphore = new Semaphore(1, false);
+        Semaphore semaphore = new Semaphore(0, true);
         synchronized(this) {
             semaphores.put(thread_id, semaphore);
             known_writes.put(thread_id, new LinkedList<>());
@@ -440,7 +448,7 @@ public class Workload {
                 log(thread_id, "msg\t" + op);
                 synchronized(this) {
                     var info = new WriteInfo();
-
+                    info.started_us = System.nanoTime() / 1000;
                     info.thread_id = thread_id;
                     info.op = op;
                     info.curr_offset = -1;
@@ -468,7 +476,8 @@ public class Workload {
                     if (write.curr_offset <= write.last_offset) {
                         violation(thread_id, "read " + op + "@" + offset + " while " + write.last_offset + " was already known when the write started");
                     }
-                    
+                    write.written_us = System.nanoTime() / 1000;
+                    log(thread_id, "written\t" + (write.written_us - write.started_us));
                     write.has_write_passed = true;
 
                     if (write.is_expired) {
@@ -482,8 +491,6 @@ public class Workload {
                 if (should_acquire) {
                     semaphore.acquire();
                 }
-                log(thread_id, "ok\t" + offset);
-                succeeded(thread_id);
                 update_last_success();
             } catch (ExecutionException e) {
                 var cause = e.getCause();

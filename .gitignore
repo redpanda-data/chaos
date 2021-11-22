@@ -14,8 +14,9 @@ redpanda_0.0-dev-0000000_amd64.deb
 id_ed25519.pub
 id_ed25519
 docker/bind_mounts/
-harness/chaos/__pycache__
-harness/chaos/checks/__pycache__
-workloads/writes/kafka-clients/.classpath
-workloads/writes/kafka-clients/.project
-workloads/writes/kafka-clients/.settings/
+.classpath
+.project
+.settings
+workloads/list-offsets/target/
+workloads/reads-writes/target/
+__pycache__

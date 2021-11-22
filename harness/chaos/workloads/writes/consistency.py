@@ -122,7 +122,10 @@ def validate(config, workload_dir):
                     write.finished = last_time
                     err_writes[write.op] = write
                 elif new_state == State.EVENT:
-                    pass
+                    if last_time == None:
+                        raise Exception(f"last_time can't be None when processing: {new_state}")
+                    delta_us = int(parts[1])
+                    last_time = last_time + delta_us
                 elif new_state == State.VIOLATION:
                     parts = line.rstrip().split('\t', 3)
                     msg = parts[3]
