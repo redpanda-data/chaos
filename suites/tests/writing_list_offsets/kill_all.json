@@ -1,10 +1,10 @@
 {
-    "name": "writes / list-offsets / kill all",
+    "name": "list-offsets / java / kill all",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writes / list-offsets",
+        "name": "list-offsets / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
