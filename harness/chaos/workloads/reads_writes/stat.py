@@ -5,7 +5,7 @@ import traceback
 import json
 import os
 from chaos.checks.result import Result
-from chaos.workloads.writes.log_utils import State, cmds, transitions, phantoms
+from chaos.workloads.reads_writes.log_utils import State, cmds, transitions, phantoms
 import logging
 
 logger = logging.getLogger("stat")

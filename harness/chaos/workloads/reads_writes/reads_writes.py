@@ -11,8 +11,8 @@ import time
 from time import sleep
 from chaos.redpanda_cluster import RedpandaNode, TimeoutException
 from chaos.checks.result import Result
-from chaos.workloads.writes import consistency
-from chaos.workloads.writes import stat
+from chaos.workloads.reads_writes import consistency
+from chaos.workloads.reads_writes import stat
 
 import logging
 logger = logging.getLogger("chaos")

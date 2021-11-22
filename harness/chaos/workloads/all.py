@@ -1,4 +1,5 @@
 from chaos.workloads.writes import writes
+from chaos.workloads.reads_writes import reads_writes
 
 import logging
 
@@ -29,12 +30,12 @@ def list_offsets_workload(nodes_path):
     return writes.Workload(writing_java, nodes_path)
 
 def reads_writes_workload(nodes_path):
-    reads_writes = writes.Control()
-    reads_writes.launch = "/mnt/vectorized/control/reads-writes.java.start.sh"
-    reads_writes.alive = "/mnt/vectorized/control/reads-writes.java.alive.sh"
-    reads_writes.kill = "/mnt/vectorized/control/reads-writes.java.stop.sh"
-    reads_writes.name = "reads-writes / java"
-    return writes.Workload(reads_writes, nodes_path)
+    control = reads_writes.Control()
+    control.launch = "/mnt/vectorized/control/reads-writes.java.start.sh"
+    control.alive = "/mnt/vectorized/control/reads-writes.java.alive.sh"
+    control.kill = "/mnt/vectorized/control/reads-writes.java.stop.sh"
+    control.name = "reads-writes / java"
+    return reads_writes.Workload(control, nodes_path)
 
 WORKLOADS = {
     "reads-writes / java": reads_writes_workload,

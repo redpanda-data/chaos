@@ -5,7 +5,7 @@ from sh import mkdir, rm
 import traceback
 from confluent_kafka import Consumer, TopicPartition, OFFSET_BEGINNING
 from chaos.checks.result import Result
-from chaos.workloads.writes.log_utils import State, cmds, transitions, phantoms
+from chaos.workloads.reads_writes.log_utils import State, cmds, transitions, phantoms
 import logging
 import os
 
