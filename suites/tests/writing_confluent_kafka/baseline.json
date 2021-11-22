@@ -1,10 +1,10 @@
 {
-    "name": "writing / confluent-kafka / baseline",
+    "name": "writes / confluent-kafka / baseline",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / confluent-kafka",
+        "name": "writes / confluent-kafka",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }

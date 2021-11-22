@@ -1,10 +1,10 @@
 {
-    "name": "writing / confluent-kafka / isolate controller",
+    "name": "writes / confluent-kafka / isolate controller",
     "scenario": "single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "writing / confluent-kafka",
+        "name": "writes / confluent-kafka",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
