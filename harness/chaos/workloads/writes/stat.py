@@ -45,24 +45,12 @@ set lmargin 6
 set rmargin 10
 
 set pointsize 0.2
-set yrange [0:{{ small_latency }}]
 set xrange [0:{{ duration }}]
-set size 1, 0.2
-set origin 0, 0
-
-set parametric
-{% for fault in faults %}plot [t=0:{{ small_latency }}] {{ fault }}/1000,t notitle lt rgb "red"
-{% endfor %}{% for recovery in recoveries %}plot [t=0:{{ small_latency }}] {{ recovery }}/1000,t notitle lt rgb "blue"
-{% endfor %}unset parametric
-
-plot 'latency_ok.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7,\\
-     'latency_err.log' using ($1/1000):2 notitle with points lt rgb "red" pt 7,\\
-     'latency_timeout.log' using ($1/1000):2 notitle with points lt rgb "blue" pt 7
 
 set y2range [0:{{ big_latency }}]
 set yrange [0:{{ big_latency }}]
-set size 1, 0.4
-set origin 0, 0.2
+set size 1, 0.5
+set origin 0, 0
 unset ytics
 set y2tics auto
 set tmargin 0
@@ -75,15 +63,16 @@ set parametric
 
 plot 'latency_ok.log' using ($1/1000):2 title "latency ok (us)" with points lt rgb "black" pt 7,\\
      'latency_err.log' using ($1/1000):2 title "latency err (us)" with points lt rgb "red" pt 7,\\
-     'latency_timeout.log' using ($1/1000):2 title "latency timeout (us)" with points lt rgb "blue" pt 7
+     'latency_timeout.log' using ($1/1000):2 title "latency timeout (us)" with points lt rgb "blue" pt 7,\\
+     {{p99}} title "p99" with lines lt 1
 
 set title "{{ title }}"
 show title
 
 set yrange [0:{{ throughput }}]
 
-set size 1, 0.4
-set origin 0, 0.6
+set size 1, 0.5
+set origin 0, 0.5
 set format x ""
 set bmargin 0
 set tmargin 3
@@ -331,8 +320,8 @@ def collect(config, workload_dir):
                 jinja2.Template(OVERVIEW).render(
                     title = config["name"],
                     duration=int(duration_ms/1000),
-                    small_latency=2*min_latency_us,
-                    big_latency=int(max_latency_us*1.2),
+                    big_latency=int(p99*1.2),
+                    p99=p99,
                     faults = faults,
                     recoveries = recoveries,
                     throughput=int(max_throughput*1.2)))

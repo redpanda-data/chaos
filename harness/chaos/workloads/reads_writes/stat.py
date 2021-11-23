@@ -45,45 +45,27 @@ set lmargin 6
 set rmargin 10
 
 set pointsize 0.2
-set yrange [0:{{ small_latency }}]
+set yrange [{{delta_ybottom}}:{{ delta_ytop }}]
 set xrange [0:{{ duration }}]
 set size 1, 0.2
 set origin 0, 0
 
-set title "write-to-read min latencies"
+set title "delta = reads - writes"
 show title
 
 set parametric
-{% for fault in faults %}plot [t=0:{{ small_latency }}] {{ fault }}/1000,t notitle lt rgb "red"
-{% endfor %}{% for recovery in recoveries %}plot [t=0:{{ small_latency }}] {{ recovery }}/1000,t notitle lt rgb "blue"
+{% for fault in faults %}plot [t={{delta_ybottom}}:{{ delta_ytop }}] {{ fault }}/1000,t notitle lt rgb "red"
+{% endfor %}{% for recovery in recoveries %}plot [t={{delta_ybottom}}:{{ delta_ytop }}] {{ recovery }}/1000,t notitle lt rgb "blue"
 {% endfor %}unset parametric
 
-plot 'latency_ok.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7,\\
-     'latency_err.log' using ($1/1000):2 notitle with points lt rgb "red" pt 7,\\
-     'latency_timeout.log' using ($1/1000):2 notitle with points lt rgb "blue" pt 7
-
-set pointsize 0.2
-set yrange [0:{{ write_latency }}]
-set xrange [0:{{ duration }}]
-set size 1, 0.2
-set origin 0, 0.2
-
-set title "writes only min latencies"
-show title
-
-set parametric
-{% for fault in faults %}plot [t=0:{{ small_latency }}] {{ fault }}/1000,t notitle lt rgb "red"
-{% endfor %}{% for recovery in recoveries %}plot [t=0:{{ small_latency }}] {{ recovery }}/1000,t notitle lt rgb "blue"
-{% endfor %}unset parametric
-
-plot 'latency_written.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7
+plot 'latency_delta.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7
 
 set notitle
 
 set y2range [0:{{ big_latency }}]
 set yrange [0:{{ big_latency }}]
-set size 1, 0.3
-set origin 0, 0.4
+set size 1, 0.4
+set origin 0, 0.2
 unset ytics
 set y2tics auto
 set tmargin 0
@@ -96,15 +78,16 @@ set parametric
 
 plot 'latency_ok.log' using ($1/1000):2 title "latency ok (us)" with points lt rgb "black" pt 7,\\
      'latency_err.log' using ($1/1000):2 title "latency err (us)" with points lt rgb "red" pt 7,\\
-     'latency_timeout.log' using ($1/1000):2 title "latency timeout (us)" with points lt rgb "blue" pt 7
+     'latency_timeout.log' using ($1/1000):2 title "latency timeout (us)" with points lt rgb "blue" pt 7,\\
+     {{p99}} title "p99" with lines lt 1
 
 set title "{{ title }}"
 show title
 
 set yrange [0:{{ throughput }}]
 
-set size 1, 0.3
-set origin 0, 0.7
+set size 1, 0.4
+set origin 0, 0.6
 set format x ""
 set bmargin 0
 set tmargin 3
@@ -135,7 +118,7 @@ def collect(config, workload_dir):
     logger.addHandler(handler)
     
     percentiles_log_path = os.path.join(workload_dir, "percentiles.log")
-    latency_written_log_path = os.path.join(workload_dir, "latency_written.log")
+    latency_delta_log_path = os.path.join(workload_dir, "latency_delta.log")
     latency_ok_log_path = os.path.join(workload_dir, "latency_ok.log")
     latency_err_log_path = os.path.join(workload_dir, "latency_err.log")
     latency_timeout_log_path = os.path.join(workload_dir, "latency_timeout.log")
@@ -155,7 +138,7 @@ def collect(config, workload_dir):
         latency_ok = open(latency_ok_log_path, "w")
         latency_err = open(latency_err_log_path, "w")
         latency_timeout = open(latency_timeout_log_path, "w")
-        latency_written = open(latency_written_log_path, "w")
+        latency_delta = open(latency_delta_log_path, "w")
         throughput_log = open(throughput_log_path, "w")
         availability_log = open(availability_log_path, "w")
 
@@ -168,7 +151,7 @@ def collect(config, workload_dir):
         recoveries = []
         info = None
 
-        latency_written_history = []
+        latency_delta_history = []
         latency_ok_history = []
         latency_err_history = []
         latency_timeout_history = []
@@ -303,7 +286,7 @@ def collect(config, workload_dir):
                     end = last_time + delta_us
                     tick(end, throughput_history)
                     last_time = end
-                elif new_state == State.WRITTEN:
+                elif new_state == State.DELTA:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
@@ -312,7 +295,7 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     last_time = end
                     if should_measure:
-                        latency_written_history.append([int((end-started)/1000), duration_us])
+                        latency_delta_history.append([int((end-started)/1000), duration_us])
                 else:
                     raise Exception(f"unknown state: {new_state}")
 
@@ -329,20 +312,35 @@ def collect(config, workload_dir):
         latencies.sort()
         p99  = latencies[int(0.99*len(latencies))]
         
-        written_latencies = []
-        for [_, latency_us] in latency_written_history:
-            written_latencies.append(latency_us)
-        written_latencies.sort()
-        written_p99 = written_latencies[int(0.99*len(latencies))]
-        written_min = written_latencies[0]
-        written_max = written_latencies[-1]
+        delta_latencies_positive = []
+        delta_latencies_negative = []
+        delta_latencies = []
+        for [_, latency_us] in latency_delta_history:
+            delta_latencies.append(latency_us)
+            if latency_us > 0:
+                delta_latencies_positive.append(latency_us)
+            else:
+                delta_latencies_negative.append(latency_us)
+        deltap_p99 = 0
+        deltan_p99 = 0
+        if len(delta_latencies_positive) > 0:
+            delta_latencies_positive.sort()
+            deltap_p99 = delta_latencies_positive[int(0.99*len(delta_latencies_positive))]
+        if len(delta_latencies_negative) > 0:
+            delta_latencies_negative.sort()
+            deltan_p99 = delta_latencies_negative[int(0.99*len(delta_latencies_negative))]
+        delta_latencies.sort()
+        delta_p99 = delta_latencies[int(0.99*len(latencies))]
+        delta_min = delta_latencies[0]
+        delta_max = delta_latencies[-1]
+
         
         for i in range(0,len(latencies)):
             percentiles.write(f"{float(i) / (len(latencies)-1)}\t{latencies[i]}\n")
         
-        for [ts_ms,latency_us] in latency_written_history:
+        for [ts_ms,latency_us] in latency_delta_history:
             duration_ms = max(duration_ms, ts_ms)
-            latency_written.write(f"{ts_ms}\t{latency_us}\n")
+            latency_delta.write(f"{ts_ms}\t{latency_us}\n")
 
         for [ts_ms,latency_us] in latency_ok_history:
             duration_ms = max(duration_ms, ts_ms)
@@ -374,7 +372,7 @@ def collect(config, workload_dir):
         latency_ok.close()
         latency_err.close()
         latency_timeout.close()
-        latency_written.close()
+        latency_delta.close()
         throughput_log.close()
         availability_log.close()
 
@@ -383,11 +381,12 @@ def collect(config, workload_dir):
                 jinja2.Template(OVERVIEW).render(
                     title = config["name"],
                     duration=int(duration_ms/1000),
-                    small_latency=2*min_latency_us,
-                    write_latency=2*written_min,
+                    delta_ybottom=min(int(1.2*deltan_p99), -500),
+                    delta_ytop=int(1.2*deltap_p99),
                     big_latency=int(p99*1.2),
                     faults = faults,
                     recoveries = recoveries,
+                    p99 = p99,
                     throughput=int(max_throughput*1.2)))
 
         with open(availability_gnuplot_path, "w") as gnuplot_file:
@@ -409,15 +408,15 @@ def collect(config, workload_dir):
         return {
             "result": Result.PASSED,
             "latency_us": {
-                "full": {
+                "write-to-read": {
                     "min": min_latency_us,
                     "max": max_latency_us,
                     "p99": p99
                 },
-                "written": {
-                    "min": written_min,
-                    "max": written_max,
-                    "p99": written_p99
+                "reads - writes": {
+                    "min": delta_min,
+                    "max": delta_max,
+                    "p99": delta_p99
                 }
             },
             "max_unavailability_us": max_unavailability_us,
@@ -447,7 +446,7 @@ def collect(config, workload_dir):
         rm("-rf", latency_ok_log_path)
         rm("-rf", latency_err_log_path)
         rm("-rf", latency_timeout_log_path)
-        rm("-rf", latency_written_log_path)
+        rm("-rf", latency_delta_log_path)
         rm("-rf", throughput_log_path)
         rm("-rf", availability_log_path)
         rm("-rf", overview_gnuplot_path)

@@ -11,7 +11,7 @@ class State(Enum):
     TIMEOUT = 7
     EVENT = 8
     VIOLATION = 9
-    WRITTEN = 10
+    DELTA = 10
 
 cmds = {
     "started": State.STARTED,
@@ -23,7 +23,7 @@ cmds = {
     "time": State.TIMEOUT,
     "event": State.EVENT,
     "violation": State.VIOLATION,
-    "written": State.WRITTEN
+    "delta": State.DELTA
 }
 
 transitions = {
@@ -37,4 +37,4 @@ transitions = {
     State.TIMEOUT: [State.SENDING, State.CONSTRUCTING]
 }
 
-phantoms = [ State.EVENT, State.VIOLATION, State.WRITTEN ]
+phantoms = [ State.EVENT, State.VIOLATION, State.DELTA ]

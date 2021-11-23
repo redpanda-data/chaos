@@ -336,6 +336,9 @@ public class Workload {
                             log(write.thread_id, "ok\t" + offset + "\t" + op);
                             succeeded(write.thread_id);
                         }
+                        if (write.written_us > 0) {
+                            log(write.thread_id, "delta\t" + (write.seen_us - write.written_us));
+                        }
                     }
                     write.has_seen.add(thread_id);
 
@@ -455,6 +458,8 @@ public class Workload {
                 synchronized(this) {
                     var info = new WriteInfo();
                     info.started_us = System.nanoTime() / 1000;
+                    info.written_us = -1;
+                    info.seen_us = -1;
                     info.thread_id = thread_id;
                     info.op = op;
                     info.curr_offset = -1;
@@ -485,7 +490,9 @@ public class Workload {
                         violation(thread_id, "read " + op + "@" + offset + " while " + write.last_offset + " was already known when the write started");
                     }
                     write.written_us = System.nanoTime() / 1000;
-                    log(thread_id, "written\t" + (write.written_us - write.started_us));
+                    if (write.seen_us > 0) {
+                        log(thread_id, "delta\t" + (write.seen_us - write.written_us));
+                    }
                     write.has_write_passed = true;
 
                     if (write.is_expired) {

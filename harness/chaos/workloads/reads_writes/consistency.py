@@ -126,7 +126,7 @@ def validate(config, workload_dir):
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
                     last_time = last_time + delta_us
-                elif new_state == State.WRITTEN:
+                elif new_state == State.DELTA:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
