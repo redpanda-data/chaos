@@ -1,0 +1,19 @@
+{
+    "name": "all",
+    "tests": [
+        "reads_writes/idempotency/baseline.json",
+        "reads_writes/idempotency/isolate_follower.json",
+        "reads_writes/idempotency/isolate_leader.json",
+        "reads_writes/idempotency/kill_all.json",
+        "reads_writes/idempotency/kill_follower.json",
+        "reads_writes/idempotency/kill_leader.json",
+        "reads_writes/idempotency/leadership_transfer.json",
+        "reads_writes/idempotency/pause_follower.json",
+        "reads_writes/idempotency/pause_leader.json",
+        "reads_writes/idempotency/reconfigure_313.json",
+        "reads_writes/idempotency/reconfigure_kill_11.json"
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
+}
