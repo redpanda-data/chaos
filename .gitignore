@@ -19,4 +19,5 @@ docker/bind_mounts/
 .settings
 workloads/list-offsets/target/
 workloads/reads-writes/target/
+workloads/writes/concurrency/target/
 __pycache__

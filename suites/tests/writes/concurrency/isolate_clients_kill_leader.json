@@ -1,0 +1,28 @@
+{
+    "name": "writes / concurrency / isolate clients (with idempotency)",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writes / concurrency",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 7,
+            "retries": 500,
+            "enable_idempotency": true,
+            "jitter_ms": 100
+        }
+    },
+    "fault": {
+        "name": "isolate_clients_kill_leader",
+        "kill_delay_s": 2,
+        "reconnect_delay_s": 2
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}

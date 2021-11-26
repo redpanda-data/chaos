@@ -13,6 +13,14 @@ def kafka_clients_workload(nodes_path):
     writing_java.name = "writes / java"
     return writes.Workload(writing_java, nodes_path)
 
+def concurrency_workload(nodes_path):
+    writing_java = writes.Control()
+    writing_java.launch = "/mnt/vectorized/control/concurrency.java.start.sh"
+    writing_java.alive = "/mnt/vectorized/control/concurrency.java.alive.sh"
+    writing_java.kill = "/mnt/vectorized/control/concurrency.java.stop.sh"
+    writing_java.name = "writes / concurrency"
+    return writes.Workload(writing_java, nodes_path)
+
 def confluent_kafka_workload(nodes_path):
     writing_python = writes.Control()
     writing_python.launch = "/mnt/vectorized/control/writes.python.start.sh"
@@ -41,7 +49,8 @@ WORKLOADS = {
     "reads-writes / java": reads_writes_workload,
     "list-offsets / java": list_offsets_workload,
     "writes / java": kafka_clients_workload,
-    "writes / python": confluent_kafka_workload
+    "writes / python": confluent_kafka_workload,
+    "writes / concurrency": concurrency_workload
 }
 
 def wait_all_workloads_killed(nodes_path):
