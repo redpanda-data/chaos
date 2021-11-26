@@ -128,6 +128,9 @@ class SingleTopicSingleFault:
         wait_all_workloads_killed("/mnt/vectorized/client.nodes")
 
         self.workload_cluster = WORKLOADS[self.config["workload"]["name"]]("/mnt/vectorized/client.nodes")
+        logger.info(f"undoing clients faults")
+        self.workload_cluster.heal()
+        
         self.config["workload"]["nodes"] = []
         for node in self.workload_cluster.nodes:
             self.config["workload"]["nodes"].append(node.ip)
@@ -142,7 +145,7 @@ class SingleTopicSingleFault:
 
         self.save_config()
         
-        logger.info(f"undoing faults")
+        logger.info(f"undoing redpanda faults")
         self.redpanda_cluster.heal()
 
         logger.info(f"(re-)starting fresh redpanda cluster")

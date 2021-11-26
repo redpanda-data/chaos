@@ -42,6 +42,10 @@ class Workload:
                 parts = line.split(" ")
                 self.nodes.append(RedpandaNode(parts[0], int(parts[1])))
     
+    def heal(self):
+        for node in self.nodes:
+            ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/network.heal.all.sh")
+    
     def is_alive(self, node):
         ip = node.ip
         result = ssh("ubuntu@"+ip, self.scripts.alive)
