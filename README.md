@@ -38,6 +38,13 @@ Cleanup:
 
 ## Test locally (docker & docker-compose)
 
+Requirements:
+    - docker
+    - docker-compose
+    - python3
+
+Don't forget to add current user to docker group: https://docs.docker.com/engine/install/linux-postinstall
+
 ### All in one
 
 Run all tests with a single command:
