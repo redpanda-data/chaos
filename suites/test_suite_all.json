@@ -10,6 +10,7 @@
         "writes/python/kill_leader.json",
         "writes/python/leadership_transfer.json",
         "writes/python/kill_follower.json",
+        "writes/python/rolling_restart.json",
 
         "list_offsets/baseline.json",
         "list_offsets/isolate_leader.json",
@@ -27,6 +28,7 @@
         "reads_writes/pause_leader.json",
         "reads_writes/reconfigure_313.json",
         "reads_writes/reconfigure_kill_11.json",
+        "reads_writes/rolling_restart.json",
 
         "reads_writes/idempotency/baseline.json",
         "reads_writes/idempotency/isolate_follower.json",
@@ -39,7 +41,8 @@
         "reads_writes/idempotency/pause_follower.json",
         "reads_writes/idempotency/pause_leader.json",
         "reads_writes/idempotency/reconfigure_313.json",
-        "reads_writes/idempotency/reconfigure_kill_11.json"
+        "reads_writes/idempotency/reconfigure_kill_11.json",
+        "reads_writes/idempotency/rolling_restart.json"
     ],
     "settings": {
         "remove_logs_on_success": true

@@ -12,6 +12,7 @@ from chaos.faults.reconfigure_11_kill import Reconfigure11KillFault
 from chaos.faults.reconfigure_313 import Reconfigure313Fault
 from chaos.faults.reconfigure_kill_11 import ReconfigureKill11Fault
 from chaos.faults.isolate_clients_kill_leader import IsolateClientsKillLeader
+from chaos.faults.rolling_restart import RollingRestartFault
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -27,5 +28,6 @@ FAULTS = {
     "leadership_transfer": LeadershipTransferFault,
     "reconfigure_11_kill": Reconfigure11KillFault,
     "reconfigure_313": Reconfigure313Fault,
-    "reconfigure_kill_11": ReconfigureKill11Fault
+    "reconfigure_kill_11": ReconfigureKill11Fault,
+    "rolling_restart": RollingRestartFault
 }

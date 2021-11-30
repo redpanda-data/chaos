@@ -1,0 +1,26 @@
+{
+    "name": "reads-writes / java / rolling_restart (with idempotency)",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 3,
+            "writes": 2,
+            "retries": 5,
+            "enable_idempotency": true
+        }
+    },
+    "fault": {
+        "name": "rolling_restart",
+        "period_s": 15
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

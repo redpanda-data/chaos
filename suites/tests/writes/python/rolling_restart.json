@@ -1,0 +1,23 @@
+{
+    "name": "writes / python / rolling restart",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writes / python",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 2
+        }
+    },
+    "fault": {
+        "name": "rolling_restart",
+        "period_s": 15
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
