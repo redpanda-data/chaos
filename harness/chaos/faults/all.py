@@ -1,6 +1,7 @@
 from chaos.faults.isolate_controller import IsolateControllerFault
 from chaos.faults.isolate_follower import IsolateFollowerFault
 from chaos.faults.isolate_leader import IsolateLeaderFault
+from chaos.faults.isolate_all import IsolateAllFault
 from chaos.faults.kill_follower import KillFollowerFault
 from chaos.faults.kill_leader import KillLeaderFault
 from chaos.faults.kill_all import KillAllFault
@@ -16,6 +17,7 @@ FAULTS = {
     "isolate_controller": IsolateControllerFault,
     "isolate_follower": IsolateFollowerFault,
     "isolate_leader": IsolateLeaderFault,
+    "isolate_all": IsolateAllFault,
     "isolate_clients_kill_leader": IsolateClientsKillLeader,
     "kill_follower": KillFollowerFault,
     "kill_leader": KillLeaderFault,

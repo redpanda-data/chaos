@@ -27,7 +27,8 @@ SUPPORTED_FAULTS = [
     "isolate_controller", "isolate_follower", "isolate_leader",
     "kill_follower", "kill_leader", "leadership_transfer", "baseline",
     "reconfigure_11_kill", "reconfigure_313", "reconfigure_kill_11",
-    "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader"
+    "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
+    "isolate_all"
 ]
 
 SUPPORTED_CHECKS = [

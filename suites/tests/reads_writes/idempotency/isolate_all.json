@@ -1,0 +1,23 @@
+{
+    "name": "reads-writes / java / isolate all (with idempotency)",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 3,
+            "writes": 2,
+            "retries": 5,
+            "enable_idempotency": true
+        }
+    },
+    "fault": "isolate_all",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
