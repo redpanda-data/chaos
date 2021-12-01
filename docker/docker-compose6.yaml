@@ -1,0 +1,134 @@
+version: '3'
+services:
+  redpanda1:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    privileged: true
+    container_name: redpanda1
+    hostname: redpanda1
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda2:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda2
+    hostname: redpanda2
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda3:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda3
+    hostname: redpanda3
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda4:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda4
+    hostname: redpanda4
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda5:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda5
+    hostname: redpanda5
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda5/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  redpanda6:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda6
+    hostname: redpanda6
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda6/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+  client1:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/client/Dockerfile
+    depends_on:
+      - "redpanda1"
+      - "redpanda2"
+      - "redpanda3"
+      - "redpanda4"
+      - "redpanda5"
+      - "redpanda6"
+    privileged: true
+    container_name: client1
+    hostname: client1
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+  control:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/control/Dockerfile
+    depends_on:
+      - "redpanda1"
+      - "redpanda2"
+      - "redpanda3"
+      - "redpanda4"
+      - "redpanda5"
+      - "redpanda6"
+      - "client1"
+    privileged: true
+    container_name: control
+    hostname: control
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
+networks:
+  chaos:
+    driver: bridge

@@ -158,7 +158,7 @@ class SingleTopicSingleFault:
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
         # waiting for the controller to be up before creating a topic
-        self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=3, timeout_s=20)
+        self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=20)
 
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
         self.redpanda_cluster.create_topic(self.topic, self.replication, 1)

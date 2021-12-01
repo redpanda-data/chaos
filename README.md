@@ -57,11 +57,11 @@ Or use individual commands for fine granularity.
 
 Build docker images:
 
-    ./docker/rebuild.sh
+    ./docker/rebuild3.sh
 
 Start local cluster:
 
-    ./docker/up.sh
+    ./docker/up3.sh
 
 Run a specific test suite:
 

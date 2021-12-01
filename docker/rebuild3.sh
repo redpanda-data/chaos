@@ -7,8 +7,10 @@ if [ "$DEB_PATH" == "" ]; then
     exit 1
 fi
 
-docker-compose -f docker/docker-compose.yaml --project-directory . down || true
-docker-compose -f docker/docker-compose.yaml --project-directory . rm -f || true
+docker-compose -f docker/docker-compose6.yaml --project-directory . down || true
+docker-compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
+docker-compose -f docker/docker-compose3.yaml --project-directory . down || true
+docker-compose -f docker/docker-compose3.yaml --project-directory . rm -f || true
 
 cp $DEB_PATH .
 
@@ -31,4 +33,4 @@ mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs
 
 chmod a+rw -R ./docker/bind_mounts
 
-docker-compose -f docker/docker-compose.yaml --project-directory . build --build-arg REDPANDA_DEB=$(basename $DEB_PATH) --build-arg USER_ID=$(id -u $(whoami))
+docker-compose -f docker/docker-compose3.yaml --project-directory . build --build-arg REDPANDA_DEB=$(basename $DEB_PATH) --build-arg USER_ID=$(id -u $(whoami))
