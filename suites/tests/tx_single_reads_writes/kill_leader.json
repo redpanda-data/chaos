@@ -1,0 +1,23 @@
+{
+    "name": "tx-single-reads-writes / java / kill leader",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-single-reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 0,
+            "writes": 1,
+            "retries": 5
+        }
+    },
+    "fault": "kill_leader",
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}
