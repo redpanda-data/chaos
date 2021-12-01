@@ -1,5 +1,6 @@
 from chaos.workloads.writes import writes
 from chaos.workloads.reads_writes import reads_writes
+from chaos.workloads.tx_single_reads_writes import tx_single_reads_writes
 
 import logging
 
@@ -45,7 +46,16 @@ def reads_writes_workload(nodes_path):
     control.name = "reads-writes / java"
     return reads_writes.Workload(control, nodes_path)
 
+def tx_single_reads_writes_workload(nodes_path):
+    writing_java = tx_single_reads_writes.Control()
+    writing_java.launch = "/mnt/vectorized/control/tx-single-reads-writes.java.start.sh"
+    writing_java.alive = "/mnt/vectorized/control/tx-single-reads-writes.java.alive.sh"
+    writing_java.kill = "/mnt/vectorized/control/tx-single-reads-writes.java.stop.sh"
+    writing_java.name = "tx-single-reads-writes / java"
+    return tx_single_reads_writes.Workload(writing_java, nodes_path)
+
 WORKLOADS = {
+    "tx-single-reads-writes / java": tx_single_reads_writes_workload,
     "reads-writes / java": reads_writes_workload,
     "list-offsets / java": list_offsets_workload,
     "writes / java": kafka_clients_workload,
