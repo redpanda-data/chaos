@@ -2,6 +2,8 @@ version: '3'
 services:
   redpanda1:
     build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 3
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     privileged: true
@@ -13,6 +15,8 @@ services:
       - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
   redpanda2:
     build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 3
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     depends_on:
@@ -26,6 +30,8 @@ services:
       - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
   redpanda3:
     build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 3
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     depends_on:
@@ -39,6 +45,8 @@ services:
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
   client1:
     build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 3
       context: .
       dockerfile: ./docker/client/Dockerfile
     depends_on:
@@ -54,6 +62,8 @@ services:
       - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
   control:
     build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 3
       context: .
       dockerfile: ./docker/control/Dockerfile
     depends_on:

@@ -1,7 +1,12 @@
 #!/bin/bash
 
-declare -A redpandas=( ["redpanda1"]="" ["redpanda2"]="" ["redpanda3"]="")
-declare -A node_ids=( ["redpanda1"]="0" ["redpanda2"]="1" ["redpanda3"]="2")
+declare -A redpandas
+declare -A node_ids
+
+for (( i=1; i<=$REDPANDA_CLUSTER_SIZE; i++ )); do  
+  redpandas["redpanda$i"]=""
+  node_ids["redpanda$i"]="$i"
+done
 
 for host in "${!redpandas[@]}"; do
   redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
@@ -19,7 +24,7 @@ myip="${redpandas[$me]}"
 
 if [ "$me" == "redpanda1" ]; then
   rpk config bootstrap \
-    --id 0 \
+    --id ${node_ids[$me]} \
     --self $myip
 else
   rpk config bootstrap \

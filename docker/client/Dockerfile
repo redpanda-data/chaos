@@ -3,6 +3,8 @@ LABEL maintainer="Denis Rystsov <denis@vectorized.io>"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG REDPANDA_DEB
 ARG USER_ID
+ARG REDPANDA_CLUSTER_SIZE
+ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
 RUN apt-get update -y
 RUN apt-get install -y wget iptables ssh python3-pip sudo
 RUN apt-get install -y iputils-ping vim tmux less openjdk-11-jdk maven

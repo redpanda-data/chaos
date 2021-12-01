@@ -1,10 +1,14 @@
 #!/bin/bash
 
-sleep 5s
-
 declare -A clients=( ["client1"]="")
-declare -A redpandas=( ["redpanda1"]="" ["redpanda2"]="" ["redpanda3"]="")
-declare -A node_ids=( ["redpanda1"]="0" ["redpanda2"]="1" ["redpanda3"]="2")
+
+declare -A redpandas
+declare -A node_ids
+
+for (( i=1; i<=$REDPANDA_CLUSTER_SIZE; i++ )); do  
+  redpandas["redpanda$i"]=""
+  node_ids["redpanda$i"]="$i"
+done
 
 for host in "${!redpandas[@]}"; do
   redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
