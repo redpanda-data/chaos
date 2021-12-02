@@ -268,7 +268,8 @@ def collect(config, workload_dir):
                     last_time = end
                     if should_measure:
                         latency_err_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
-                    del is_end_commit[thread_id]
+                    if thread_id in is_end_commit:
+                        del is_end_commit[thread_id]
                 elif new_state == State.EVENT:
                     ts_us = None
                     if last_time == None:

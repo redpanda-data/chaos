@@ -222,11 +222,17 @@ public class Workload {
                     log(thread_id, "constructed");
                     continue;
                 }
-            } catch (Exception e) {
+            } catch (Exception e1) {
                 log(thread_id, "err");
-                System.out.println(e);
-                e.printStackTrace();
+                System.out.println(e1);
+                e1.printStackTrace();
                 failed(thread_id);
+                try {
+                    if (producer != null) {
+                        producer.close();
+                    }
+                } catch(Exception e2) { }
+                producer = null;
                 continue;
             }
 
