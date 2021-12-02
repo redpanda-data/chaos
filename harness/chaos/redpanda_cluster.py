@@ -103,11 +103,11 @@ class RedpandaCluster:
             logger.error(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
             raise Exception(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
 
-    def _get_stable_details(self, topic, partition=0, namespace="kafka", replication=None):
+    def _get_stable_details(self, nodes, topic, partition=0, namespace="kafka", replication=None):
         last_leader = -1
         replicas = None
         status = None
-        for node in self.nodes:
+        for node in nodes:
             ip = node.ip
             logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" details from {node.ip}")
             meta = self._get_details(node, namespace, topic, partition)
@@ -154,14 +154,16 @@ class RedpandaCluster:
             raise Exception(f"Can't find replicas {','.join(replicas.keys())} in the cluster")
         return info
     
-    def wait_details(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10):
+    def wait_details(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10, nodes=None):
+        if nodes == None:
+            nodes = self.nodes
         begin = time.time()
         info = None
         while info == None:
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't fetch stable replicas for {namespace}/{topic}/{partition} within {timeout_s} sec")
             try:
-                info = self._get_stable_details(topic, partition=partition, namespace=namespace, replication=replication)
+                info = self._get_stable_details(nodes, topic, partition=partition, namespace=namespace, replication=replication)
                 if info == None:
                     sleep(1)
             except:
@@ -218,3 +220,16 @@ class RedpandaCluster:
             logger.error(f"status code: {r.status_code}")
             logger.error(f"status code: {r.content}")
             raise Exception(f"Can't transfer to {target.id}")
+    
+    def admin_decommission(self, node, to_decommission_node):
+        r = requests.put(f"http://{node.ip}:9644/v1/brokers/{to_decommission_node.id}/decommission")
+        if r.status_code != 200:
+            logger.error(f"status code: {r.status_code}")
+            logger.error(f"status code: {r.content}")
+            raise Exception(f"Can't decommission {to_decommission_node.ip} from {node.ip}")
+    
+    def admin_brokers(self, node):
+        r = requests.get(f"http://{node.ip}:9644/v1/brokers")
+        if r.status_code != 200:
+            return None
+        return r.json()

@@ -1,6 +1,7 @@
 import time
 import logging
 from chaos.faults.types import FaultType
+from chaos.redpanda_cluster import TimeoutException
 
 logger = logging.getLogger("chaos")
 
