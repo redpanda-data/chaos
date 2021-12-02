@@ -5,6 +5,7 @@ from chaos.faults.isolate_all import IsolateAllFault
 from chaos.faults.kill_follower import KillFollowerFault
 from chaos.faults.kill_leader import KillLeaderFault
 from chaos.faults.kill_tx_leader import KillTxLeaderFault
+from chaos.faults.kill_tx_follower import KillTxFollowerFault
 from chaos.faults.kill_all import KillAllFault
 from chaos.faults.pause_follower import PauseFollowerFault
 from chaos.faults.pause_leader import PauseLeaderFault
@@ -24,6 +25,7 @@ FAULTS = {
     "kill_follower": KillFollowerFault,
     "kill_leader": KillLeaderFault,
     "kill_tx_leader": KillTxLeaderFault,
+    "kill_tx_follower": KillTxFollowerFault,
     "kill_all": KillAllFault,
     "pause_follower": PauseFollowerFault,
     "pause_leader": PauseLeaderFault,
