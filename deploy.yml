@@ -213,17 +213,10 @@
 - name: preparing workload
   hosts: client:control
   tasks:
-    - name: creating workload dir
-      file:
-        path: /mnt/vectorized/workloads
-        owner: ubuntu
-        group: ubuntu
-        state: directory
-        recurse: true
-    - name: copy workload/writing
+    - name: copy workloads
       copy:
-        src: workloads/writing
-        dest: /mnt/vectorized/workloads
+        src: workloads
+        dest: /mnt/vectorized/
         owner: ubuntu
         group: ubuntu
         mode: 0600
@@ -240,5 +233,13 @@
         recurse: true
     - name: build writing/app
       shell: |
-        cd /mnt/vectorized/workloads/writing/kafka-clients
+        cd /mnt/vectorized/workloads/writes/kafka-clients
+        mvn clean dependency:copy-dependencies package
+        cd /mnt/vectorized/workloads/writes/concurrency
+        mvn clean dependency:copy-dependencies package
+        cd /mnt/vectorized/workloads/list-offsets
+        mvn clean dependency:copy-dependencies package
+        cd /mnt/vectorized/workloads/reads-writes
+        mvn clean dependency:copy-dependencies package
+        cd /mnt/vectorized/workloads/tx-single-reads-writes
         mvn clean dependency:copy-dependencies package
