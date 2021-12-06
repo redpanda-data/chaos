@@ -136,7 +136,8 @@ class TxSingleTopicSingleFault:
                 is_same = False
         if is_same:
             return
-        self.redpanda_cluster.reconfigure(info.leader, replicas, topic, partition=partition, namespace=namespace)
+        controller = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=timeout_s)
+        self.redpanda_cluster.reconfigure(controller, replicas, topic, partition=partition, namespace=namespace)
         begin = time.time()
         while True:
             if time.time() - begin > timeout_s:

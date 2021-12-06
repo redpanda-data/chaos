@@ -33,7 +33,7 @@ class Reconfigure11KillFault:
         timeout_s = self.fault_config["timeout_s"]
         begin = time.time()
         logger.debug(f"reconfiguring {scenario.topic} from {self.leader.ip} to {new_leader.ip}")
-        scenario.redpanda_cluster.reconfigure(self.leader, [new_leader], scenario.topic, partition=scenario.partition)
+        scenario.redpanda_cluster.reconfigure(controller, [new_leader], scenario.topic, partition=scenario.partition)
         while True:
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't reconfigure {scenario.topic} within {timeout_s} sec")

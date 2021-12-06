@@ -30,7 +30,7 @@ class ReconfigureKill11Fault:
             self.new_leader = replica
         
         logger.debug(f"reconfiguring {scenario.topic} from {leader.ip} to {self.new_leader.ip}")
-        scenario.redpanda_cluster.reconfigure(leader, [self.new_leader], scenario.topic, partition=scenario.partition)
+        scenario.redpanda_cluster.reconfigure(controller, [self.new_leader], scenario.topic, partition=scenario.partition)
         logger.debug(f"killing {scenario.topic}'s new leader {self.new_leader.ip}")
         ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
         logger.debug(f"killed {scenario.topic}'s new leader {self.new_leader.ip}")
