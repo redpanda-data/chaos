@@ -10,8 +10,8 @@
             { "name": "stat" }
         ],
         "settings": {
-            "reads": 0,
-            "writes": 1,
+            "reads": 3,
+            "writes": 2,
             "retries": 5
         }
     },
