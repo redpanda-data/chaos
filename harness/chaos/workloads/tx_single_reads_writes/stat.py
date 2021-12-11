@@ -32,6 +32,34 @@ show title
 plot "availability.log" using ($1/1000):2 title "unavailability (us)" w p ls 7
 """
 
+SEEN = """
+set terminal png size 1600,1200
+set output "seen.png"
+set multiplot
+set lmargin 6
+set rmargin 10
+
+set pointsize 0.2
+set yrange [0:{{ seen_boundary }}]
+set xrange [0:{{ duration }}]
+set size 1, 1
+set origin 0, 0
+
+set title "write to read time"
+show title
+
+set parametric
+{% for fault in faults %}plot [t=0:{{ seen_boundary }}] {{ fault }}/1000,t notitle lt rgb "red"
+{% endfor %}{% for recovery in recoveries %}plot [t=0:{{ seen_boundary }}] {{ recovery }}/1000,t notitle lt rgb "blue"
+{% endfor %}unset parametric
+
+plot 'latency_seen.log' using ($1/1000):2 notitle with points lt rgb "black" pt 7,\\
+     {{seen_p99}} title "p99" with lines lt 1
+
+set notitle
+unset multiplot
+"""
+
 OVERVIEW = """
 set terminal png size 1600,1200
 set output "overview.png"
@@ -115,6 +143,7 @@ def collect(config, workload_dir):
     
     percentiles_log_path = os.path.join(workload_dir, "percentiles.log")
     latency_commit_log_path = os.path.join(workload_dir, "latency_commit.log")
+    latency_seen_log_path = os.path.join(workload_dir, "latency_seen.log")
     latency_ok_log_path = os.path.join(workload_dir, "latency_ok.log")
     latency_err_log_path = os.path.join(workload_dir, "latency_err.log")
     latency_timeout_log_path = os.path.join(workload_dir, "latency_timeout.log")
@@ -126,6 +155,7 @@ def collect(config, workload_dir):
     overview_gnuplot_path = os.path.join(workload_dir, "overview.gnuplot")
     availability_gnuplot_path = os.path.join(workload_dir, "availability.gnuplot")
     percentiles_gnuplot_path = os.path.join(workload_dir, "percentiles.gnuplot")
+    seen_gnuplot_path = os.path.join(workload_dir, "seen.gnuplot")
 
     has_errors = True
 
@@ -135,6 +165,7 @@ def collect(config, workload_dir):
         latency_err = open(latency_err_log_path, "w")
         latency_timeout = open(latency_timeout_log_path, "w")
         latency_commit = open(latency_commit_log_path, "w")
+        latency_seen = open(latency_seen_log_path, "w")
         throughput_log = open(throughput_log_path, "w")
         availability_log = open(availability_log_path, "w")
 
@@ -147,6 +178,7 @@ def collect(config, workload_dir):
         recoveries = []
         info = None
 
+        latency_seen_history = []
         latency_ok_history = []
         latency_err_history = []
         latency_timeout_history = []
@@ -229,7 +261,7 @@ def collect(config, workload_dir):
                     if op_starts[thread_id] == None:
                         op_starts[thread_id] = attempt_starts[thread_id]
                     last_time = attempt_starts[thread_id]
-                elif new_state == State.OP or new_state == State.OFFSET or new_state == State.COMMIT or new_state == State.ABORT:
+                elif new_state == State.COMMIT or new_state == State.ABORT:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
@@ -289,7 +321,17 @@ def collect(config, workload_dir):
                             faults.append(int((ts_us - started)/1000))
                         elif name=="healing" or name=="healed":
                             recoveries.append(int((ts_us - started)/1000))
-                elif new_state == State.VIOLATION:
+                elif new_state == State.SEEN:
+                    if last_time == None:
+                        raise Exception(f"last_time can't be None when processing: {new_state}")
+                    delta_us = int(parts[1])
+                    end = last_time + delta_us
+                    tick(end, throughput_history)
+                    last_time = end
+                    seen_us = int(parts[3])
+                    if should_measure:
+                        latency_seen_history.append([int((end-started)/1000), seen_us])
+                elif new_state == State.VIOLATION or new_state == State.LOG:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
@@ -321,6 +363,18 @@ def collect(config, workload_dir):
         commit_p99 = latencies[int(0.99*len(latencies))]
         commit_min = latencies[0]
         commit_max = latencies[-1]
+
+        latencies = []
+        for [_, latency_us] in latency_seen_history:
+            latencies.append(latency_us)
+        latencies.sort()
+        seen_p99 = latencies[int(0.99*len(latencies))]
+        seen_min = latencies[0]
+        seen_max = latencies[-1]
+        
+        for [ts_ms,latency_us] in latency_seen_history:
+            duration_ms = max(duration_ms, ts_ms)
+            latency_seen.write(f"{ts_ms}\t{latency_us}\n")
         
         for [ts_ms,latency_us] in latency_commit_history:
             duration_ms = max(duration_ms, ts_ms)
@@ -372,6 +426,16 @@ def collect(config, workload_dir):
                     faults = faults,
                     recoveries = recoveries,
                     throughput=int(max_throughput*1.2)))
+        
+        with open(seen_gnuplot_path, "w") as gnuplot_file:
+            gnuplot_file.write(
+                jinja2.Template(SEEN).render(
+                    title = config["name"],
+                    duration=int(duration_ms/1000),
+                    seen_p99=seen_p99,
+                    seen_boundary=int(seen_p99*1.2), 
+                    faults = faults,
+                    recoveries = recoveries))
 
         with open(availability_gnuplot_path, "w") as gnuplot_file:
             gnuplot_file.write(jinja2.Template(AVAILABILITY).render(
@@ -386,6 +450,7 @@ def collect(config, workload_dir):
         gnuplot(overview_gnuplot_path, _cwd=workload_dir)
         gnuplot(availability_gnuplot_path, _cwd=workload_dir)
         gnuplot(percentiles_gnuplot_path, _cwd=workload_dir)
+        gnuplot(seen_gnuplot_path, _cwd=workload_dir)
 
         has_errors = False
 
@@ -401,6 +466,11 @@ def collect(config, workload_dir):
                     "min": commit_min,
                     "max": commit_max,
                     "p99": commit_p99
+                },
+                "write-to-read": {
+                    "min": seen_min,
+                    "max": seen_max,
+                    "p99": seen_p99
                 }
             },
             "max_unavailability_us": max_unavailability_us,
@@ -433,6 +503,8 @@ def collect(config, workload_dir):
         rm("-rf", throughput_log_path)
         rm("-rf", availability_log_path)
         rm("-rf", overview_gnuplot_path)
+        rm("-rf", seen_gnuplot_path)
         rm("-rf", availability_gnuplot_path)
         rm("-rf", percentiles_gnuplot_path)
         rm("-rf", latency_commit_log_path)
+        rm("-rf", latency_seen_log_path)

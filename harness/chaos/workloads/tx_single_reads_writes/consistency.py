@@ -58,13 +58,17 @@ def validate(config, workload_dir):
                     pass
                 elif new_state == State.TX:
                     pass
-                elif new_state == State.OP or new_state == State.OFFSET or new_state == State.COMMIT or new_state == State.ABORT:
+                elif new_state == State.COMMIT or new_state == State.ABORT:
+                    pass
+                elif new_state == State.SEEN:
                     pass
                 elif new_state == State.OK:
                     pass
                 elif new_state == State.ERROR:
                     pass
                 elif new_state == State.EVENT:
+                    pass
+                elif new_state == State.LOG:
                     pass
                 elif new_state == State.VIOLATION:
                     parts = line.rstrip().split('\t', 3)
