@@ -218,7 +218,7 @@ class RedpandaCluster:
         r = requests.post(f"http://{node.ip}:9644/v1/raft/{raft_group_id}/transfer_leadership?target={target.id}")
         if r.status_code != 200:
             logger.error(f"status code: {r.status_code}")
-            logger.error(f"status code: {r.content}")
+            logger.error(f"content: {r.content}")
             raise Exception(f"Can't transfer to {target.id}")
     
     def admin_decommission(self, node, to_decommission_node):

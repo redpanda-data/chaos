@@ -12,6 +12,8 @@ from time import sleep
 from chaos.checks.result import Result
 import copy
 from chaos.redpanda_cluster import TimeoutException
+import sys
+import traceback
 
 import logging
 
@@ -153,11 +155,24 @@ class TxSingleTopicSingleFault:
             time.sleep(1)
     
     def _transfer(self, new_leader, topic, partition=0, namespace="kafka", timeout_s=10):
-        old_leader = self.redpanda_cluster.wait_leader(topic, namespace=namespace, timeout_s=10)
+        old_leader = self.redpanda_cluster.wait_leader(topic, namespace=namespace, timeout_s=timeout_s)
         logger.debug(f"{namespace}/{topic}/{partition} leader: {old_leader.ip} (id={old_leader.id})")
         if new_leader != old_leader:
-            self.redpanda_cluster.transfer_leadership_to(new_leader, namespace, topic, partition)
-            self.redpanda_cluster.wait_leader_is(new_leader, namespace, topic, partition, timeout_s=10)
+            begin = time.time()
+            while True:
+                if time.time() - begin > timeout_s:
+                    raise TimeoutException(f"can't transfer leader of {topic} to {new_leader.ip} within {timeout_s} sec")
+                try:
+                    self.redpanda_cluster.transfer_leadership_to(new_leader, namespace, topic, partition)
+                    break
+                except:
+                    e, v = sys.exc_info()[:2]
+                    trace = traceback.format_exc()
+                    logger.error(e)
+                    logger.error(v)
+                    logger.error(trace)
+                    sleep(1)
+            self.redpanda_cluster.wait_leader_is(new_leader, namespace, topic, partition, timeout_s=timeout_s)
             logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
     
     def _execute(self):
@@ -242,30 +257,12 @@ class TxSingleTopicSingleFault:
 
         # transfer controller to other[0]
         self._transfer(others[0], "controller", partition=0, namespace="redpanda", timeout_s=10)
-        # controller_leader = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
-        # logger.debug(f"controller leader: {controller_leader.ip} (id={controller_leader.id})")
-        # if others[0] != controller_leader:
-        #     self.redpanda_cluster.transfer_leadership_to(others[0], "redpanda", "controller", 0)
-        #     self.redpanda_cluster.wait_leader_is(others[0], "redpanda", "controller", 0, timeout_s=10)
-        #     logger.debug(f"controller leader: {others[0].ip} (id={others[0].id})")
 
         # transfer id_allocator to other[1]
         self._transfer(others[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
-        #id_allocator_leader = self.redpanda_cluster.wait_leader("id_allocator", namespace="kafka_internal", timeout_s=10)
-        #logger.debug(f"id_allocator leader: {id_allocator_leader.ip} (id={id_allocator_leader.id})")
-        #if others[1] != id_allocator_leader:
-        #    self.redpanda_cluster.transfer_leadership_to(others[1], "kafka_internal", "id_allocator", 0)
-        #    self.redpanda_cluster.wait_leader_is(others[1], "kafka_internal", "id_allocator", 0, timeout_s=10)
-        #    logger.debug(f"id_allocator leader: {others[1].ip} (id={others[1].id})")
         
         # transfer tx to other[2]
         self._transfer(others[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
-        #tx_leader = self.redpanda_cluster.wait_leader("tx", namespace="kafka_internal", timeout_s=10)
-        #logger.debug(f"tx leader: {tx_leader.ip} (id={tx_leader.id})")
-        #if others[2] != tx_leader:
-        #    self.redpanda_cluster.transfer_leadership_to(others[2], "kafka_internal", "tx", 0)
-        #    self.redpanda_cluster.wait_leader_is(others[2], "kafka_internal", "tx", 0, timeout_s=10)
-        #    logger.debug(f"tx leader: {others[2].ip} (id={others[2].id})")
 
         logger.info(f"warming up for 20s")
         sleep(20)
