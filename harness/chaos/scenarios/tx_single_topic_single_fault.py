@@ -357,6 +357,11 @@ class TxSingleTopicSingleFault:
         self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
         logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
         self.save_config()
+
+        if self.config["result"] == Result.FAILED:
+            if "exit_on_violation" in self.config:
+                if self.config["exit_on_violation"]:
+                    os._exit(42)
         
         self.fetch_redpanda_logs()
 
