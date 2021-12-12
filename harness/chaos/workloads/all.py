@@ -1,6 +1,7 @@
 from chaos.workloads.writes import writes
 from chaos.workloads.reads_writes import reads_writes
 from chaos.workloads.tx_single_reads_writes import tx_single_reads_writes
+from chaos.workloads.tx_money import tx_money
 
 import logging
 
@@ -54,13 +55,22 @@ def tx_single_reads_writes_workload(nodes_path):
     writing_java.name = "tx-single-reads-writes / java"
     return tx_single_reads_writes.Workload(writing_java, nodes_path)
 
+def tx_money_workload(nodes_path):
+    writing_java = tx_money.Control()
+    writing_java.launch = "/mnt/vectorized/control/tx-money.java.start.sh"
+    writing_java.alive = "/mnt/vectorized/control/tx-money.java.alive.sh"
+    writing_java.kill = "/mnt/vectorized/control/tx-money.java.stop.sh"
+    writing_java.name = "tx-money / java"
+    return tx_money.Workload(writing_java, nodes_path)
+
 WORKLOADS = {
     "tx-single-reads-writes / java": tx_single_reads_writes_workload,
     "reads-writes / java": reads_writes_workload,
     "list-offsets / java": list_offsets_workload,
     "writes / java": kafka_clients_workload,
     "writes / python": confluent_kafka_workload,
-    "writes / concurrency": concurrency_workload
+    "writes / concurrency": concurrency_workload,
+    "tx-money / java": tx_money_workload
 }
 
 def wait_all_workloads_killed(nodes_path):
