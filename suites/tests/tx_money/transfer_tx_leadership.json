@@ -1,0 +1,21 @@
+{
+    "name": "tx-money / java / transfer tx leadership",
+    "scenario": "tx_money_single_fault",
+    "accounts": 6,
+    "replication": 3,
+    "workload": {
+        "name": "tx-money / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "producers": 3,
+            "retries": 5
+        }
+    },
+    "fault": "transfer_tx_leadership",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

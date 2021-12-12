@@ -13,7 +13,8 @@ class IsolateTxLeaderFault:
         self.name = "isolate tx coordinator's leader"
     
     def inject(self, scenario):
-        self.leader = scenario.redpanda_cluster.wait_leader(scenario.topic, partition=scenario.partition, timeout_s=10)
+        tx_info = scenario.redpanda_cluster.wait_details("tx", partition=0, namespace="kafka_internal", timeout_s=10)
+        self.leader = tx_info.leader
         logger.debug(f"isolating tx coordinator's leader: {self.leader.ip}")
 
         for node in scenario.redpanda_cluster.nodes:

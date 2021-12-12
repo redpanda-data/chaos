@@ -10,10 +10,16 @@ class KillLeaderFault:
         self.fault_type = FaultType.RECOVERABLE
         self.leader = None
         self.name = "kill a topic's leader"
+        self.fault_config = fault_config
 
     def inject(self, scenario):
-        self.leader = scenario.redpanda_cluster.wait_leader(scenario.topic, partition=scenario.partition, timeout_s=10)
-        logger.debug(f"killing {scenario.topic}'s leader: {self.leader.ip}")
+        topic = None
+        if "topic" in self.fault_config:
+            topic = self.fault_config["topic"]
+        else:
+            topic = scenario.topic
+        self.leader = scenario.redpanda_cluster.wait_leader(topic, partition=scenario.partition, timeout_s=10)
+        logger.debug(f"killing {topic}'s leader: {self.leader.ip}")
         ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
     
     def heal(self, scenario):
