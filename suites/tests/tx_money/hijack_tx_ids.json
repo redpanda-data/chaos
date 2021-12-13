@@ -1,0 +1,24 @@
+{
+    "name": "tx-money / java / hijack tx ids",
+    "scenario": "tx_money_single_fault",
+    "accounts": 6,
+    "replication": 3,
+    "workload": {
+        "name": "tx-money / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "producers": 3,
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "hijack_tx_ids",
+        "ids": [ "tx-0", "tx-1", "tx-2" ]
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

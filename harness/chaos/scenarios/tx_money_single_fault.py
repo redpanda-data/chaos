@@ -26,12 +26,11 @@ SUPPORTED_WORKLOADS = {
 }
 
 SUPPORTED_FAULTS = [
-    "isolate_controller", "isolate_follower", "isolate_leader",
-    "kill_follower", "kill_leader", "leadership_transfer", "baseline",
-    "reconfigure_11_kill", "reconfigure_313", "reconfigure_kill_11",
-    "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
+    "isolate_controller", "isolate_leader", "kill_leader", "leadership_transfer",
+    "baseline", "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
     "isolate_all", "rolling_restart", "kill_tx_leader", "kill_tx_follower",
-    "isolate_tx_leader", "isolate_tx_follower", "transfer_tx_leadership"
+    "isolate_tx_leader", "isolate_tx_follower", "transfer_tx_leadership",
+    "hijack_tx_ids"
 ]
 
 SUPPORTED_CHECKS = [

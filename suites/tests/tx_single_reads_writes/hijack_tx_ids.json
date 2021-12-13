@@ -1,0 +1,25 @@
+{
+    "name": "tx-single-reads-writes / java / transfer tx leadership",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-single-reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 3,
+            "writes": 2,
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "hijack_tx_ids",
+        "ids": [ "tx-0", "tx-1" ]
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
