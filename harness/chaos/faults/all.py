@@ -20,6 +20,7 @@ from chaos.faults.rolling_restart import RollingRestartFault
 from chaos.faults.decommission_leader import DecommissionLeaderFault
 from chaos.faults.transfer_tx_leadership import TransferTxLeadershipFault
 from chaos.faults.hijack_tx_ids import HijackTxIDsFault
+from chaos.faults.isolate_tx_all import IsolateTxAllFault
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -28,6 +29,7 @@ FAULTS = {
     "isolate_tx_leader": IsolateTxLeaderFault,
     "isolate_tx_follower": IsolateTxFollowerFault,
     "isolate_all": IsolateAllFault,
+    "isolate_tx_all": IsolateTxAllFault,
     "isolate_clients_kill_leader": IsolateClientsKillLeader,
     "kill_follower": KillFollowerFault,
     "kill_leader": KillLeaderFault,
