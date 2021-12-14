@@ -3,23 +3,17 @@
 set -e
 
 if [ ! -f /mnt/vectorized/workloads/logs/tx-streaming.pid ]; then
-    echo "NO"
     exit 0
 fi
 
 pid=$(cat /mnt/vectorized/workloads/logs/tx-streaming.pid)
 
 if [ $pid == "" ]; then
-    echo "NO"
     exit 0
 fi
 
-if process=$(ps -p $pid -o comm=); then
-    if [ $process == "java" ]; then
-        echo "YES"
-        exit 0
-    fi
+if ps -p $pid; then
+    kill -9 $pid
 fi
 
-echo "NO"
-exit 0
+rm /mnt/vectorized/workloads/logs/tx-streaming.pid
