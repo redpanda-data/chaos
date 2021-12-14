@@ -18,7 +18,15 @@ class KillLeaderFault:
             topic = self.fault_config["topic"]
         else:
             topic = scenario.topic
-        self.leader = scenario.redpanda_cluster.wait_leader(topic, partition=scenario.partition, timeout_s=10)
+        partition = 0
+        if "partition" in self.fault_config:
+            partition = self.fault_config["partition"]
+        else:
+            partition = scenario.partition
+        namespace="kafka"
+        if "namespace" in self.fault_config:
+            namespace = self.fault_config["namespace"]
+        self.leader = scenario.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=10)
         logger.debug(f"killing {topic}'s leader: {self.leader.ip}")
         ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
     
