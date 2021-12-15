@@ -30,7 +30,6 @@ public class Workload {
     private HashMap<Integer, App.OpsInfo> ops_info;
     private synchronized void succeeded(int thread_id) {
         ops_info.get(thread_id).succeeded_ops += 1;
-        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
     }
     private synchronized void timedout(int thread_id) {
         ops_info.get(thread_id).timedout_ops += 1;
@@ -39,15 +38,16 @@ public class Workload {
         ops_info.get(thread_id).failed_ops += 1;
     }
 
-    private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
-    private synchronized void tick() {
-        var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
-        if (now_us - last_success_us > 10 * 1000 * 1000) {
-            for (var thread_id : should_reset.keySet()) {
-                should_reset.put(thread_id, true);
-            }
-            last_success_us = now_us;
+    private HashMap<Integer, Long> last_success_us;
+    private synchronized void progress(int thread_id) {
+        last_success_us.put(thread_id, System.nanoTime() / 1000);
+    }
+    private synchronized void tick(int thread_id) {
+        var now_us = Math.max(last_success_us.get(thread_id), System.nanoTime() / 1000);
+        if (now_us - last_success_us.get(thread_id) > 10 * 1000 * 1000) {
+            should_reset.put(thread_id, true);
+            last_success_us.put(thread_id, now_us);
         }
     }
 
@@ -86,6 +86,7 @@ public class Workload {
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
         should_reset = new HashMap<>();
+        last_success_us = new HashMap<>();
         ops_info = new HashMap<>();
 
         int thread_id=0;
@@ -93,6 +94,7 @@ public class Workload {
         for (int i=0;i<this.args.settings.producers;i++) {
             final var j=thread_id++;
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
@@ -170,11 +172,9 @@ public class Workload {
         Producer<String, String> producer = null;
     
         log(wid, "started\t" + args.server);
-        long j = 0;
     
         while (is_active) {
-            j++;
-            tick();
+            tick(wid);
     
             synchronized(this) {
                 if (should_reset.get(wid)) {
@@ -252,6 +252,7 @@ public class Workload {
                 log(wid, "cmt");
                 producer.commitTransaction();
                 log(wid, "ok");
+                progress(wid);
                 succeeded(wid);
             } catch (Exception e1) {
                 System.out.println("error on commit => reset producer");

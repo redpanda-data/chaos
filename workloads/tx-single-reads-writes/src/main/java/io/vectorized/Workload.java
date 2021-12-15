@@ -51,7 +51,6 @@ public class Workload {
     private HashMap<Integer, App.OpsInfo> ops_info;
     private synchronized void succeeded(int thread_id) {
         ops_info.get(thread_id).succeeded_ops += 1;
-        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
     }
     private synchronized void timedout(int thread_id) {
         ops_info.get(thread_id).timedout_ops += 1;
@@ -70,15 +69,16 @@ public class Workload {
         return ++this.last_tx_id;
     }
 
-    private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
-    private synchronized void tick() {
-        var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
-        if (now_us - last_success_us > 10 * 1000 * 1000) {
-            for (var thread_id : should_reset.keySet()) {
-                should_reset.put(thread_id, true);
-            }
-            last_success_us = now_us;
+    private HashMap<Integer, Long> last_success_us;
+    private synchronized void progress(int thread_id) {
+        last_success_us.put(thread_id, System.nanoTime() / 1000);
+    }
+    private synchronized void tick(int thread_id) {
+        var now_us = Math.max(last_success_us.get(thread_id), System.nanoTime() / 1000);
+        if (now_us - last_success_us.get(thread_id) > 10 * 1000 * 1000) {
+            should_reset.put(thread_id, true);
+            last_success_us.put(thread_id, now_us);
         }
     }
 
@@ -139,6 +139,7 @@ public class Workload {
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
         should_reset = new HashMap<>();
+        last_success_us = new HashMap<>();
         ops_info = new HashMap<>();
         txes = new HashMap<>();
         next_tid = new HashMap<>();
@@ -154,6 +155,7 @@ public class Workload {
             final var j=thread_id++;
             next_tid.put(j, new HashMap<>());
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
@@ -173,6 +175,7 @@ public class Workload {
         for (int i=0;i<this.args.settings.reads;i++) {
             final var j=thread_id++;
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             read_offset_front.put(j, -1L);
             threads.add(new Thread(() -> { 
                 try {
@@ -250,12 +253,10 @@ public class Workload {
         Producer<String, String> producer = null;
     
         log(wid, "started\t" + args.server);
-        long j = 0;
         long prev_tid = -1L;
     
         while (is_active) {
-            j++;
-            tick();
+            tick(wid);
     
             synchronized(this) {
                 if (should_reset.get(wid)) {
@@ -352,6 +353,7 @@ public class Workload {
                 try {
                     log(wid, "brt");
                     producer.abortTransaction();
+                    progress(wid);
                     if (tx_min_offset <= tx_max_offset) {
                         log(wid, "ok\t" + tx_min_offset + "\t" + tx_max_offset);
                     } else {
@@ -386,6 +388,7 @@ public class Workload {
                     tx.status = TxStatus.COMMITTING;
                 }
                 producer.commitTransaction();
+                progress(wid);
                 synchronized(this) {
                     if (tx.status == TxStatus.COMMITTING) {
                         tx.status = TxStatus.COMMITTED;
@@ -472,7 +475,7 @@ public class Workload {
         HashMap<Long, Queue<Long>> local_tx_ops = new HashMap<>();
 
         while (is_active) {
-            tick();
+            tick(rid);
 
             synchronized(this) {
                 if (should_reset.get(rid)) {
@@ -505,6 +508,7 @@ public class Workload {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
             var it = records.iterator();
             while (it.hasNext()) {
+                progress(rid);
                 var record = it.next();
 
                 if (!record.key().equals(args.server)) {

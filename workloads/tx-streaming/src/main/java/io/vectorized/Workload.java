@@ -64,7 +64,6 @@ public class Workload {
 
     private HashMap<Integer, Boolean> should_reset;
     private HashMap<Integer, Long> last_success_us;
-    
     private synchronized void progress(int thread_id) {
         last_success_us.put(thread_id, System.nanoTime() / 1000);
     }
