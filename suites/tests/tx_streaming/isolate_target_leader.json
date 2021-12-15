@@ -1,0 +1,26 @@
+{
+    "name": "tx-streaming / java / isolate target leader",
+    "scenario": "tx_streaming_single_fault",
+    "source": "source1",
+    "target": "target1",
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-streaming / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "isolate_leader",
+        "topic": "target1"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}

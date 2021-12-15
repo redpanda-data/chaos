@@ -1,23 +1,23 @@
 {
-    "name": "tx-single-reads-writes / java / hijack tx ids",
-    "scenario": "tx_single_table_single_fault",
-    "topic": "topic1",
+    "name": "tx-streaming / java / transfer target leadership",
+    "scenario": "tx_streaming_single_fault",
+    "source": "source1",
+    "target": "target1",
+    "group_id": "group1",
     "replication": 3,
     "workload": {
-        "name": "tx-single-reads-writes / java",
+        "name": "tx-streaming / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
         ],
         "settings": {
-            "reads": 3,
-            "writes": 2,
             "retries": 5
         }
     },
     "fault": {
-        "name": "hijack_tx_ids",
-        "ids": [ "tx-0", "tx-1" ]
+        "name": "leadership_transfer",
+        "topic": "target1"
     },
     "checks": [
         { "name": "redpanda_process_liveness" }

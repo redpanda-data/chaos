@@ -27,7 +27,7 @@ class KillLeaderFault:
         if "namespace" in self.fault_config:
             namespace = self.fault_config["namespace"]
         self.leader = scenario.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=10)
-        logger.debug(f"killing {topic}'s leader: {self.leader.ip}")
+        logger.debug(f"killing {namespace}/{topic}/{partition}'s leader: {self.leader.ip}")
         ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
     
     def heal(self, scenario):

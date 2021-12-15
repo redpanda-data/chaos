@@ -1,0 +1,12 @@
+{
+    "name": "all",
+    "tests": [
+        "tx_streaming/pause_group_leader.json",
+        "tx_streaming/pause_source_leader.json",
+        "tx_streaming/pause_target_leader.json",
+        "tx_streaming/pause_tx_leader.json"
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
+}

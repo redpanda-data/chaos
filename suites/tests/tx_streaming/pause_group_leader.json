@@ -1,0 +1,28 @@
+{
+    "name": "tx-streaming / java / pause group leader",
+    "scenario": "tx_streaming_single_fault",
+    "source": "source1",
+    "target": "target1",
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-streaming / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "pause_leader",
+        "topic": "group",
+        "namespace": "kafka_internal",
+        "partition": 0
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}
