@@ -2,6 +2,7 @@ package io.vectorized;
 import java.io.*;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -10,6 +11,8 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.Collections;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -20,8 +23,29 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import java.time.Duration;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.Future;
 
 public class Workload {
+    static enum OpProduceStatus {
+        WRITING, WRITTEN, SKIPPED, CONSUMED
+    }
+
+    static class OpProduceRecord {
+        public long oid;
+        public long offset;
+        public OpProduceStatus status;
+    }
+
+    static enum OpTxStatus {
+        ONGOING, COMMITTING, COMMITTED
+    }
+
+    static class OpTxRecord {
+        public long oid;
+        public long offset;
+        public OpTxStatus status;
+    }
+
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
@@ -30,7 +54,6 @@ public class Workload {
     private HashMap<Integer, App.OpsInfo> ops_info;
     private synchronized void succeeded(int thread_id) {
         ops_info.get(thread_id).succeeded_ops += 1;
-        last_success_us = Math.max(last_success_us, System.nanoTime() / 1000);
     }
     private synchronized void timedout(int thread_id) {
         ops_info.get(thread_id).timedout_ops += 1;
@@ -39,15 +62,17 @@ public class Workload {
         ops_info.get(thread_id).failed_ops += 1;
     }
 
-    private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
-    private synchronized void tick() {
-        var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
-        if (now_us - last_success_us > 10 * 1000 * 1000) {
-            for (var thread_id : should_reset.keySet()) {
-                should_reset.put(thread_id, true);
-            }
-            last_success_us = now_us;
+    private HashMap<Integer, Long> last_success_us;
+    
+    private synchronized void progress(int thread_id) {
+        last_success_us.put(thread_id, System.nanoTime() / 1000);
+    }
+    private synchronized void tick(int thread_id) {
+        var now_us = Math.max(last_success_us.get(thread_id), System.nanoTime() / 1000);
+        if (now_us - last_success_us.get(thread_id) > 10 * 1000 * 1000) {
+            should_reset.put(thread_id, true);
+            last_success_us.put(thread_id, now_us);
         }
     }
 
@@ -67,17 +92,34 @@ public class Workload {
                         "\t" + message + "\n");
         past_us = now_us;
     }
+    private synchronized void violation(int thread_id, String message) throws Exception {
+        var now_us = System.nanoTime() / 1000;
+        if (now_us < past_us) {
+            throw new Exception("Time cant go back, observed: " + now_us + " after: " + past_us);
+        }
+        opslog.write("" + thread_id +
+                        "\t" + (now_us - past_us) +
+                        "\tviolation" +
+                        "\t" + message + "\n");
+        opslog.flush();
+        opslog.close();
+        System.exit(1);
+        past_us = now_us;
+    }
     public void event(String name) throws Exception {
         log(-1, "event\t" + name);
     }
 
     private volatile ArrayList<Thread> threads;
-    private volatile Random random;
     private Semaphore produce_gauge;
+
+    private HashMap<Long, OpProduceRecord> producing_records;
+    private Queue<Long> producing_oids;
+    private HashMap<Long, OpTxRecord> streaming_records;
+    private Queue<Long> streaming_oids;
 
     public Workload(App.InitBody args) {
         this.args = args;
-        this.random = new Random();
     }
 
     public void start() throws Exception {
@@ -92,7 +134,12 @@ public class Workload {
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
         should_reset = new HashMap<>();
+        last_success_us = new HashMap<>();
         ops_info = new HashMap<>();
+        producing_records = new HashMap<>();
+        producing_oids = new LinkedList<>();
+        streaming_records = new HashMap<>();
+        streaming_oids = new LinkedList<>();
 
         int thread_id=0;
         threads = new ArrayList<>();
@@ -102,6 +149,7 @@ public class Workload {
         {
             final var j=thread_id++;
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
@@ -121,6 +169,7 @@ public class Workload {
         {
             final var j=thread_id++;
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
@@ -140,6 +189,7 @@ public class Workload {
         {
             final var j=thread_id++;
             should_reset.put(j, false);
+            last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
             threads.add(new Thread(() -> { 
                 try {
@@ -218,7 +268,7 @@ public class Workload {
         log(pid, "started\t" + args.server + "\tproducing");
     
         while (is_active) {
-            tick();
+            tick(pid);
 
             produce_gauge.acquire();
     
@@ -255,14 +305,22 @@ public class Workload {
                 continue;
             }
 
-            var oid = get_op_id();
+            var record = new OpProduceRecord();
+            record.oid = get_op_id();
+            record.offset = -1;
+            record.status = OpProduceStatus.WRITING;
+
+            synchronized (this) {
+                producing_records.put(record.oid, record);
+                producing_oids.add(record.oid);
+            }
     
-            log(pid, "writing\t" + oid);
+            log(pid, "writing\t" + record.oid);
 
             long offset = -1;
 
             try {
-                var f1 = producer.send(new ProducerRecord<String, String>(args.source, args.server, "" + oid));
+                var f1 = producer.send(new ProducerRecord<String, String>(args.source, args.server, "" + record.oid));
                 offset = f1.get().offset();
             } catch (Exception e1) {
                 System.out.println("error on send");
@@ -275,9 +333,25 @@ public class Workload {
     
                 continue;
             }
+
+            progress(pid);
+
+            synchronized (this) {
+                if (record.status == OpProduceStatus.SKIPPED) {
+                    violation(pid, "can't succeed an alread skipped record");
+                }
+                if (record.status != OpProduceStatus.CONSUMED) {
+                    record.status = OpProduceStatus.WRITTEN;
+                }
+                if (record.offset < 0) {
+                    record.offset = offset;
+                }
+                if (record.offset != offset) {
+                    violation(pid, "oid:" + record.oid + " offset:" + offset + " was already seen with offset:" + record.offset);
+                }
+            }
     
             log(pid, "ok\t" + offset);
-            succeeded(pid);
         }
     
         if (producer != null) {
@@ -339,8 +413,9 @@ public class Workload {
         Consumer<String, String> consumer = null;
         var source_tp = new TopicPartition(args.source, 0);
 
+        var prev_offset = -1L;
         while (is_active) {
-            tick();
+            tick(sid);
     
             synchronized(this) {
                 if (should_reset.get(sid)) {
@@ -409,10 +484,65 @@ public class Workload {
                 long offset = record.offset();
                 long oid = Long.parseLong(record.value());
 
+                if (offset < prev_offset) {
+                    violation(sid, "read offset:" + offset + " after offset:" + prev_offset);
+                }
+                prev_offset = offset;
+
                 log(sid, "tx");
                 producer.beginTransaction();
+
+                OpTxRecord tx_op;
+                OpProduceRecord op;
+                
+                synchronized (this) {
+                    if (!producing_records.containsKey(oid)) {
+                        violation(sid, "read unknown oid:" + oid + " offset:" + offset);
+                    }
+                    op = producing_records.get(oid);
+                    if (op.status == OpProduceStatus.SKIPPED) {
+                        violation(sid, "can't read a skipped oid:" + oid + " offset:" + offset);
+                    }
+                    op.status = OpProduceStatus.WRITTEN;
+                    if (op.offset < 0) {
+                        op.offset = offset;
+                    }
+                    if (op.offset != offset) {
+                        violation(sid, "oid:" + op.oid + " offset:" + offset + " was already seen with offset:" + op.offset);
+                    }
+                    while (producing_oids.element() < oid) {
+                        var prev_oid = producing_oids.element();
+                        if (!producing_records.containsKey(prev_oid)) {
+                            violation(sid, "deduced unknown oid:" + prev_oid);
+                        }
+                        var prev_op = producing_records.get(prev_oid);
+                        if (prev_op.status == OpProduceStatus.WRITING) {
+                            prev_op.status = OpProduceStatus.SKIPPED;
+                        } else if (prev_op.status == OpProduceStatus.WRITTEN) {
+                            violation(sid, "skipped a written oid:" + prev_oid + " offset:" + prev_op.offset);
+                        }
+                        producing_records.remove(prev_oid);
+                        producing_oids.remove();
+                    }
+
+                    if (!streaming_records.containsKey(oid)) {
+                        tx_op = new OpTxRecord();
+                        tx_op.oid = oid;
+                        tx_op.offset = -1;
+                        tx_op.status = OpTxStatus.ONGOING;
+                        streaming_records.put(oid, tx_op);
+                    }
+
+                    tx_op = streaming_records.get(oid);
+                    if (tx_op.status == OpTxStatus.COMMITTED) {
+                        violation(sid, "tx op oid:" + oid + " is already committed, can't process it again");
+                    }
+                }
+
+                Future<RecordMetadata> f;
+
                 try {
-                    producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + oid));
+                    f = producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + oid));
                     var offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
                     offsets.put(source_tp, new OffsetAndMetadata(offset + 1));
                     producer.sendOffsetsToTransaction(offsets, args.group_id);
@@ -424,6 +554,7 @@ public class Workload {
                     try {
                         log(sid, "brt");
                         producer.abortTransaction();
+                        progress(sid);
                         log(sid, "ok");
                         failed(sid);
                     } catch (Exception e2) {
@@ -446,12 +577,43 @@ public class Workload {
                     break;
                 }
 
+                synchronized (this) {
+                    if (tx_op.status == OpTxStatus.COMMITTED) {
+                        violation(sid, "tx op oid:" + tx_op.oid + " offset:" + tx_op.offset + " is already committed, can't process it again");
+                    }
+                    op.status = OpProduceStatus.CONSUMED;
+                    tx_op.status = OpTxStatus.COMMITTING;
+                    streaming_oids.add(tx_op.oid);
+                }
+
                 try {
                     log(sid, "cmt");
                     producer.commitTransaction();
+                    progress(sid);
                     produce_gauge.release();
                     log(sid, "ok");
                     succeeded(sid);
+
+                    synchronized (this) {
+                        if (tx_op.status == OpTxStatus.ONGOING) {
+                            violation(sid, "status of a committed tx can't be ongoing");
+                        }
+                        tx_op.status = OpTxStatus.COMMITTED;
+                        var tx_offset = f.get().offset();
+                        if (tx_op.offset < 0) {
+                            tx_op.offset = tx_offset;
+                        }
+                        if (tx_op.offset != tx_offset) {
+                            violation(sid, "tx op oid:" + tx_op.oid + " offset:" + tx_offset + " was already observed with offset:" + tx_op.offset);
+                        }
+                        if (producing_oids.element() != oid) {
+                            violation(sid, "oid:" + oid + " is missing in the produce queue");
+                        }
+                        producing_oids.remove();
+                        if (producing_oids.size() > 0 && producing_oids.element() == oid) {
+                            violation(sid, "oid:" + oid + " is duplicated in the produce queue");
+                        }
+                    }
                 } catch (Exception e1) {
                     System.out.println("error on commit => reset producer");
                     System.out.println(e1);
@@ -526,7 +688,7 @@ public class Workload {
         long prev_offset = -1;
 
         while (is_active) {
-            tick();
+            tick(rid);
 
             synchronized(this) {
                 if (should_reset.get(rid)) {
@@ -559,6 +721,7 @@ public class Workload {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
             var it = records.iterator();
             while (it.hasNext()) {
+                progress(rid);
                 var record = it.next();
 
                 if (!record.key().equals(args.server)) {
@@ -567,6 +730,37 @@ public class Workload {
 
                 long offset = record.offset();
                 long oid = Long.parseLong(record.value());
+
+                if (offset <= prev_offset) {
+                    violation(rid, "reads must be monotonic but observed " + offset + " after " + prev_offset);
+                }
+                prev_offset = offset;
+
+                synchronized (this) {
+                    if (!streaming_records.containsKey(oid)) {
+                        violation(rid, "read an unknown tx oid:" + oid);
+                    }
+                    var tx_op = streaming_records.get(oid);
+                    if (tx_op.status == OpTxStatus.ONGOING) {
+                        violation(rid, "can't read an ongoing tx oid:" + oid);
+                    }
+                    tx_op.status = OpTxStatus.COMMITTED;
+                    if (tx_op.offset < 0) {
+                        tx_op.offset = offset;
+                    }
+                    if (tx_op.offset != offset) {
+                        violation(rid, "tx oid:" + tx_op.oid + " offset:" + offset + " was already seen with offset:" + tx_op.offset);
+                    }
+
+                    while (streaming_oids.element() < oid) {
+                        var prev_oid = streaming_oids.element();
+                        violation(rid, "detected gap, missing tx oid:" + prev_oid);
+                    }
+                    while (streaming_oids.size() > 0 && streaming_oids.element() == oid) {
+                        streaming_oids.remove();
+                    }
+                    streaming_records.remove(oid);
+                }
             }
         }
     }
