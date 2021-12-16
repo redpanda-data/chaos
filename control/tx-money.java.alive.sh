@@ -2,12 +2,12 @@
 
 set -e
 
-if [ ! -f /mnt/vectorized/workloads/logs/tx-streaming.pid ]; then
+if [ ! -f /mnt/vectorized/workloads/logs/tx-money.pid ]; then
     echo "NO"
     exit 0
 fi
 
-pid=$(cat /mnt/vectorized/workloads/logs/tx-streaming.pid)
+pid=$(cat /mnt/vectorized/workloads/logs/tx-money.pid)
 
 if [ $pid == "" ]; then
     echo "NO"
