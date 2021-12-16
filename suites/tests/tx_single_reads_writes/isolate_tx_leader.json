@@ -15,7 +15,12 @@
             "retries": 5
         }
     },
-    "fault": "isolate_tx_leader",
+    "fault": {
+        "name": "isolate_leader",
+        "topic": "tx",
+        "namespace": "kafka_internal",
+        "partition": 0
+    },
     "checks": [
         { "name": "redpanda_process_liveness" },
         { "name": "progress_during_fault", "min-delta": 100 }

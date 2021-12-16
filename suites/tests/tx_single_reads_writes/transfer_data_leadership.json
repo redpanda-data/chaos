@@ -1,5 +1,5 @@
 {
-    "name": "tx-single-reads-writes / java / kill tx follower",
+    "name": "tx-single-reads-writes / java / transfer data leadership",
     "scenario": "tx_single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
@@ -16,13 +16,10 @@
         }
     },
     "fault": {
-        "name": "kill_follower",
-        "topic": "tx",
-        "namespace": "kafka_internal",
-        "partition": 0
+        "name": "leadership_transfer",
+        "topic": "topic1"
     },
     "checks": [
-        { "name": "redpanda_process_liveness" },
-        { "name": "progress_during_fault", "min-delta": 100 }
+        { "name": "redpanda_process_liveness" }
     ]
 }

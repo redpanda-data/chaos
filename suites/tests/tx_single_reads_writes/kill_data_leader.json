@@ -1,22 +1,22 @@
 {
-    "name": "tx-money / java / kill data node",
-    "scenario": "tx_money_single_fault",
-    "accounts": 6,
+    "name": "tx-single-reads-writes / java / kill data leader",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
     "replication": 3,
     "workload": {
-        "name": "tx-money / java",
+        "name": "tx-single-reads-writes / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
         ],
         "settings": {
-            "producers": 3,
+            "reads": 3,
+            "writes": 2,
             "retries": 5
         }
     },
     "fault": {
-        "name": "kill_leader",
-        "topic": "acc0"
+        "name": "kill_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

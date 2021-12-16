@@ -1,5 +1,5 @@
 {
-    "name": "tx-single-reads-writes / java / kill leader",
+    "name": "tx-single-reads-writes / java / isolate data follower",
     "scenario": "tx_single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
@@ -15,7 +15,10 @@
             "retries": 5
         }
     },
-    "fault": "kill_leader",
+    "fault": {
+        "name": "isolate_follower",
+        "topic": "topic1"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" },
         { "name": "progress_during_fault", "min-delta": 100 }

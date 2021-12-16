@@ -1,22 +1,21 @@
 {
-    "name": "tx-single-reads-writes / java / kill tx follower",
-    "scenario": "tx_single_table_single_fault",
-    "topic": "topic1",
+    "name": "tx-money / java / kill tx leader",
+    "scenario": "tx_money_single_fault",
+    "accounts": 6,
     "replication": 3,
     "workload": {
-        "name": "tx-single-reads-writes / java",
+        "name": "tx-money / java",
         "checks": [
             { "name": "consistency" },
             { "name": "stat" }
         ],
         "settings": {
-            "reads": 3,
-            "writes": 2,
+            "producers": 3,
             "retries": 5
         }
     },
     "fault": {
-        "name": "kill_follower",
+        "name": "kill_leader",
         "topic": "tx",
         "namespace": "kafka_internal",
         "partition": 0

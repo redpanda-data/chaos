@@ -1,10 +1,34 @@
 {
     "name": "all",
     "tests": [
+        "tx_streaming/baseline.json",
+        "tx_streaming/hijack_tx_ids.json",
+        "tx_streaming/isolate_group_leader.json",
+        "tx_streaming/isolate_source_leader.json",
+        "tx_streaming/isolate_target_leader.json",
+        "tx_streaming/isolate_tx_all.json",
+        "tx_streaming/isolate_tx_follower.json",
+        "tx_streaming/isolate_tx_leader.json",
+        "tx_streaming/kill_group_follower.json",
+        "tx_streaming/kill_group_leader.json",
+        "tx_streaming/kill_source_follower.json",
+        "tx_streaming/kill_source_leader.json",
+        "tx_streaming/kill_target_follower.json",
+        "tx_streaming/kill_target_leader.json",
+        "tx_streaming/kill_tx_follower.json",
+        "tx_streaming/kill_tx_leader.json",
         "tx_streaming/pause_group_leader.json",
         "tx_streaming/pause_source_leader.json",
         "tx_streaming/pause_target_leader.json",
-        "tx_streaming/pause_tx_leader.json"
+        "tx_streaming/pause_tx_leader.json",
+        "tx_streaming/reconfigure_313_group.json",
+        "tx_streaming/reconfigure_313_source.json",
+        "tx_streaming/reconfigure_313_target.json",
+        "tx_streaming/reconfigure_313_tx.json",
+        "tx_streaming/transfer_group_leadership.json",
+        "tx_streaming/transfer_source_leadership.json",
+        "tx_streaming/transfer_target_leadership.json",
+        "tx_streaming/transfer_tx_leadership.json"
     ],
     "settings": {
         "remove_logs_on_success": true

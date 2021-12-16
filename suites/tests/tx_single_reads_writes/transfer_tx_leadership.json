@@ -15,7 +15,12 @@
             "retries": 5
         }
     },
-    "fault": "transfer_tx_leadership",
+    "fault": {
+        "name": "leadership_transfer",
+        "topic": "tx",
+        "namespace": "kafka_internal",
+        "partition": 0
+    },
     "checks": [
         { "name": "redpanda_process_liveness" }
     ]

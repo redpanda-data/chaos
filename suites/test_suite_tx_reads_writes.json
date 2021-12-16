@@ -1,0 +1,25 @@
+{
+    "name": "all",
+    "tests": [
+        "tx_single_reads_writes/baseline.json",
+        "tx_single_reads_writes/hijack_tx_ids.json",
+        "tx_single_reads_writes/isolate_data_follower.json",
+        "tx_single_reads_writes/isolate_data_leader.json",
+        "tx_single_reads_writes/isolate_tx_all.json",
+        "tx_single_reads_writes/isolate_tx_follower.json",
+        "tx_single_reads_writes/isolate_tx_leader.json",
+        "tx_single_reads_writes/kill_data_follower.json",
+        "tx_single_reads_writes/kill_data_leader.json",
+        "tx_single_reads_writes/kill_tx_follower.json",
+        "tx_single_reads_writes/kill_tx_leader.json",
+        "tx_single_reads_writes/pause_data_leader.json",
+        "tx_single_reads_writes/pause_tx_leader.json",
+        "tx_single_reads_writes/reconfigure_313_data.json",
+        "tx_single_reads_writes/reconfigure_313_tx.json",
+        "tx_single_reads_writes/transfer_data_leadership.json",
+        "tx_single_reads_writes/transfer_tx_leadership.json"
+    ],
+    "settings": {
+        "remove_logs_on_success": true
+    }
+}

@@ -1,5 +1,5 @@
 {
-    "name": "tx-single-reads-writes / java / kill tx follower",
+    "name": "tx-single-reads-writes / java / pause tx leader",
     "scenario": "tx_single_table_single_fault",
     "topic": "topic1",
     "replication": 3,
@@ -16,7 +16,7 @@
         }
     },
     "fault": {
-        "name": "kill_follower",
+        "name": "pause_leader",
         "topic": "tx",
         "namespace": "kafka_internal",
         "partition": 0
