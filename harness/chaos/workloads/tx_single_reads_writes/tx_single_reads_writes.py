@@ -158,9 +158,9 @@ class Workload:
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
-    def stop(self, node):
+    def stop(self, node, timeout_s=10):
         ip = node.ip
-        r = requests.post(f"http://{ip}:8080/stop")
+        r = requests.post(f"http://{ip}:8080/stop", timeout=timeout_s)
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 

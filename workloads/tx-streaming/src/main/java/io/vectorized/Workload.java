@@ -21,7 +21,6 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import java.time.Duration;
-import java.util.Random;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.Future;
 
@@ -109,8 +108,10 @@ public class Workload {
         log(-1, "event\t" + name);
     }
 
-    private volatile ArrayList<Thread> threads;
-    private Semaphore produce_gauge;
+    private volatile ArrayList<Thread> producing_threads;
+    private volatile ArrayList<Thread> streaming_threads;
+    private volatile ArrayList<Thread> consuming_threads;
+    private volatile Semaphore produce_gauge;
 
     private HashMap<Long, OpProduceRecord> producing_records;
     private Queue<Long> producing_oids;
@@ -141,7 +142,9 @@ public class Workload {
         streaming_oids = new LinkedList<>();
 
         int thread_id=0;
-        threads = new ArrayList<>();
+        producing_threads = new ArrayList<>();
+        streaming_threads = new ArrayList<>();
+        consuming_threads = new ArrayList<>();
 
         produce_gauge = new Semaphore(200);
         
@@ -150,7 +153,7 @@ public class Workload {
             should_reset.put(j, false);
             last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
-            threads.add(new Thread(() -> { 
+            producing_threads.add(new Thread(() -> { 
                 try {
                     producingProcess(j);
                 } catch(Exception e) {
@@ -170,7 +173,7 @@ public class Workload {
             should_reset.put(j, false);
             last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
-            threads.add(new Thread(() -> { 
+            streaming_threads.add(new Thread(() -> { 
                 try {
                     streamingProcess(j);
                 } catch(Exception e) {
@@ -190,7 +193,7 @@ public class Workload {
             should_reset.put(j, false);
             last_success_us.put(j, -1L);
             ops_info.put(j, new App.OpsInfo());
-            threads.add(new Thread(() -> { 
+            consuming_threads.add(new Thread(() -> { 
                 try {
                     consumingProcess(j);
                 } catch(Exception e) {
@@ -205,16 +208,36 @@ public class Workload {
             }));
         }
         
-        for (var th : threads) {
+        for (var th : producing_threads) {
+            th.start();
+        }
+        for (var th : streaming_threads) {
+            th.start();
+        }
+        for (var th : consuming_threads) {
             th.start();
         }
     }
 
     public void stop() throws Exception {
         is_active = false;
-        for (var th : threads) {
+
+        Thread.sleep(1000);
+        if (opslog != null) {
+            opslog.flush();
+        }
+        
+        for (var th : consuming_threads) {
             th.join();
         }
+        for (var th : streaming_threads) {
+            th.join();
+        }
+        produce_gauge.release(producing_threads.size());
+        for (var th : producing_threads) {
+            th.join();
+        }
+
         if (opslog != null) {
             opslog.flush();
             opslog.close();

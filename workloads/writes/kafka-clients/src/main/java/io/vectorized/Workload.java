@@ -85,6 +85,12 @@ public class Workload {
 
     public void stop() throws Exception {
         is_active = false;
+
+        Thread.sleep(1000);
+        if (opslog != null) {
+            opslog.flush();
+        }
+        
         for (var th : threads) {
             th.join();
         }

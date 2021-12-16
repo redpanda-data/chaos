@@ -170,6 +170,12 @@ public class Workload {
 
     public void stop() throws Exception {
         is_active = false;
+        
+        Thread.sleep(1000);
+        if (opslog != null) {
+            opslog.flush();
+        }
+
         synchronized(this) {
             for (var thread_id : semaphores.keySet()) {
                 try {
