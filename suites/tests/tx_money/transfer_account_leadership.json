@@ -17,7 +17,8 @@
     "fault": {
         "name": "leadership_transfer",
         "topic": "acc0",
-        "partition": 0
+        "partition": 0,
+        "alias": "transfer_data_leadership"
     },
     "checks": [
         { "name": "redpanda_process_liveness" }

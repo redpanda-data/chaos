@@ -17,7 +17,8 @@
     "fault": {
         "name": "pause_leader",
         "topic": "acc0",
-        "partition": 0
+        "partition": 0,
+        "alias": "pause_data_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

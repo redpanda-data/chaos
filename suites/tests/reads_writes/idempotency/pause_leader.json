@@ -16,7 +16,10 @@
             "enable_idempotency": true
         }
     },
-    "fault": "pause_leader",
+    "fault": {
+        "name": "pause_leader",
+        "alias": "pause_data_leader"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" },
         { "name": "progress_during_fault", "min-delta": 100 }

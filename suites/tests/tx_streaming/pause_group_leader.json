@@ -19,7 +19,8 @@
         "name": "pause_leader",
         "topic": "group",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "pause_group_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

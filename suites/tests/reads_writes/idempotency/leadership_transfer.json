@@ -16,7 +16,10 @@
             "enable_idempotency": true
         }
     },
-    "fault": "leadership_transfer",
+    "fault": {
+        "name": "leadership_transfer",
+        "alias": "transfer_data_leadership"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" }
     ]

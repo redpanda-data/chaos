@@ -18,7 +18,8 @@
     "fault": {
         "name": "reconfigure_313",
         "timeout_s": 60,
-        "topic": "source1"
+        "topic": "source1",
+        "alias": "reconfigure_313_data"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

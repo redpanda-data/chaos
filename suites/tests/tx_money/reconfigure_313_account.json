@@ -18,7 +18,8 @@
         "name": "reconfigure_313",
         "timeout_s": 60,
         "topic": "acc0",
-        "partition": 0
+        "partition": 0,
+        "alias": "reconfigure_313_data"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

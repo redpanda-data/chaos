@@ -19,7 +19,8 @@
         "timeout_s": 60,
         "topic": "tx",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "reconfigure_313_tx"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

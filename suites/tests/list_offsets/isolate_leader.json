@@ -13,7 +13,10 @@
             "concurrency": 2
         }
     },
-    "fault": "isolate_leader",
+    "fault": {
+        "name": "isolate_leader",
+        "alias": "isolate_data_leader"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" },
         { "name": "progress_during_fault", "min-delta": 100 }

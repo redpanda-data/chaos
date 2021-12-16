@@ -14,7 +14,10 @@
             "writes": 2
         }
     },
-    "fault": "isolate_follower",
+    "fault": {
+        "name": "isolate_follower",
+        "alias": "isolate_data_follower"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" },
         { "name": "progress_during_fault", "min-delta": 100 }

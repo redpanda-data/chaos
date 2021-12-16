@@ -19,7 +19,8 @@
         "name": "leadership_transfer",
         "topic": "group",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "transfer_group_leadership"
     },
     "checks": [
         { "name": "redpanda_process_liveness" }

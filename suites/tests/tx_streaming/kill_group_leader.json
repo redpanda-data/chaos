@@ -19,7 +19,8 @@
         "name": "kill_leader",
         "topic": "group",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "kill_group_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

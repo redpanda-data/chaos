@@ -18,7 +18,8 @@
     },
     "fault": {
         "name": "reconfigure_kill_11",
-        "timeout_s": 60
+        "timeout_s": 60,
+        "alias": "reconfigure_kill_11_data"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

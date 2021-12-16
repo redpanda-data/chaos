@@ -20,7 +20,8 @@
         "timeout_s": 60,
         "topic": "group",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "reconfigure_313_group"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

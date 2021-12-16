@@ -18,7 +18,8 @@
         "name": "isolate_leader",
         "topic": "tx",
         "namespace": "kafka_internal",
-        "partition": 0
+        "partition": 0,
+        "alias": "isolate_tx_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

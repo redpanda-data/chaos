@@ -17,7 +17,8 @@
     },
     "fault": {
         "name": "leadership_transfer",
-        "topic": "target1"
+        "topic": "target1",
+        "alias": "transfer_data_leadership"
     },
     "checks": [
         { "name": "redpanda_process_liveness" }

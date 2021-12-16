@@ -17,7 +17,8 @@
     },
     "fault": {
         "name": "kill_follower",
-        "topic": "source1"
+        "topic": "source1",
+        "alias": "kill_data_follower"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },

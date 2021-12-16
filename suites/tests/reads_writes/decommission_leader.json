@@ -14,7 +14,10 @@
             "writes": 2
         }
     },
-    "fault": "decommission_leader",
+    "fault": {
+        "name": "decommission_leader",
+        "alias": "decommission_data_leader"
+    },
     "checks": [
         { "name": "redpanda_process_liveness" }
     ]

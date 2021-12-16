@@ -17,7 +17,8 @@
     },
     "fault": {
         "name": "pause_leader",
-        "topic": "source1"
+        "topic": "source1",
+        "alias": "pause_data_leader"
     },
     "checks": [
         { "name": "redpanda_process_liveness" },
