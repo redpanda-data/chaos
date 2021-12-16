@@ -201,7 +201,6 @@ def collect(config, workload_dir):
                     delta_us = int(parts[1])
                     end = last_time + delta_us
                     tick(end, throughput_history)
-                    throughput_bucket.count+=1
                     last_time = end
                     op_starts[thread_id] = None
                 elif new_state == State.SENDING:
