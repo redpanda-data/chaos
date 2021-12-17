@@ -85,17 +85,92 @@ INDEX = """
 {% endfor %}
 </table>
 
+<h2>Grouped by fault injection</h2>
+<div>
+    {% for group in groups %}
+    <a href="{{ group.id }}.html">{{ group.name }}</a>
+    {% endfor %}
+</div>
 
-
+<h2>Experiments</h2>
 {% for workload in workloads %}
-    <h2>{{ workload.name }}</h2>
     {% for experiment in workload.experiments %}
-    <h3><a id="{{ experiment.run }}"></a> {{ experiment.fault }} ({{ experiment.run }}) </h3>
+    <h3><a id="{{ experiment.run }}"></a> {{ experiment.name }} ({{ experiment.run }}) </h3>
     <table>
+        {% if experiment.checks %}
         <tr>
-            <th>workload</th>
-            <td>{{ workload.name }}</td>
+            <th>Checks</th>
         </tr>
+        {% for check in experiment.checks %}
+        <tr>
+            <td>{{ check.name }}</td>
+            <td>{{ check.status }}</td>
+        <tr>
+        {% endfor %}
+        {% endif %}
+        {% if experiment.max_unavailability_us %}
+        <tr>
+            <th>max unavailability (us)</th>
+            <td>{{ experiment.max_unavailability_us }}</td>
+        </tr>
+        {% endif %}
+        {% if experiment.throughput %}
+        <tr>
+            <td></td>
+            <th>avg ops/s</th>
+            <th>max ops/s</th>
+        </tr>
+        <tr>
+            <th>throughput</th>
+            <td>{{ experiment.throughput.avg }}</td>
+            <td>{{ experiment.throughput.max }}</td>
+        </tr>
+        {% endif %}
+        {% if experiment.latencies %}
+        <tr>
+            <th>Latency (us)</th>
+        </tr>
+        <tr>
+            <th>metric</th>
+            <th>p99</th>
+            <th>min</th>
+            <th>max</th>
+        </tr>
+        {% for latency in experiment.latencies %}
+        <tr>
+            <td>{{ latency.name }}</td>
+            <td>{{ latency.p99 }}</td>
+            <td>{{ latency.min }}</td>
+            <td>{{ latency.max }}</td>
+        </tr>
+        {% endfor %}
+        {% endif %}
+    </table>
+    {% for image in experiment.images %}{% if image.is_overview %}<img src={{ image.path }} />{% endif %}{% endfor %}
+    {% endfor %}
+{% endfor %}
+
+</body>
+</html>
+"""
+
+FAULT = """
+<html>
+<header>
+    <style>
+        img {
+            width: 800px;
+            height: auto;
+        }
+    </style>
+</header>
+<body>
+
+<h1>{{ fault }}</h1>
+{% for workload in workloads %}
+    {% for experiment in workload.experiments %}
+    <h3>{{ experiment.name }} ({{ experiment.run }}) </h3>
+    <table>
         {% if experiment.checks %}
         <tr>
             <th>Checks</th>
@@ -166,6 +241,11 @@ class Experiment:
         self.images = []
         self.checks = []
 
+class Fault:
+    def __init__(self):
+        self.name = None
+        self.alias = None
+
 class Workload:
     def __init__(self, name):
         self.name = name
@@ -193,6 +273,12 @@ class Check:
         self.name = None
         self.status = None
 
+class FaultGroup:
+    def __init__(self):
+        self.name = None
+        self.id = None
+        self.experiments = []
+
 def build(path):
     result = None
     with open(join(path, "all.json"), "r") as result_file:
@@ -203,6 +289,7 @@ def build(path):
     unknown = []
     passed = []
     workloads = dict()
+    fault_groups = dict()
     max_unavailable_experiment = None
     for name in result["test_runs"].keys():
         experiments = []
@@ -216,15 +303,18 @@ def build(path):
             with open(join(path, run, "info.json"), "r") as info_file:
                 info = json.load(info_file)
                 experiment.workload = info["workload"]["name"]
-                experiment.fault = info["fault"]
-                if experiment.fault != None:
-                    if isinstance(experiment.fault, str):
-                        experiment.fault = {
-                            "name": experiment.fault
+                fault_config = info["fault"]
+                if fault_config != None:
+                    if isinstance(fault_config, str):
+                        fault_config = {
+                            "name": fault_config
                         }
-                    experiment.fault = experiment.fault["name"]
-                else:
-                    experiment.fault = "baseline"
+                    if "alias" not in fault_config:
+                        fault_config["alias"] = fault_config["name"]
+                    
+                    experiment.fault = Fault()
+                    experiment.fault.name = fault_config["name"]
+                    experiment.fault.alias = fault_config["alias"]
                 for node in info["workload"]["nodes"]:
                     node_dir = join(path, run, node)
                     for img in listdir(node_dir):
@@ -254,10 +344,10 @@ def build(path):
                         if "result" in check:
                             check_info.status = check["result"]
                         experiment.checks.append(check_info)
-                    if experiment.fault == "baseline":
+                    if experiment.fault == None:
                         should_progress_check = True
-                    elif experiment.fault in FAULTS:
-                        if FAULTS[experiment.fault](None).fault_type == FaultType.ONEOFF:
+                    elif experiment.fault.name in FAULTS:
+                        if FAULTS[experiment.fault.name](None).fault_type == FaultType.ONEOFF:
                             should_progress_check = True
                 if experiment.workload in ["reads-writes / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java"]:
                     if len(info["workload"]["nodes"]) != 1:
@@ -310,6 +400,16 @@ def build(path):
             if experiment.workload not in workloads:
                 workloads[experiment.workload] = Workload(experiment.workload)
             workloads[experiment.workload].experiments.append(experiment)
+            if experiment.fault == None:
+                experiment.fault = Fault()
+                experiment.fault.name = "baseline"
+                experiment.fault.alias = "baseline"
+            if experiment.fault.alias not in fault_groups:
+                group = FaultGroup()
+                group.name = experiment.fault.alias
+                group.id = f"fault{len(fault_groups)}"
+                fault_groups[group.name] = group
+            fault_groups[experiment.fault.alias].experiments.append(experiment)
             experiments.append(experiment)
         for experiment in experiments:
             if experiment.status == Result.PASSED:
@@ -321,8 +421,21 @@ def build(path):
             else:
                 raise Exception(f"Unknown status: {experiment.status}")
 
+    for key in fault_groups.keys():
+        group = fault_groups[key]
+        group_workloads = dict()
+        for experiment in group.experiments:
+            if experiment.workload not in group_workloads:
+                group_workloads[experiment.workload] = Workload(experiment.workload)
+            group_workloads[experiment.workload].experiments.append(experiment)
+        with open(join(path, f"{group.id}.html"), "w") as group_file:
+            group_file.write(jinja2.Template(FAULT).render(
+                fault = group.name,
+                workloads=list(group_workloads.values())))
+
     with open(join(path, "index.html"), "w") as index_file:
             index_file.write(jinja2.Template(INDEX).render(
+                groups = fault_groups.values(),
                 overall_status = overall_status,
                 failed=failed,
                 unknown=unknown,
