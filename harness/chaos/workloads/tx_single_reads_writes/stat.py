@@ -199,7 +199,7 @@ def collect(config, workload_dir):
                 throughput_bucket.time_us += 1000000
 
         with open(workload_log_path, "r") as workload_file:
-            op_starts = {}
+            last_ok = None
             attempt_starts = {}
             commit_starts = {}
             is_end_commit = {}
@@ -210,8 +210,6 @@ def collect(config, workload_dir):
                 thread_id = int(parts[0])
                 if thread_id not in last_state:
                     last_state[thread_id] = State.INIT
-                if thread_id not in op_starts:
-                    op_starts[thread_id] = None
                 if thread_id not in attempt_starts:
                     attempt_starts[thread_id] = None
 
@@ -240,8 +238,6 @@ def collect(config, workload_dir):
                     delta_us = int(parts[1])
                     attempt_starts[thread_id] = last_time + delta_us
                     tick(attempt_starts[thread_id], throughput_history)
-                    if op_starts[thread_id] == None:
-                        op_starts[thread_id] = attempt_starts[thread_id]
                     last_time = attempt_starts[thread_id]
                 elif new_state == State.CONSTRUCTED:
                     if last_time == None:
@@ -250,15 +246,12 @@ def collect(config, workload_dir):
                     end = last_time + delta_us
                     tick(end, throughput_history)
                     last_time = end
-                    op_starts[thread_id] = None
                 elif new_state == State.TX:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
                     attempt_starts[thread_id] = last_time + delta_us
                     tick(attempt_starts[thread_id], throughput_history)
-                    if op_starts[thread_id] == None:
-                        op_starts[thread_id] = attempt_starts[thread_id]
                     last_time = attempt_starts[thread_id]
                 elif new_state == State.COMMIT or new_state == State.ABORT:
                     if last_time == None:
@@ -280,15 +273,17 @@ def collect(config, workload_dir):
                     tick(end, throughput_history)
                     throughput_bucket.count+=1
                     last_time = end
+                    if last_ok == None:
+                        last_ok = end
                     if should_measure:
                         if is_end_commit[thread_id]:
-                            availability_history.append([int((op_starts[thread_id]-started)/1000), end-op_starts[thread_id]])
+                            availability_history.append([int((end-started)/1000), end-last_ok])
                             latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
                             latency_commit_history.append([int((end-started)/1000), end-commit_starts[thread_id]])
                             del commit_starts[thread_id]
                         else:
                             latency_err_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
-                    op_starts[thread_id] = None
+                    last_ok = end
                     del is_end_commit[thread_id]
                 elif new_state == State.ERROR:
                     if last_time == None:
@@ -315,6 +310,7 @@ def collect(config, workload_dir):
                     if name == "measure" and not should_measure:
                         should_measure = True
                         started = ts_us
+                        last_ok = ts_us
                     if should_measure:
                         if name=="injecting" or name=="injected":
                             faults.append(int((ts_us - started)/1000))
