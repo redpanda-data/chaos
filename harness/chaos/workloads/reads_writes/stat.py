@@ -269,7 +269,7 @@ def collect(config, workload_dir):
                     if name == "measure" and not should_measure:
                         should_measure = True
                         started = ts_us
-                        last_ok = tx_us
+                        last_ok = ts_us
                     if should_measure:
                         if name=="injecting" or name=="injected":
                             faults.append(int((ts_us - started)/1000))
