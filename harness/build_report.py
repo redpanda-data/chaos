@@ -15,6 +15,46 @@ INDEX = """
             width: 800px;
             height: auto;
         }
+        .fault_group {
+            line-height: 1.7em;
+        }
+        .fault_group a {
+            padding-right: 1em;
+        }
+        .overview th, .overview td {
+            padding-right: 1em;
+        }
+        .summary {
+            float: left;
+            padding-right: 1em;
+        }
+        .summary table {
+            margin-bottom: 1em;
+        }
+        table.throughput {
+            border-collapse: collapse;
+        }
+        .throughput th, .throughput td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        table.latency {
+            border-collapse: collapse;
+        }
+        .latency th, .latency td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        table.checks {
+            border-collapse: collapse;
+        }
+        .checks th, .checks td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        .borderless {
+            border: 0px !important;
+        }
     </style>
 </header>
 <body>
@@ -22,7 +62,7 @@ INDEX = """
 <h1>Chaos tests</h1>
 <h2>{{ overall_status }}</h2>
 
-<table>
+<table class="overview">
     <tr>
         <th>Status</th>
         <th>Run</th>
@@ -38,12 +78,12 @@ INDEX = """
         {% if experiment.max_unavailability_us %}
         {% if max_unavailable_experiment %}
         {% if experiment.run == max_unavailable_experiment.run %}
-        <td><a href="#{{ experiment.run }}">{{ experiment.max_unavailability_us }}</a></td>
+        <td><a href="#{{ experiment.run }}">{{ '{0:,}'.format(experiment.max_unavailability_us) }}</a></td>
         {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
+        <td>{{ '{0:,}'.format(experiment.max_unavailability_us) }}</td>
         {% endif %}
         {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
+        <td>{{ '{0:,}'.format(experiment.max_unavailability_us) }}</td>
         {% endif %}
         {% endif %}
     </tr>
@@ -52,7 +92,7 @@ INDEX = """
 </table>
 
 <h2>Grouped by fault injection</h2>
-<div>
+<div class="fault_group">
     {% for group in fault_groups %}
     <a href="{{ group.id }}.html">{{ group.name }}</a>
     {% endfor %}
@@ -62,27 +102,33 @@ INDEX = """
 {% for workload in workloads %}
     {% for experiment in workload.experiments %}
     <h3><a id="{{ experiment.run }}"></a> {{ experiment.name }} ({{ experiment.run }}) </h3>
-    <table>
-        {% if experiment.checks %}
+    <div>
+    <div class="summary">
+    {% if experiment.checks %}
+    <table class="checks">
         <tr>
-            <th>Checks</th>
+            <th colspan="2" class="borderless">Checks</th>
         </tr>
         {% for check in experiment.checks %}
         <tr>
             <td>{{ check.name }}</td>
-            <td>{{ check.status }}</td>
+            <td class="{{ check.status }}">{{ check.status }}</td>
         <tr>
         {% endfor %}
-        {% endif %}
-        {% if experiment.max_unavailability_us %}
+    </table>
+    {% endif %}
+    {% if experiment.max_unavailability_us %}
+    <table class="unavailability">
         <tr>
             <th>max unavailability (us)</th>
-            <td>{{ experiment.max_unavailability_us }}</td>
+            <td>{{ '{0:,}'.format(experiment.max_unavailability_us) }}</td>
         </tr>
-        {% endif %}
-        {% if experiment.throughput %}
+    </table>
+    {% endif %}
+    {% if experiment.throughput %}
+    <table class="throughput">
         <tr>
-            <td></td>
+            <td class="borderless"></td>
             <th>avg ops/s</th>
             <th>max ops/s</th>
         </tr>
@@ -91,10 +137,12 @@ INDEX = """
             <td>{{ experiment.throughput.avg }}</td>
             <td>{{ experiment.throughput.max }}</td>
         </tr>
-        {% endif %}
-        {% if experiment.latencies %}
+    </table>
+    {% endif %}
+    {% if experiment.latencies %}
+    <table class="latency">
         <tr>
-            <th>Latency (us)</th>
+            <th colspan="4" class="borderless">Latency (us)</th>
         </tr>
         <tr>
             <th>metric</th>
@@ -110,9 +158,12 @@ INDEX = """
             <td>{{ latency.max }}</td>
         </tr>
         {% endfor %}
-        {% endif %}
     </table>
-    {% for image in experiment.images %}{% if image.is_overview %}<img src={{ image.path }} />{% endif %}{% endfor %}
+    {% endif %}
+    </div>
+    {% for image in experiment.images %}{% if image.is_overview %}<a href="{{ image.path }}"><img src={{ image.path }} /></a>{% endif %}{% endfor %}
+    <div style="clear: both;"></div>
+    </div>
     {% endfor %}
 {% endfor %}
 
@@ -128,6 +179,37 @@ FAULT = """
             width: 800px;
             height: auto;
         }
+        .summary {
+            float: left;
+            padding-right: 1em;
+        }
+        .summary table {
+            margin-bottom: 1em;
+        }
+        table.throughput {
+            border-collapse: collapse;
+        }
+        .throughput th, .throughput td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        table.latency {
+            border-collapse: collapse;
+        }
+        .latency th, .latency td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        table.checks {
+            border-collapse: collapse;
+        }
+        .checks th, .checks td {
+            border: 1px solid black;
+            padding: 3px;
+        }
+        .borderless {
+            border: 0px !important;
+        }
     </style>
 </header>
 <body>
@@ -136,25 +218,31 @@ FAULT = """
 {% for workload in workloads %}
     {% for experiment in workload.experiments %}
     <h3>{{ experiment.name }} ({{ experiment.run }}) </h3>
-    <table>
-        {% if experiment.checks %}
+    <div>
+    <div class="summary">
+    {% if experiment.checks %}
+    <table class="checks">
         <tr>
-            <th>Checks</th>
+            <th colspan="2">Checks</th>
         </tr>
         {% for check in experiment.checks %}
         <tr>
             <td>{{ check.name }}</td>
-            <td>{{ check.status }}</td>
+            <td class="{{ check.status }}">{{ check.status }}</td>
         <tr>
         {% endfor %}
-        {% endif %}
-        {% if experiment.max_unavailability_us %}
+    </table>
+    {% endif %}
+    {% if experiment.max_unavailability_us %}
+    <table class="unavailability">
         <tr>
             <th>max unavailability (us)</th>
-            <td>{{ experiment.max_unavailability_us }}</td>
+            <td>{{ '{0:,}'.format(experiment.max_unavailability_us) }}</td>
         </tr>
-        {% endif %}
-        {% if experiment.throughput %}
+    </table>
+    {% endif %}
+    {% if experiment.throughput %}
+    <table class="throughput">
         <tr>
             <td></td>
             <th>avg ops/s</th>
@@ -165,10 +253,12 @@ FAULT = """
             <td>{{ experiment.throughput.avg }}</td>
             <td>{{ experiment.throughput.max }}</td>
         </tr>
-        {% endif %}
-        {% if experiment.latencies %}
+    </table>
+    {% endif %}
+    {% if experiment.latencies %}
+    <table class="latency">
         <tr>
-            <th>Latency (us)</th>
+            <th colspan="4">Latency (us)</th>
         </tr>
         <tr>
             <th>metric</th>
@@ -184,9 +274,12 @@ FAULT = """
             <td>{{ latency.max }}</td>
         </tr>
         {% endfor %}
-        {% endif %}
     </table>
-    {% for image in experiment.images %}{% if image.is_overview %}<img src={{ image.path }} />{% endif %}{% endfor %}
+    {% endif %}
+    </div>
+    {% for image in experiment.images %}{% if image.is_overview %}<a href="{{ image.path }}"><img src={{ image.path }} /></a>{% endif %}{% endfor %}
+    <div style="clear: both;"></div>
+    </div>
     {% endfor %}
 {% endfor %}
 
