@@ -12,5 +12,5 @@ class RedpandaProcessLivenessCheck:
         for node in scenario.redpanda_cluster.nodes:
             result["details"][node.ip] = scenario.redpanda_cluster.is_alive(node)
             if not result["details"][node.ip]:
-                result["result"] = Result.FAILED
+                result["result"] = Result.CRUSHED
         return result

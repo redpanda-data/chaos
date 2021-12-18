@@ -29,7 +29,8 @@ INDEX = """
         <th>Experiment</th>
         <th>Max unavailability (us)</th>
     </tr>
-{% for experiment in failed %}
+{% for group in experiment_groups %}
+{% for experiment in group %}
     <tr>
         <td>{{ experiment.status }}</td>
         <td><a href="#{{ experiment.run }}">{{ experiment.run }}</a></td>
@@ -47,47 +48,12 @@ INDEX = """
         {% endif %}
     </tr>
 {% endfor %}
-{% for experiment in unknown %}
-    <tr>
-        <td>{{ experiment.status }}</td>
-        <td><a href="#{{ experiment.run }}">{{ experiment.run }}</a></td>
-        <td>{{ experiment.name }}</td>
-        {% if experiment.max_unavailability_us %}
-        {% if max_unavailable_experiment %}
-        {% if experiment.run == max_unavailable_experiment.run %}
-        <td><a href="#{{ experiment.run }}">{{ experiment.max_unavailability_us }}</a></td>
-        {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
-        {% endif %}
-        {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
-        {% endif %}
-        {% endif %}
-    </tr>
-{% endfor %}
-{% for experiment in passed %}
-    <tr>
-        <td>{{ experiment.status }}</td>
-        <td><a href="#{{ experiment.run }}">{{ experiment.run }}</a></td>
-        <td>{{ experiment.name }}</td>
-        {% if experiment.max_unavailability_us %}
-        {% if max_unavailable_experiment %}
-        {% if experiment.run == max_unavailable_experiment.run %}
-        <td><a href="#{{ experiment.run }}">{{ experiment.max_unavailability_us }}</a></td>
-        {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
-        {% endif %}
-        {% else %}
-        <td>{{ experiment.max_unavailability_us }}</td>
-        {% endif %}
-        {% endif %}
-    </tr>
 {% endfor %}
 </table>
 
 <h2>Grouped by fault injection</h2>
 <div>
-    {% for group in groups %}
+    {% for group in fault_groups %}
     <a href="{{ group.id }}.html">{{ group.name }}</a>
     {% endfor %}
 </div>
@@ -285,9 +251,12 @@ def build(path):
         result = json.load(result_file)
     
     overall_status = result["result"]
+    
     failed = []
     unknown = []
+    crushed = []
     passed = []
+
     workloads = dict()
     fault_groups = dict()
     max_unavailable_experiment = None
@@ -418,6 +387,8 @@ def build(path):
                 unknown.append(experiment)
             elif experiment.status == Result.FAILED:
                 failed.append(experiment)
+            elif experiment.status == Result.CRUSHED:
+                crushed.append(experiment)
             else:
                 raise Exception(f"Unknown status: {experiment.status}")
 
@@ -435,11 +406,9 @@ def build(path):
 
     with open(join(path, "index.html"), "w") as index_file:
             index_file.write(jinja2.Template(INDEX).render(
-                groups = fault_groups.values(),
+                fault_groups = fault_groups.values(),
                 overall_status = overall_status,
-                failed=failed,
-                unknown=unknown,
-                passed=passed,
+                experiment_groups=[failed, unknown, crushed, passed],
                 max_unavailable_experiment = max_unavailable_experiment,
                 workloads=list(workloads.values())))
 
