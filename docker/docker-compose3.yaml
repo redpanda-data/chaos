@@ -64,6 +64,7 @@ services:
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 3
+        WORKLOAD_CLUSTER_SIZE: 1
       context: .
       dockerfile: ./docker/control/Dockerfile
     depends_on:

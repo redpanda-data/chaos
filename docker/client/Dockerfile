@@ -40,5 +40,7 @@ RUN cd /mnt/vectorized/workloads/tx-money && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-streaming && \
     mvn clean dependency:copy-dependencies package
+RUN cd /mnt/vectorized/workloads/tx-subscribe && \
+    mvn clean dependency:copy-dependencies package
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/workloads
 CMD /mnt/vectorized/entrypoint.sh

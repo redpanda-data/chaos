@@ -247,3 +247,5 @@
         mvn clean dependency:copy-dependencies package
         cd /mnt/vectorized/workloads/tx-streaming
         mvn clean dependency:copy-dependencies package
+        cd /mnt/vectorized/workloads/tx-subscribe
+        mvn clean dependency:copy-dependencies package

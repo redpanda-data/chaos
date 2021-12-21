@@ -23,4 +23,5 @@ workloads/writes/concurrency/target/
 workloads/tx-single-reads-writes/target/
 workloads/tx-money/target/
 workloads/tx-streaming/target/
+workloads/tx-subscribe/target/
 __pycache__

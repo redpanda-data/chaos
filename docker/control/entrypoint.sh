@@ -2,6 +2,10 @@
 
 declare -A clients=( ["client1"]="")
 
+for (( i=1; i<=$WORKLOAD_CLUSTER_SIZE; i++ )); do  
+  clients["client$i"]=""
+done
+
 declare -A redpandas
 declare -A node_ids
 

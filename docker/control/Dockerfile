@@ -5,6 +5,8 @@ ARG REDPANDA_DEB
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
+ARG WORKLOAD_CLUSTER_SIZE
+ENV WORKLOAD_CLUSTER_SIZE=${WORKLOAD_CLUSTER_SIZE}
 RUN apt-get update -y
 RUN apt-get install -y curl wget iptables python3-pip gnuplot
 RUN apt-get install -y iputils-ping vim tmux less ssh sudo

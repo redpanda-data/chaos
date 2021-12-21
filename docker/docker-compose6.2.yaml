@@ -108,11 +108,31 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+  client2:
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 6
+      context: .
+      dockerfile: ./docker/client/Dockerfile
+    depends_on:
+      - "redpanda1"
+      - "redpanda2"
+      - "redpanda3"
+      - "redpanda4"
+      - "redpanda5"
+      - "redpanda6"
+    privileged: true
+    container_name: client2
+    hostname: client2
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/client2/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
   control:
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
-        WORKLOAD_CLUSTER_SIZE: 1
+        WORKLOAD_CLUSTER_SIZE: 2
       context: .
       dockerfile: ./docker/control/Dockerfile
     depends_on:

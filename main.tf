@@ -12,6 +12,16 @@ variable "username" {
   description = "Prefix for the created AWS resources"
 }
 
+variable "redpanda_cluster_size" {
+  description = "Number of redpanda nodes"
+  type = number
+}
+
+variable "workload_cluster_size" {
+  description = "Number of client nodes"
+  type = number
+}
+
 provider "aws" {
   region = "us-west-2"
 }
@@ -77,7 +87,7 @@ resource "aws_key_pair" "ssh" {
 
 resource "aws_instance" "redpanda" {
    # ubuntu 20.04
-  count                  = 3
+  count                  = var.redpanda_cluster_size
   ami                    = "ami-03d5c68bab01f3496"
   instance_type          = "i3.large"
   key_name               = aws_key_pair.ssh.key_name
@@ -97,7 +107,7 @@ resource "aws_instance" "redpanda" {
 
 resource "aws_instance" "client" {
    # ubuntu 20.04
-  count                  = 1
+  count                  = var.workload_cluster_size
   ami                    = "ami-03d5c68bab01f3496"
   instance_type          = "i3.large"
   key_name               = aws_key_pair.ssh.key_name

@@ -422,6 +422,22 @@ public class Workload {
         cprops.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         cprops.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
         cprops.put(ConsumerConfig.GROUP_ID_CONFIG, args.group_id);
+        // default value: 540000
+        cprops.put(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
+        // default value: 60000
+        cprops.put(ConsumerConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 500
+        cprops.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        // default value: 300000
+        cprops.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, 10000);
+        // default value: 1000
+        cprops.put(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
+        // default value: 50
+        cprops.put(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
+        // defaut value: 30000
+        cprops.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 100
+        cprops.put(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
         cprops.put(
             ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
             "org.apache.kafka.common.serialization.StringDeserializer");

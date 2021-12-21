@@ -3,6 +3,7 @@ from chaos.workloads.reads_writes import reads_writes
 from chaos.workloads.tx_single_reads_writes import tx_single_reads_writes
 from chaos.workloads.tx_money import tx_money
 from chaos.workloads.tx_streaming import tx_streaming
+from chaos.workloads.tx_subscribe import tx_subscribe
 
 import logging
 
@@ -72,6 +73,14 @@ def tx_streaming_workload(nodes_path):
     writing_java.name = "tx-streaming / java"
     return tx_streaming.Workload(writing_java, nodes_path)
 
+def tx_subscribe_workload(nodes_path):
+    writing_java = tx_subscribe.Control()
+    writing_java.launch = "/mnt/vectorized/control/tx-subscribe.java.start.sh"
+    writing_java.alive = "/mnt/vectorized/control/tx-subscribe.java.alive.sh"
+    writing_java.kill = "/mnt/vectorized/control/tx-subscribe.java.stop.sh"
+    writing_java.name = "tx-subscribe / java"
+    return tx_subscribe.Workload(writing_java, nodes_path)
+
 WORKLOADS = {
     "tx-single-reads-writes / java": tx_single_reads_writes_workload,
     "reads-writes / java": reads_writes_workload,
@@ -80,7 +89,8 @@ WORKLOADS = {
     "writes / python": confluent_kafka_workload,
     "writes / concurrency": concurrency_workload,
     "tx-money / java": tx_money_workload,
-    "tx-streaming / java": tx_streaming_workload
+    "tx-streaming / java": tx_streaming_workload,
+    "tx-subscribe / java": tx_subscribe_workload
 }
 
 def wait_all_workloads_killed(nodes_path):
