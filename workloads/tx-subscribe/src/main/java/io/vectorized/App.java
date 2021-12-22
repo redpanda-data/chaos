@@ -148,6 +148,21 @@ public class App
             res.status(200);
             return "";
         });
+
+        post("/pause", (req, res) -> {
+            workload.is_paused = true;
+            res.status(200);
+            return "";
+        });
+
+        post("/resume", (req, res) -> {
+            workload.is_paused = false;
+            synchronized (workload) {
+                workload.notifyAll();
+            }
+            res.status(200);
+            return "";
+        });
     }
 
     public static void main( String[] args ) throws Exception

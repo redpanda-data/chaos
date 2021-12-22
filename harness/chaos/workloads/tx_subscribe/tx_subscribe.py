@@ -166,6 +166,18 @@ class Workload:
         r = requests.post(f"http://{ip}:8080/stop", timeout=timeout_s)
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
+    
+    def pause(self, node):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/pause")
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
+
+    def resume(self, node, timeout_s=10):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/resume", timeout=timeout_s)
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
 
     def info(self, node):
         ip = node.ip

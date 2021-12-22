@@ -22,6 +22,7 @@ from chaos.faults.transfer_tx_leadership import TransferTxLeadershipFault
 from chaos.faults.hijack_tx_ids import HijackTxIDsFault
 from chaos.faults.isolate_tx_all import IsolateTxAllFault
 from chaos.faults.isolate_client_topic_leader import IsolateClientTopicLeader
+from chaos.faults.stop_client import StopClient
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -47,5 +48,6 @@ FAULTS = {
     "decommission_leader": DecommissionLeaderFault,
     "transfer_tx_leadership": TransferTxLeadershipFault,
     "hijack_tx_ids": HijackTxIDsFault,
-    "isolate_client_topic_leader": IsolateClientTopicLeader
+    "isolate_client_topic_leader": IsolateClientTopicLeader,
+    "stop_client": StopClient
 }

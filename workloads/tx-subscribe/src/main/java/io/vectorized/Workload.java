@@ -236,6 +236,7 @@ public class Workload {
     }
     
     public volatile boolean is_active = false;
+    public volatile boolean is_paused = false;
     
     private volatile App.InitBody args;
     private BufferedWriter opslog;
@@ -391,6 +392,10 @@ public class Workload {
 
     public void stop() throws Exception {
         is_active = false;
+        is_paused = false;
+        synchronized(this) {
+            this.notifyAll();
+        }
 
         Thread.sleep(1000);
         if (opslog != null) {
@@ -622,6 +627,28 @@ public class Workload {
                             tracker.close();
                         } catch(Exception e) {}
                         tracker = null;
+                    }
+                }
+
+                if (is_paused) {
+                    if (consumer != null) {
+                        try {
+                            consumer.close();
+                        } catch(Exception e) {}
+                        consumer = null;
+                    }
+
+                    if (tracker != null) {
+                        try {
+                            tracker.close();
+                        } catch(Exception e) {}
+                        tracker = null;
+                    }
+
+                    while (is_paused) {
+                        try {
+                            this.wait();
+                        } catch (Exception e) { }
                     }
                 }
             }
