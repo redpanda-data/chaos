@@ -193,14 +193,12 @@ class Workload:
                 check["result"] = Result.PASSED
                 for node in self.nodes:
                     workload_dir = f"/mnt/vectorized/experiments/{config['experiment_id']}/{node.ip}"
-                    if os.path.isdir(workload_dir):
-                        check[node.ip] = consistency.validate(config, workload_dir)
-                    else:
-                        check[node.ip] = {
-                            "result": Result.UNKNOWN,
-                            "message": f"Can't find logs dir: {workload_dir}"
-                        }
-                    check["result"] = Result.more_severe(check["result"], check[node.ip]["result"])
+                    if not os.path.isdir(workload_dir):
+                        check["result"] = Result.UNKNOWN
+                        check["message"] = f"Can't find logs dir: {workload_dir}"
+                if check["result"] == Result.PASSED:
+                    result = consistency.validate(config, f"/mnt/vectorized/experiments/{config['experiment_id']}")
+                    check["result"] = result["result"]
                 config["result"] = Result.more_severe(config["result"], check["result"])
             elif check["name"] == "stat":
                 check["result"] = Result.PASSED

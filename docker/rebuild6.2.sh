@@ -7,12 +7,12 @@ if [ "$DEB_PATH" == "" ]; then
     exit 1
 fi
 
-docker-compose -f docker/docker-compose3.yaml --project-directory . down || true
-docker-compose -f docker/docker-compose3.yaml --project-directory . rm -f || true
-docker-compose -f docker/docker-compose6.yaml --project-directory . down || true
-docker-compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
-docker-compose -f docker/docker-compose6.2.yaml --project-directory . down || true
+docker-compose -f docker/docker-compose6.2.yaml --project-directory . down --remove-orphans || true
 docker-compose -f docker/docker-compose6.2.yaml --project-directory . rm -f || true
+docker-compose -f docker/docker-compose6.yaml --project-directory . down --remove-orphans || true
+docker-compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
+docker-compose -f docker/docker-compose3.yaml --project-directory . down --remove-orphans || true
+docker-compose -f docker/docker-compose3.yaml --project-directory . rm -f || true
 
 cp $DEB_PATH .
 

@@ -15,6 +15,7 @@ class State(Enum):
     LOG = 11
     SEND = 12
     READ = 13
+    SEEN = 14
 
 cmds = {
     "started": State.STARTED,
@@ -29,21 +30,36 @@ cmds = {
     "violation": State.VIOLATION,
     "log": State.LOG,
     "send": State.SEND,
-    "read": State.READ
+    "read": State.READ,
+    "seen": State.SEEN
 }
 
-transitions = {
-    State.INIT: [State.STARTED],
-    State.STARTED: [State.CONSTRUCTING],
-    State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
-    State.CONSTRUCTED: [State.SEND, State.READ, State.CONSTRUCTING],
-    State.READ: [State.CONSTRUCTING, State.TX],
-    State.SEND: [State.OK, State.ERROR],
-    State.TX: [State.ABORT, State.COMMIT, State.ERROR],
-    State.ABORT: [State.OK, State.ERROR],
-    State.COMMIT: [State.OK, State.ERROR],
-    State.OK: [State.TX, State.SEND, State.READ, State.CONSTRUCTING],
-    State.ERROR: [State.TX, State.CONSTRUCTING]
+threads = {
+    "producing": {
+        State.STARTED: [State.CONSTRUCTING],
+        State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
+        State.CONSTRUCTED: [State.SEND, State.CONSTRUCTING],
+        State.SEND: [State.OK, State.ERROR],
+        State.OK: [State.SEND, State.CONSTRUCTING],
+        State.ERROR: [State.CONSTRUCTING]
+    },
+    "streaming": {
+        State.STARTED: [State.CONSTRUCTING],
+        State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
+        State.CONSTRUCTED: [State.READ, State.CONSTRUCTING],
+        State.READ: [State.CONSTRUCTING, State.TX],
+        State.TX: [State.ABORT, State.COMMIT, State.ERROR],
+        State.ABORT: [State.OK, State.ERROR],
+        State.COMMIT: [State.OK, State.ERROR],
+        State.OK: [State.READ, State.CONSTRUCTING],
+        State.ERROR: [State.CONSTRUCTING]
+    },
+    "consuming": {
+        State.STARTED: [State.CONSTRUCTING],
+        State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
+        State.CONSTRUCTED: [State.CONSTRUCTING, State.SEEN],
+        State.SEEN: [State.SEEN, State.CONSTRUCTING]
+    }
 }
 
 phantoms = [ State.EVENT, State.VIOLATION, State.LOG ]

@@ -11,6 +11,8 @@ import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Collections;
+import java.util.LinkedList;
+import java.util.Queue;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -27,6 +29,11 @@ import java.util.Collection;
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.CommonClientConfigs;
+
+// consistency:
+//  - for each workload:
+//    - produced on this node is in the output
+//  - final check: read data by any node match
 
 public class Workload {
     private static class TrackingRebalanceListener implements ConsumerRebalanceListener {
@@ -49,6 +56,14 @@ public class Workload {
             this.group_id = group_id;
             this.producers = new HashMap<>();
             this.tracked = new HashSet<>();
+        }
+
+        public void close() {
+            for (var producer : producers.values()) {
+                try {
+                    producer.close();
+                } catch(Exception e) { }
+            }
         }
         
         @Override
@@ -117,7 +132,7 @@ public class Workload {
             props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
             props.put(ProducerConfig.RETRIES_CONFIG, 5);
             props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-            props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-" + source + "-partition-" + partition);
+            props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-consume-" + source + "-partition-" + partition);
 
             producer =  new KafkaProducer<>(props);
             producer.initTransactions();
@@ -210,6 +225,16 @@ public class Workload {
         }
     }
     
+    static enum OpProduceStatus {
+        WRITING, UNKNOWN, WRITTEN, SKIPPED, SEEN
+    }
+
+    static class OpProduceRecord {
+        public long oid;
+        public int partition;
+        public OpProduceStatus status;
+    }
+    
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
@@ -268,9 +293,18 @@ public class Workload {
         log(-1, "event\t" + name);
     }
 
+    private long last_op_id = 0;
+    private synchronized long get_op_id() {
+        return ++this.last_op_id;
+    }
+
     HashMap<Integer, Semaphore> produce_limiter;
     volatile ArrayList<Thread> producing_threads;
-    Thread streaming_thread = null;
+    volatile Thread streaming_thread = null;
+    volatile Thread consuming_thread = null;
+
+    private HashMap<Long, OpProduceRecord> producing_records;
+    private HashMap<Integer, Queue<Long>> producing_oids;
 
 
     public Workload(App.InitBody args) {
@@ -293,12 +327,15 @@ public class Workload {
         ops_info = new HashMap<>();
         produce_limiter = new HashMap<>();
 
+        producing_records = new HashMap<>();
+        producing_oids = new HashMap<>();
         producing_threads = new ArrayList<>();
         int thread_id=0;
 
         for (int i=0;i<args.partitions;i++) {
             produce_limiter.put(i, new Semaphore(10));
             final int j = i;
+            producing_oids.put(j, new LinkedList<>());
             final var pid=thread_id++;
             last_success_us.put(pid, -1L);
             should_reset.put(pid, false);
@@ -329,11 +366,27 @@ public class Workload {
             });
         }
 
+        {
+            final var rid=thread_id++;
+            last_success_us.put(rid, -1L);
+            should_reset.put(rid, false);
+            consuming_thread = new Thread(() -> { 
+                try {
+                    consumingProcess(rid);
+                } catch(Exception e) {
+                    System.out.println(e);
+                    e.printStackTrace();
+                    System.exit(1);
+                }
+            });
+        }
+
         for (var th : producing_threads) {
             th.start();
         }
 
         streaming_thread.start();
+        consuming_thread.start();
     }
 
     public void stop() throws Exception {
@@ -344,13 +397,20 @@ public class Workload {
             opslog.flush();
         }
         
+        System.out.println("waiting for streaming_thread");
         if (streaming_thread != null) {
             streaming_thread.join();
         }
+
+        System.out.println("waiting for consuming_thread");
+        if (consuming_thread != null) {
+            consuming_thread.join();
+        }
         
         for (int i=0;i<args.partitions;i++) {
-            produce_limiter.get(i).release();
+            produce_limiter.get(i).release(100);
         }
+        System.out.println("waiting for producing_threads");
         for (var th : producing_threads) {
             th.join();
         }
@@ -400,17 +460,14 @@ public class Workload {
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.RETRIES_CONFIG, 5);
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-    
+        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-produce-" + args.source + "-partition-" + partition);
+
         log(pid, "started\t" + args.server + "\tproducing\t" + partition);
     
         Producer<String, String> producer = null;
 
-        int record_id = 0;
-
         while (is_active) {
             tick(pid);
-
-            produce_limiter.get(partition).acquire();
 
             synchronized(this) {
                 if (should_reset.get(pid)) {
@@ -424,12 +481,11 @@ public class Workload {
                 }
             }
 
-            record_id++;
-    
             try {
                 if (producer == null) {
                     log(pid, "constructing");
                     producer = new KafkaProducer<>(props);
+                    producer.initTransactions();
                     log(pid, "constructed");
                     continue;
                 }
@@ -449,10 +505,32 @@ public class Workload {
 
             long offset = -1;
 
+            var op = new OpProduceRecord();
+            op.oid = get_op_id();
+            op.partition = partition;
+            op.status = OpProduceStatus.WRITING;
+
+            synchronized(this) {
+                producing_records.put(op.oid, op);
+                producing_oids.get(partition).add(op.oid);
+            }
+
             try {
-                log(pid, "send\t" + record_id);
-                offset = producer.send(new ProducerRecord<String, String>(args.source, partition, args.server, "" + record_id)).get().offset();
+                log(pid, "send\t" + op.oid);
+                producer.beginTransaction();
+                offset = producer.send(new ProducerRecord<String, String>(args.source, partition, args.server, "" + op.oid)).get().offset();
+                producer.commitTransaction();
             } catch (Exception e1) {
+                synchronized(this) {
+                    if (op.status == OpProduceStatus.SEEN) {
+                        producing_records.remove(op.oid);
+                    }
+                    if (op.status == OpProduceStatus.SKIPPED) {
+                        producing_records.remove(op.oid);
+                    }
+                    op.status = OpProduceStatus.UNKNOWN;
+                }
+
                 log(pid, "err");
                 System.out.println("=== error on send");
                 System.out.println(e1);
@@ -465,9 +543,21 @@ public class Workload {
                 continue;
             }
 
+            synchronized(this) {
+                if (op.status == OpProduceStatus.SEEN) {
+                    producing_records.remove(op.oid);
+                }
+                if (op.status == OpProduceStatus.SKIPPED) {
+                    violation(pid, "written message can't be skipped oid:" + op.oid);
+                }
+                op.status = OpProduceStatus.WRITTEN;
+            }
+
             progress(pid);
 
             log(pid, "ok\t" + offset);
+
+            produce_limiter.get(partition).acquire();
         }
     
         if (producer != null) {
@@ -526,6 +616,13 @@ public class Workload {
                         } catch(Exception e) {}
                         consumer = null;
                     }
+
+                    if (tracker != null) {
+                        try {
+                            tracker.close();
+                        } catch(Exception e) {}
+                        tracker = null;
+                    }
                 }
             }
 
@@ -580,7 +677,7 @@ public class Workload {
                 try {
                     log(sid, "tx");
                     producer.beginTransaction();
-                    producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + record.key() + "\t" + record.value()));
+                    producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + record.key() + "\t" + record.partition() + "\t" + record.value()));
                     var offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
                     offsets.put(new TopicPartition(args.source, record.partition()), new OffsetAndMetadata(record.offset() + 1));
                     producer.sendOffsetsToTransaction(offsets, args.group_id);
@@ -628,6 +725,154 @@ public class Workload {
             try {
                 consumer.close();
             } catch (Exception e) { }
+        }
+    }
+
+    private void consumingProcess(int rid) throws Exception {
+        var tp = new TopicPartition(args.target, 0);
+        var tps = Collections.singletonList(tp);
+        
+        Properties props = new Properties();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, args.brokers);
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ISOLATION_LEVEL_CONFIG, "read_committed");
+        props.put(
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
+            "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put(
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
+            "org.apache.kafka.common.serialization.StringDeserializer");
+        // default value: 540000
+        props.put(ConsumerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
+        // default value: 60000
+        props.put(ConsumerConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 500
+        props.put(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, 500);
+        // default value: 300000
+        props.put(ConsumerConfig.METADATA_MAX_AGE_CONFIG, 10000);
+        // default value: 1000
+        props.put(ConsumerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
+        // default value: 50
+        props.put(ConsumerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
+        // defaut value: 30000
+        props.put(ConsumerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 100
+        props.put(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
+
+        KafkaConsumer<String, String> consumer = null;
+        
+        log(rid, "started\t" + args.server + "\tconsuming");
+
+        long prev_offset = -1;
+
+        while (is_active) {
+            tick(rid);
+
+            synchronized(this) {
+                if (should_reset.get(rid)) {
+                    should_reset.put(rid, false);
+                    consumer = null;
+                }
+            }
+
+            try {
+                if (consumer == null) {
+                    log(rid, "constructing");
+                    consumer = new KafkaConsumer<>(props);
+                    consumer.assign(tps);
+                    if (prev_offset == -1) {
+                        consumer.seekToBeginning(tps);
+                    } else {
+                        consumer.seek(tp, prev_offset+1);
+                    }
+                    log(rid, "constructed");
+                    continue;
+                }
+            } catch (Exception e) {
+                log(rid, "err");
+                System.out.println(e);
+                e.printStackTrace();
+                failed(rid);
+                continue;
+            }
+
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
+            var it = records.iterator();
+            while (it.hasNext()) {
+                progress(rid);
+                var record = it.next();
+
+                long offset = record.offset();
+                var parts = record.value().split("\t");
+                String server = parts[0];
+                int partition = Integer.parseInt(parts[1]);
+                long oid = Long.parseLong(parts[2]);
+
+                if (offset <= prev_offset) {
+                    violation(rid, "reads must be monotonic but observed " + offset + " after " + prev_offset);
+                }
+                prev_offset = offset;
+
+                log(rid, "seen\t" + record.offset() + "\t" + record.key() + "\t" + server + "\t" + partition + "\t" + oid);
+
+                if (!server.equals(args.server)) {
+                    continue;
+                }
+
+                synchronized (this) {
+                    if (!producing_records.containsKey(oid)) {
+                        violation(rid, "read an unknown oid:" + oid);
+                    }
+                    var op = producing_records.get(oid);
+                    if (op.status == OpProduceStatus.SEEN) {
+                        violation(rid, "can't read an already seen oid:" + oid);
+                    }
+                    if (op.status == OpProduceStatus.SKIPPED) {
+                        violation(rid, "can't read an already skipped oid:" + oid);
+                    }
+                    var oids = producing_oids.get(partition);
+                    
+                    while (oids.size() > 0 && oids.element() < oid) {
+                        var prev_oid = oids.remove();
+                        var prev_op = producing_records.get(prev_oid);
+                        if (prev_op.status == OpProduceStatus.SEEN) {
+                            violation(rid, "skipped op is already seen:" + prev_oid);
+                        }
+                        if (prev_op.status == OpProduceStatus.SKIPPED) {
+                            violation(rid, "skipped op is already skipped:" + prev_oid);
+                        }
+                        if (prev_op.status == OpProduceStatus.WRITTEN) {
+                            violation(rid, "skipped op is already acked:" + prev_oid);
+                        }
+                        if (prev_op.status == OpProduceStatus.WRITING) {
+                            prev_op.status = OpProduceStatus.SKIPPED;
+                        }
+                        if (prev_op.status == OpProduceStatus.UNKNOWN) {
+                            producing_records.remove(prev_oid);
+                        }
+                    }
+
+                    if (oids.size()==0) {
+                        violation(rid, "attempted writes should include seen oid:" + oid);
+                    }
+                    if (oids.element() != oid) {
+                        violation(rid, "attempted writes should include seen oid:" + oid);
+                    }
+
+                    oids.remove();
+
+                    if (op.status == OpProduceStatus.WRITING) {
+                        op.status = OpProduceStatus.SEEN;
+                    } else if (op.status == OpProduceStatus.WRITTEN) {
+                        producing_records.remove(oid);
+                    } else if (op.status == OpProduceStatus.UNKNOWN) {
+                        producing_records.remove(oid);
+                    } else {
+                        violation(rid, "unknown status: " + op.status.name());
+                    }
+                }
+            }
         }
     }
 }

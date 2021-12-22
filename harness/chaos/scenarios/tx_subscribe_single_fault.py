@@ -57,7 +57,7 @@ class TxSubscribeSingleFault:
         self.config = None
         self.source = None
         self.target = None
-        self.partition = None
+        self.partitions = None
         self.replication = None
         self.is_workload_log_fetched = False
         self.is_redpanda_log_fetched = False
@@ -73,6 +73,9 @@ class TxSubscribeSingleFault:
             if check["name"] not in SUPPORTED_CHECKS:
                 raise Exception(f"unknown check: {check['name']}")
             if check["name"] == "progress_during_fault":
+                if "selector" in check:
+                    if check["selector"] not in ["any", "all"]:
+                        raise Exception(f"unknown selector value for progress_during_fault: {check['selector']}")
                 fault = normalize_fault(config["fault"])
                 if fault == None:
                     raise Exception(f"progress_during_fault works only with faults, found None")
@@ -126,6 +129,8 @@ class TxSubscribeSingleFault:
     def get_progress_during_fault(self):
         for check_cfg in self.config["checks"]:
             if check_cfg["name"] == "progress_during_fault":
+                if "selector" not in check_cfg:
+                    check_cfg["selector"] = "all"
                 return check_cfg
         return None
     
@@ -311,19 +316,23 @@ class TxSubscribeSingleFault:
             progress_during_fault = self.get_progress_during_fault()
             if progress_during_fault != None:
                 progress_during_fault["result"] = Result.PASSED
+                has_any = False
+                has_all = True
                 for ip in before_heal_info.keys():
                     delta = before_heal_info[ip].succeeded_ops - after_fault_info[ip].succeeded_ops
                     progress_during_fault[ip] = {
                         "delta": delta
                     }
                     if delta < progress_during_fault["min-delta"]:
-                        progress_during_fault[ip]["result"] = Result.FAILED
+                        has_all = False
+                        progress_during_fault[ip]["result"] = Result.HANG
                     else:
+                        has_any = True
                         progress_during_fault[ip]["result"] = Result.PASSED
-                    progress_during_fault["result"] = Result.more_severe(
-                        progress_during_fault["result"],
-                        progress_during_fault[ip]["result"]
-                    )
+                if progress_during_fault["selector"] == "all" and not has_all:
+                    progress_during_fault["result"] = Result.HANG
+                if progress_during_fault["selector"] == "any" and not has_any:
+                    progress_during_fault["result"] = Result.HANG
                 self.config["result"] = Result.more_severe(
                     self.config["result"],
                     progress_during_fault["result"]

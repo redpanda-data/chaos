@@ -348,6 +348,7 @@ def build(path):
     failed = []
     unknown = []
     crushed = []
+    hang = []
     passed = []
 
     workloads = dict()
@@ -482,6 +483,8 @@ def build(path):
                 failed.append(experiment)
             elif experiment.status == Result.CRUSHED:
                 crushed.append(experiment)
+            elif experiment.status == Result.HANG:
+                hang.append(experiment)
             else:
                 raise Exception(f"Unknown status: {experiment.status}")
 
@@ -501,7 +504,7 @@ def build(path):
             index_file.write(jinja2.Template(INDEX).render(
                 fault_groups = fault_groups.values(),
                 overall_status = overall_status,
-                experiment_groups=[failed, unknown, crushed, passed],
+                experiment_groups=[failed, unknown, hang, crushed, passed],
                 max_unavailable_experiment = max_unavailable_experiment,
                 workloads=list(workloads.values())))
 

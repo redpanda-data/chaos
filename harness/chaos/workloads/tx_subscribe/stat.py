@@ -5,7 +5,7 @@ import traceback
 import json
 import os
 from chaos.checks.result import Result
-from chaos.workloads.tx_subscribe.log_utils import State, cmds, transitions, phantoms
+from chaos.workloads.tx_subscribe.log_utils import State, cmds, threads
 import logging
 
 logger = logging.getLogger("stat")
@@ -129,6 +129,120 @@ class Throughput:
             self.count = 0
             self.time_us += 1000000
 
+class LogPlayer:
+    def __init__(self, config):
+        self.config = config
+        
+        self.curr_state = dict()
+        self.thread_type = dict()
+
+        self.started_us = None
+        
+        self.ts_us = None
+
+        self.total_throughput = None
+        self.partition_throughput = dict()
+        self.latency_err_history = []
+        self.latency_ok_history = []
+        self.availability_history = []
+        self.latency_commit_history = []
+        self.faults = []
+        self.recoveries = []
+
+        self.txn_started = dict()
+        self.end_txn_started = dict()
+        self.is_commit = dict()
+        self.last_ok = None
+        self.read_partition = dict()
+
+        self.should_measure = False
+    
+    def streaming_apply(self, thread_id, parts):
+        if self.curr_state[thread_id] == State.TX:
+            self.txn_started[thread_id] = self.ts_us
+        elif self.curr_state[thread_id] == State.COMMIT:
+            self.is_commit[thread_id] = True
+            self.end_txn_started[thread_id] = self.ts_us
+        elif self.curr_state[thread_id] == State.ABORT:
+            self.is_commit[thread_id] = False
+            self.end_txn_started[thread_id] = self.ts_us
+        elif self.curr_state[thread_id] == State.READ:
+            self.read_partition[thread_id] = int(parts[4])
+        elif self.curr_state[thread_id] == State.OK:
+            if self.should_measure:
+                if self.last_ok == None:
+                    self.last_ok = self.ts_us
+                self.total_throughput.count+=1
+                self.partition_throughput[self.read_partition[thread_id]].count+=1
+                self.availability_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.last_ok])
+                if self.is_commit[thread_id]:
+                    self.latency_ok_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.txn_started[thread_id]])
+                    self.latency_commit_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.end_txn_started[thread_id]])
+                else:
+                    self.latency_err_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.txn_started[thread_id]])
+                self.last_ok = self.ts_us
+    
+    def apply(self, line):
+        parts = line.rstrip().split('\t')
+
+        if parts[2] not in cmds:
+            raise Exception(f"unknown cmd \"{parts[2]}\"")
+
+        if self.ts_us == None:
+            self.ts_us = int(parts[1])
+            self.started_us = self.ts_us
+            self.total_throughput = Throughput()
+            self.total_throughput.time_us = self.ts_us
+            for partition in range(0, self.config["partitions"]):
+                self.partition_throughput[partition] = Throughput()
+                self.partition_throughput[partition].time_us = self.ts_us
+        else:
+            delta_us = int(parts[1])
+            self.ts_us = self.ts_us + delta_us
+        
+        self.total_throughput.tick(self.ts_us)
+        for key in self.partition_throughput.keys():
+            self.partition_throughput[key].tick(self.ts_us)
+        
+        new_state = cmds[parts[2]]
+
+        if new_state == State.EVENT:
+            name = parts[3]
+            if name == "measure" and not self.should_measure:
+                self.started_us = self.ts_us
+                self.should_measure = True
+                self.total_throughput.measure(self.ts_us)
+                for key in self.partition_throughput.keys():
+                    self.partition_throughput[key].measure(self.ts_us)
+            if self.should_measure:
+                if name=="injecting" or name=="injected":
+                    self.faults.append(int((self.ts_us - self.started_us)/1000))
+                elif name=="healing" or name=="healed":
+                    self.recoveries.append(int((self.ts_us - self.started_us)/1000))
+            return
+        if new_state == State.VIOLATION:
+            return
+        if new_state == State.LOG:
+            return
+        
+        thread_id = int(parts[0])
+        if thread_id not in self.curr_state:
+            self.thread_type[thread_id] = parts[4]
+            self.curr_state[thread_id] = None
+            if self.thread_type[thread_id] not in threads:
+                raise Exception(f"unknown thread type: {parts[4]}")
+        if self.curr_state[thread_id] == None:
+            if new_state != State.STARTED:
+                raise Exception(f"first logged command of a new thread should be started, got: \"{parts[2]}\"")
+            self.curr_state[thread_id] = new_state
+        else:
+            if new_state not in threads[self.thread_type[thread_id]][self.curr_state[thread_id]]:
+                raise Exception(f"unknown transition {self.curr_state[thread_id]} -> {new_state}")
+            self.curr_state[thread_id] = new_state
+
+        if self.thread_type[thread_id] == "streaming":
+            self.streaming_apply(thread_id, parts)
+
 def collect(config, workload_dir):
     logger.setLevel(logging.DEBUG)
     logger_handler_path = os.path.join(workload_dir, "stat.log")
@@ -157,6 +271,19 @@ def collect(config, workload_dir):
     has_errors = True
 
     try:
+        player = LogPlayer(config)
+
+        with open(workload_log_path, "r") as workload_file:
+            for line in workload_file:
+                player.apply(line)
+
+        duration_ms = 0
+        max_latency_us = 0
+        min_latency_us = None
+        max_throughput = 0
+        max_unavailability_us = 0
+        ops = len(player.latency_ok_history)
+
         percentiles = open(percentiles_log_path, "w")
         latency_ok = open(latency_ok_log_path, "w")
         latency_err = open(latency_err_log_path, "w")
@@ -168,195 +295,8 @@ def collect(config, workload_dir):
             throughput_logs[key] =  open(throughput_log_paths[key], "w")
         availability_log = open(availability_log_path, "w")
 
-        last_state = dict()
-        last_time = None
-
-        throughput = dict()
-
-        faults = []
-        recoveries = []
-        info = None
-
-        latency_ok_history = []
-        latency_err_history = []
-        latency_timeout_history = []
-        latency_commit_history = []
-        availability_history = []
-        throughput = None
-        throughputs = dict()
-
-        should_measure = False
-        started = None
-
-        with open(workload_log_path, "r") as workload_file:
-            last_ok = None
-            attempt_starts = {}
-            commit_starts = {}
-            is_end_commit = {}
-            is_sending = {}
-            read_partition = {}
-
-            for line in workload_file:
-                parts = line.rstrip().split('\t')
-
-                thread_id = int(parts[0])
-                if thread_id not in last_state:
-                    last_state[thread_id] = State.INIT
-                if thread_id not in attempt_starts:
-                    attempt_starts[thread_id] = None
-
-                if parts[2] not in cmds:
-                    raise Exception(f"unknown cmd \"{parts[2]}\"")
-                new_state = cmds[parts[2]]
-
-                if new_state not in phantoms:
-                    if new_state not in transitions[last_state[thread_id]]:
-                        raise Exception(f"unknown transition {last_state[thread_id]} -> {new_state}")
-                    last_state[thread_id] = new_state
-
-                if new_state == State.STARTED:
-                    ts_us = None
-                    if last_time == None:
-                        ts_us = int(parts[1])
-                        throughput = Throughput()
-                        throughput.time_us = ts_us
-                        for partition in range(0, config["partitions"]):
-                            throughputs[partition] = Throughput()
-                            throughputs[partition].time_us = ts_us
-                    else:
-                        delta_us = int(parts[1])
-                        ts_us = last_time + delta_us
-                    last_time = ts_us
-                elif new_state == State.CONSTRUCTING:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    attempt_starts[thread_id] = last_time + delta_us
-                    throughput.tick(attempt_starts[thread_id])
-                    for key in throughputs.keys():
-                        throughputs[key].tick(attempt_starts[thread_id])
-                    last_time = attempt_starts[thread_id]
-                elif new_state == State.CONSTRUCTED:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    end = last_time + delta_us
-                    throughput.tick(end)
-                    for key in throughputs.keys():
-                        throughputs[key].tick(end)
-                    last_time = end
-                elif new_state == State.TX:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    attempt_starts[thread_id] = last_time + delta_us
-                    throughput.tick(attempt_starts[thread_id])
-                    for key in throughputs.keys():
-                        throughputs[key].tick(attempt_starts[thread_id])
-                    last_time = attempt_starts[thread_id]
-                elif new_state == State.COMMIT or new_state == State.ABORT or new_state == State.SEND or new_state == State.READ:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    end = last_time + delta_us
-                    throughput.tick(end)
-                    for key in throughputs.keys():
-                        throughputs[key].tick(end)
-                    last_time = end
-                    if new_state == State.SEND:
-                        is_sending[thread_id] = True
-                    if new_state == State.COMMIT:
-                        commit_starts[thread_id] = last_time
-                        is_end_commit[thread_id] = True
-                    if new_state == State.ABORT:
-                        is_end_commit[thread_id] = False
-                    if new_state == State.READ:
-                        read_partition[thread_id] = int(parts[4])
-                elif new_state == State.OK:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    end = last_time + delta_us
-                    throughput.tick(end)
-                    for key in throughputs.keys():
-                        throughputs[key].tick(end)
-                    if thread_id not in is_sending:
-                        throughput.count+=1
-                        throughputs[read_partition[thread_id]].count+=1
-                    last_time = end
-                    if last_ok == None:
-                        last_ok = end
-                    if should_measure and thread_id not in is_sending:
-                        if is_end_commit[thread_id]:
-                            availability_history.append([int((end-started)/1000), end-last_ok])
-                            latency_ok_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
-                            latency_commit_history.append([int((end-started)/1000), end-commit_starts[thread_id]])
-                            del commit_starts[thread_id]
-                        else:
-                            latency_err_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
-                    last_ok = end
-                    if thread_id not in is_sending:
-                        del is_end_commit[thread_id]
-                elif new_state == State.ERROR:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    end = last_time + delta_us
-                    throughput.tick(end)
-                    for key in throughputs.keys():
-                        throughputs[key].tick(end)
-                    last_time = end
-                    if should_measure:
-                        latency_err_history.append([int((end-started)/1000), end-attempt_starts[thread_id]])
-                    if thread_id in is_end_commit:
-                        del is_end_commit[thread_id]
-                elif new_state == State.EVENT:
-                    ts_us = None
-                    if last_time == None:
-                        ts_us = int(parts[1])
-                        throughput = Throughput()
-                        throughput.time_us = ts_us
-                        for partition in range(0, config["partitions"]):
-                            throughputs[partition] = Throughput()
-                            throughputs[partition].time_us = ts_us
-                    else:
-                        delta_us = int(parts[1])
-                        ts_us = last_time + delta_us
-                    last_time = ts_us
-                    name = parts[3]
-                    if name == "measure" and not should_measure:
-                        should_measure = True
-                        started = ts_us
-                        last_ok = ts_us
-                        throughput.measure(ts_us)
-                        for key in throughputs:
-                            throughputs[key].measure(ts_us)
-                    if should_measure:
-                        if name=="injecting" or name=="injected":
-                            faults.append(int((ts_us - started)/1000))
-                        elif name=="healing" or name=="healed":
-                            recoveries.append(int((ts_us - started)/1000))
-                elif new_state == State.VIOLATION or new_state == State.LOG:
-                    if last_time == None:
-                        raise Exception(f"last_time can't be None when processing: {new_state}")
-                    delta_us = int(parts[1])
-                    end = last_time + delta_us
-                    throughput.tick(end)
-                    for key in throughputs.keys():
-                        throughputs[key].tick(end)
-                    last_time = end
-                else:
-                    raise Exception(f"unknown state: {new_state}")
-
-        duration_ms = 0
-        max_latency_us = 0
-        min_latency_us = None
-        max_throughput = 0
-        max_unavailability_us = 0
-        ops = len(latency_ok_history)
-
         latencies = []
-        for [_, latency_us] in latency_ok_history:
+        for [_, latency_us] in player.latency_ok_history:
             latencies.append(latency_us)
         latencies.sort()
         p99  = latencies[int(0.99*len(latencies))]
@@ -364,18 +304,18 @@ def collect(config, workload_dir):
             percentiles.write(f"{float(i) / len(latencies)}\t{latencies[i]}\n")
 
         latencies = []
-        for [_, latency_us] in latency_commit_history:
+        for [_, latency_us] in player.latency_commit_history:
             latencies.append(latency_us)
         latencies.sort()
         commit_p99 = latencies[int(0.99*len(latencies))]
         commit_min = latencies[0]
         commit_max = latencies[-1]
 
-        for [ts_ms,latency_us] in latency_commit_history:
+        for [ts_ms,latency_us] in player.latency_commit_history:
             duration_ms = max(duration_ms, ts_ms)
             latency_commit.write(f"{ts_ms}\t{latency_us}\n")
 
-        for [ts_ms,latency_us] in latency_ok_history:
+        for [ts_ms,latency_us] in player.latency_ok_history:
             duration_ms = max(duration_ms, ts_ms)
             if min_latency_us == None:
                 min_latency_us = latency_us
@@ -383,27 +323,22 @@ def collect(config, workload_dir):
             max_latency_us = max(max_latency_us, latency_us)
             latency_ok.write(f"{ts_ms}\t{latency_us}\n")
 
-        for [ts_ms,latency_us] in latency_err_history:
+        for [ts_ms,latency_us] in player.latency_err_history:
             duration_ms = max(duration_ms, ts_ms)
             max_latency_us = max(max_latency_us, latency_us)
             latency_err.write(f"{ts_ms}\t{latency_us}\n")
 
-        for [ts_ms,latency_us] in latency_timeout_history:
-            duration_ms = max(duration_ms, ts_ms)
-            max_latency_us = max(max_latency_us, latency_us)
-            latency_timeout.write(f"{ts_ms}\t{latency_us}\n")
-
-        for [ts_ms,latency_us] in availability_history:
+        for [ts_ms,latency_us] in player.availability_history:
             max_unavailability_us = max(max_unavailability_us, latency_us)
             availability_log.write(f"{ts_ms}\t{latency_us}\n")
 
-        for [ts_ms, count] in throughput.history:
+        for [ts_ms, count] in player.total_throughput.history:
             duration_ms = max(duration_ms, ts_ms)
             max_throughput = max(max_throughput, count)
             throughput_log.write(f"{ts_ms}\t{count}\n")
         
-        for key in throughputs.keys():
-            for [ts_ms, count] in throughputs[key].history:
+        for key in player.partition_throughput.keys():
+            for [ts_ms, count] in player.partition_throughput[key].history:
                 throughput_logs[key].write(f"{ts_ms}\t{count}\n")
 
         latency_ok.close()
@@ -418,7 +353,9 @@ def collect(config, workload_dir):
         throughput_plots = []
         # http://phd-bachephysicdun.blogspot.com/2014/01/32-colors-in-gnuplot.html
         colors = ["0x008B8B", "0xB8860B", "0x006400"]
-        for key in throughputs.keys():
+        for key in player.partition_throughput.keys():
+            if len(list(filter(lambda x: x[1]!=0, player.partition_throughput[key].history))) == 0:
+                continue
             throughput_plot = ThroughputPlot()
             throughput_plot.file = f"throughput_{key}.log"
             throughput_plot.title = f"throughput partition {key} (per 1s)"
@@ -434,8 +371,8 @@ def collect(config, workload_dir):
                     p99=p99,
                     commit_p99=commit_p99,
                     commit_boundary=int(commit_p99*1.2), 
-                    faults = faults,
-                    recoveries = recoveries,
+                    faults = player.faults,
+                    recoveries = player.recoveries,
                     throughput_plots = throughput_plots,
                     throughput=int(max_throughput*1.2)))
 
