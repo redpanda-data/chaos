@@ -1,0 +1,29 @@
+{
+    "name": "tx-subscribe / java / kill target leader",
+    "scenario": "tx_subscribe_single_fault",
+    "source": "source1",
+    "partitions": 3,
+    "target": "target1",
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-subscribe / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "kill_leader",
+        "topic": "target1",
+        "partition": 0,
+        "alias": "kill_data_leader"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}

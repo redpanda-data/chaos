@@ -1,0 +1,29 @@
+{
+    "name": "tx-subscribe / java / transfer tx leadership",
+    "scenario": "tx_subscribe_single_fault",
+    "source": "source1",
+    "partitions": 3,
+    "target": "target1",
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-subscribe / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "leadership_transfer",
+        "topic": "tx",
+        "namespace": "kafka_internal",
+        "partition": 0,
+        "alias": "transfer_tx_leadership"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

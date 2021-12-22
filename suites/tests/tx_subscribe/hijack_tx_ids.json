@@ -1,0 +1,26 @@
+{
+    "name": "tx-subscribe / java / hijack tx ids",
+    "scenario": "tx_subscribe_single_fault",
+    "source": "source1",
+    "partitions": 3,
+    "target": "target1",
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-subscribe / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5
+        }
+    },
+    "fault": {
+        "name": "hijack_tx_ids",
+        "ids": [ "tx-consume-source1-partition-0" ]
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
