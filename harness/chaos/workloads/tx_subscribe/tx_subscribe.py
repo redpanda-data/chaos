@@ -213,17 +213,7 @@ class Workload:
                     check["result"] = result["result"]
                 config["result"] = Result.more_severe(config["result"], check["result"])
             elif check["name"] == "stat":
-                check["result"] = Result.PASSED
-                for node in self.nodes:
-                    workload_dir = f"/mnt/vectorized/experiments/{config['experiment_id']}/{node.ip}"
-                    if os.path.isdir(workload_dir):
-                        check[node.ip] = stat.collect(config, workload_dir)
-                    else:
-                        check[node.ip] = {
-                            "result": Result.UNKNOWN,
-                            "message": f"Can't find logs dir: {workload_dir}"
-                        }
-                    check["result"] = Result.more_severe(check["result"], check[node.ip]["result"])
+                stat.collect(config, check, f"/mnt/vectorized/experiments/{config['experiment_id']}")
                 config["result"] = Result.more_severe(config["result"], check["result"])
             else:
                 check["result"] = Result.UNKNOWN

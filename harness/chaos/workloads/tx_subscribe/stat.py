@@ -74,7 +74,6 @@ set parametric
 
 plot 'latency_ok.log' using ($1/1000):2 title "latency ok (us)" with points lt rgb "black" pt 7,\\
      'latency_err.log' using ($1/1000):2 title "latency err (us)" with points lt rgb "red" pt 7,\\
-     'latency_timeout.log' using ($1/1000):2 title "latency timeout (us)" with points lt rgb "blue" pt 7,\\
      {{p99}} title "p99" with lines lt 1
 
 set title "{{ title }}"
@@ -112,22 +111,32 @@ class ThroughputPlot:
 class Throughput:
     def __init__(self):
         self.count = 0
-        self.time_us = 0
+        self.time_ms = 0
         self.history = []
-        self.should_measure = False
-        self.started = None
     
-    def measure(self, started):
-        self.should_measure = True
-        self.started = started
-    
-    def tick(self, now):
-        while self.time_us + 1000000 < now:
-            if self.should_measure:
-                ts = int((self.time_us-self.started+1000000)/1000)
-                self.history.append([ts, self.count])
+    def tick(self, now_ms):
+        while self.time_ms + 1000 < now_ms:
+            ts = int(self.time_ms+1000)
+            self.history.append([ts, self.count])
             self.count = 0
-            self.time_us += 1000000
+            self.time_ms += 1000
+
+class ThroughputBuilder:
+    def __init__(self):
+        self.total_throughput = None
+        self.partition_throughput = dict()
+    
+    def build(self, config, latencies):
+        self.total_throughput = Throughput()
+        for partition in range(0, config["partitions"]):
+            self.partition_throughput[partition] = Throughput()
+        
+        for [ts_ms, latency_us, partition] in latencies:
+            self.total_throughput.tick(ts_ms)
+            for key in self.partition_throughput.keys():
+                self.partition_throughput[key].tick(ts_ms)
+            self.total_throughput.count += 1
+            self.partition_throughput[partition].count += 1
 
 class LogPlayer:
     def __init__(self, config):
@@ -140,11 +149,8 @@ class LogPlayer:
         
         self.ts_us = None
 
-        self.total_throughput = None
-        self.partition_throughput = dict()
         self.latency_err_history = []
         self.latency_ok_history = []
-        self.availability_history = []
         self.latency_commit_history = []
         self.faults = []
         self.recoveries = []
@@ -152,7 +158,6 @@ class LogPlayer:
         self.txn_started = dict()
         self.end_txn_started = dict()
         self.is_commit = dict()
-        self.last_ok = None
         self.read_partition = dict()
 
         self.should_measure = False
@@ -170,17 +175,11 @@ class LogPlayer:
             self.read_partition[thread_id] = int(parts[4])
         elif self.curr_state[thread_id] == State.OK:
             if self.should_measure:
-                if self.last_ok == None:
-                    self.last_ok = self.ts_us
-                self.total_throughput.count+=1
-                self.partition_throughput[self.read_partition[thread_id]].count+=1
-                self.availability_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.last_ok])
                 if self.is_commit[thread_id]:
-                    self.latency_ok_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.txn_started[thread_id]])
+                    self.latency_ok_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.txn_started[thread_id], self.read_partition[thread_id]])
                     self.latency_commit_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.end_txn_started[thread_id]])
                 else:
                     self.latency_err_history.append([int((self.ts_us-self.started_us)/1000), self.ts_us-self.txn_started[thread_id]])
-                self.last_ok = self.ts_us
     
     def apply(self, line):
         parts = line.rstrip().split('\t')
@@ -191,18 +190,9 @@ class LogPlayer:
         if self.ts_us == None:
             self.ts_us = int(parts[1])
             self.started_us = self.ts_us
-            self.total_throughput = Throughput()
-            self.total_throughput.time_us = self.ts_us
-            for partition in range(0, self.config["partitions"]):
-                self.partition_throughput[partition] = Throughput()
-                self.partition_throughput[partition].time_us = self.ts_us
         else:
             delta_us = int(parts[1])
             self.ts_us = self.ts_us + delta_us
-        
-        self.total_throughput.tick(self.ts_us)
-        for key in self.partition_throughput.keys():
-            self.partition_throughput[key].tick(self.ts_us)
         
         new_state = cmds[parts[2]]
 
@@ -211,9 +201,6 @@ class LogPlayer:
             if name == "measure" and not self.should_measure:
                 self.started_us = self.ts_us
                 self.should_measure = True
-                self.total_throughput.measure(self.ts_us)
-                for key in self.partition_throughput.keys():
-                    self.partition_throughput[key].measure(self.ts_us)
             if self.should_measure:
                 if name=="injecting" or name=="injected":
                     self.faults.append(int((self.ts_us - self.started_us)/1000))
@@ -243,118 +230,105 @@ class LogPlayer:
         if self.thread_type[thread_id] == "streaming":
             self.streaming_apply(thread_id, parts)
 
-def collect(config, workload_dir):
-    logger.setLevel(logging.DEBUG)
-    logger_handler_path = os.path.join(workload_dir, "stat.log")
-    handler = logging.FileHandler(logger_handler_path)
-    handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
-    logger.addHandler(handler)
-    
-    percentiles_log_path = os.path.join(workload_dir, "percentiles.log")
+class StatInfo:
+    def __init__(self):
+        self.latency_err_history = []
+        self.latency_ok_history = []
+        self.latency_commit_history = []
+        self.faults = []
+        self.recoveries = []
+
+
+def render_overview(config, workload_dir, stat):
     latency_commit_log_path = os.path.join(workload_dir, "latency_commit.log")
     latency_ok_log_path = os.path.join(workload_dir, "latency_ok.log")
     latency_err_log_path = os.path.join(workload_dir, "latency_err.log")
-    latency_timeout_log_path = os.path.join(workload_dir, "latency_timeout.log")
     
     throughput_log_path = os.path.join(workload_dir, "throughput.log")
     throughput_log_paths = dict()
     for partition in range(0, config["partitions"]):
         throughput_log_paths[partition] = os.path.join(workload_dir, f"throughput_{partition}.log")
-
-    availability_log_path = os.path.join(workload_dir, "availability.log")
-    workload_log_path = os.path.join(workload_dir, "workload.log")
-
+    
     overview_gnuplot_path = os.path.join(workload_dir, "overview.gnuplot")
-    availability_gnuplot_path = os.path.join(workload_dir, "availability.gnuplot")
-    percentiles_gnuplot_path = os.path.join(workload_dir, "percentiles.gnuplot")
-
-    has_errors = True
 
     try:
-        player = LogPlayer(config)
-
-        with open(workload_log_path, "r") as workload_file:
-            for line in workload_file:
-                player.apply(line)
-
-        duration_ms = 0
-        max_latency_us = 0
-        min_latency_us = None
-        max_throughput = 0
-        max_unavailability_us = 0
-        ops = len(player.latency_ok_history)
-
-        percentiles = open(percentiles_log_path, "w")
         latency_ok = open(latency_ok_log_path, "w")
         latency_err = open(latency_err_log_path, "w")
-        latency_timeout = open(latency_timeout_log_path, "w")
         latency_commit = open(latency_commit_log_path, "w")
         throughput_log = open(throughput_log_path, "w")
         throughput_logs = dict()
         for key in throughput_log_paths.keys():
             throughput_logs[key] =  open(throughput_log_paths[key], "w")
-        availability_log = open(availability_log_path, "w")
+        
+        duration_ms = 0
+        min_latency_us = None
+        max_latency_us = 0
+        commit_p99 = None
+        commit_min = None
+        commit_max = None
+        max_unavailability_us = 0
+        max_throughput = 0
 
         latencies = []
-        for [_, latency_us] in player.latency_ok_history:
+        for [_, latency_us, _] in stat.latency_ok_history:
             latencies.append(latency_us)
         latencies.sort()
         p99  = latencies[int(0.99*len(latencies))]
-        for i in range(0,len(latencies)):
-            percentiles.write(f"{float(i) / len(latencies)}\t{latencies[i]}\n")
 
         latencies = []
-        for [_, latency_us] in player.latency_commit_history:
+        for [_, latency_us] in stat.latency_commit_history:
             latencies.append(latency_us)
         latencies.sort()
         commit_p99 = latencies[int(0.99*len(latencies))]
         commit_min = latencies[0]
         commit_max = latencies[-1]
 
-        for [ts_ms,latency_us] in player.latency_commit_history:
+        for [ts_ms,latency_us] in stat.latency_commit_history:
             duration_ms = max(duration_ms, ts_ms)
             latency_commit.write(f"{ts_ms}\t{latency_us}\n")
 
-        for [ts_ms,latency_us] in player.latency_ok_history:
+        max_unavailability_ms = 0
+        last_ok = stat.latency_ok_history[0][0]
+        for [ts_ms,latency_us,_] in stat.latency_ok_history:
+            max_unavailability_ms = max(max_unavailability_ms, ts_ms - last_ok)
+            last_ok = ts_ms
             duration_ms = max(duration_ms, ts_ms)
             if min_latency_us == None:
                 min_latency_us = latency_us
             min_latency_us = min(min_latency_us, latency_us)
             max_latency_us = max(max_latency_us, latency_us)
             latency_ok.write(f"{ts_ms}\t{latency_us}\n")
-
-        for [ts_ms,latency_us] in player.latency_err_history:
+        max_unavailability_us = 1000 * max_unavailability_ms
+        
+        for [ts_ms,latency_us] in stat.latency_err_history:
             duration_ms = max(duration_ms, ts_ms)
             max_latency_us = max(max_latency_us, latency_us)
             latency_err.write(f"{ts_ms}\t{latency_us}\n")
-
-        for [ts_ms,latency_us] in player.availability_history:
-            max_unavailability_us = max(max_unavailability_us, latency_us)
-            availability_log.write(f"{ts_ms}\t{latency_us}\n")
-
-        for [ts_ms, count] in player.total_throughput.history:
+        
+        throughput_builder = ThroughputBuilder()
+        throughput_builder.build(config, stat.latency_ok_history)
+        
+        for [ts_ms, count] in throughput_builder.total_throughput.history:
             duration_ms = max(duration_ms, ts_ms)
             max_throughput = max(max_throughput, count)
             throughput_log.write(f"{ts_ms}\t{count}\n")
         
-        for key in player.partition_throughput.keys():
-            for [ts_ms, count] in player.partition_throughput[key].history:
+        for key in throughput_builder.partition_throughput.keys():
+            for [ts_ms, count] in throughput_builder.partition_throughput[key].history:
                 throughput_logs[key].write(f"{ts_ms}\t{count}\n")
-
+        
         latency_ok.close()
         latency_err.close()
-        latency_timeout.close()
         latency_commit.close()
         throughput_log.close()
         for key in throughput_logs.keys():
             throughput_logs[key].close()
-        availability_log.close()
-
+        
         throughput_plots = []
         # http://phd-bachephysicdun.blogspot.com/2014/01/32-colors-in-gnuplot.html
         colors = ["0x008B8B", "0xB8860B", "0x006400"]
-        for key in player.partition_throughput.keys():
-            if len(list(filter(lambda x: x[1]!=0, player.partition_throughput[key].history))) == 0:
+        for key in throughput_builder.partition_throughput.keys():
+            if len(list(filter(lambda x: x[1]!=0, throughput_builder.partition_throughput[key].history))) == 0:
                 continue
             throughput_plot = ThroughputPlot()
             throughput_plot.file = f"throughput_{key}.log"
@@ -371,26 +345,13 @@ def collect(config, workload_dir):
                     p99=p99,
                     commit_p99=commit_p99,
                     commit_boundary=int(commit_p99*1.2), 
-                    faults = player.faults,
-                    recoveries = player.recoveries,
+                    faults = stat.faults,
+                    recoveries = stat.recoveries,
                     throughput_plots = throughput_plots,
                     throughput=int(max_throughput*1.2)))
-
-        with open(availability_gnuplot_path, "w") as gnuplot_file:
-            gnuplot_file.write(jinja2.Template(AVAILABILITY).render(
-                title = config["name"]))
-
-        with open(percentiles_gnuplot_path, "w") as latency_file:
-            latency_file.write(jinja2.Template(LATENCY).render(
-                title = config["name"],
-                yrange = int(p99*1.2),
-                p99 = p99))
-
+        
         gnuplot(overview_gnuplot_path, _cwd=workload_dir)
-        gnuplot(availability_gnuplot_path, _cwd=workload_dir)
-        gnuplot(percentiles_gnuplot_path, _cwd=workload_dir)
-
-        has_errors = False
+        ops = len(stat.latency_ok_history)
 
         return {
             "result": Result.PASSED,
@@ -412,6 +373,7 @@ def collect(config, workload_dir):
                 "max/s": max_throughput
             }
         }
+    
     except:
         e, v = sys.exc_info()[:2]
         trace = traceback.format_exc()
@@ -422,22 +384,122 @@ def collect(config, workload_dir):
             "result": Result.UNKNOWN
         }
     finally:
-        handler.flush()
-        handler.close()
-        logger.removeHandler(handler)
-
-        if not has_errors:
-            rm("-rf", logger_handler_path)
-
-        rm("-rf", percentiles_log_path)
         rm("-rf", latency_ok_log_path)
         rm("-rf", latency_err_log_path)
-        rm("-rf", latency_timeout_log_path)
         rm("-rf", throughput_log_path)
         for key in throughput_log_paths.keys():
             rm("-rf", throughput_log_paths[key])
-        rm("-rf", availability_log_path)
         rm("-rf", overview_gnuplot_path)
-        rm("-rf", availability_gnuplot_path)
-        rm("-rf", percentiles_gnuplot_path)
         rm("-rf", latency_commit_log_path)
+
+def render_availability(config, workload_dir, stat):
+    availability_log_path = os.path.join(workload_dir, "availability.log")
+    availability_gnuplot_path = os.path.join(workload_dir, "availability.gnuplot")
+
+    try:
+        availability_log = open(availability_log_path, "w")
+
+        last_ok = stat.latency_ok_history[0][0]
+        for [ts_ms,latency_us,_] in stat.latency_ok_history:
+            availability_log.write(f"{ts_ms}\t{1000 * (ts_ms - last_ok)}\n")
+            last_ok = ts_ms
+        
+        availability_log.close()
+        
+        with open(availability_gnuplot_path, "w") as gnuplot_file:
+            gnuplot_file.write(jinja2.Template(AVAILABILITY).render(
+                title = config["name"]))
+
+        gnuplot(availability_gnuplot_path, _cwd=workload_dir)
+    except:
+        e, v = sys.exc_info()[:2]
+        trace = traceback.format_exc()
+        logger.debug(v)
+        logger.debug(trace)
+    finally:
+        rm("-rf", availability_log_path)
+        rm("-rf", availability_gnuplot_path)
+
+def render_percentiles(config, workload_dir, stat):
+    percentiles_log_path = os.path.join(workload_dir, "percentiles.log")
+    percentiles_gnuplot_path = os.path.join(workload_dir, "percentiles.gnuplot")
+
+    try:
+        percentiles = open(percentiles_log_path, "w")
+
+        latencies = []
+        for [_, latency_us, _] in stat.latency_ok_history:
+            latencies.append(latency_us)
+        latencies.sort()
+        p99  = latencies[int(0.99*len(latencies))]
+        for i in range(0,len(latencies)):
+            percentiles.write(f"{float(i) / len(latencies)}\t{latencies[i]}\n")
+        
+        percentiles.close()
+        
+        with open(percentiles_gnuplot_path, "w") as latency_file:
+            latency_file.write(jinja2.Template(LATENCY).render(
+                title = config["name"],
+                yrange = int(p99*1.2),
+                p99 = p99))
+
+        gnuplot(percentiles_gnuplot_path, _cwd=workload_dir)
+    except:
+        e, v = sys.exc_info()[:2]
+        trace = traceback.format_exc()
+        logger.debug(v)
+        logger.debug(trace)
+    finally:
+        rm("-rf", percentiles_log_path)
+        rm("-rf", percentiles_gnuplot_path)
+
+def collect(config, check, workload_dir):
+    logger.setLevel(logging.DEBUG)
+    logger_handler_path = os.path.join(workload_dir, "stat.log")
+    handler = logging.FileHandler(logger_handler_path)
+    handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
+    logger.addHandler(handler)
+
+    check["result"] = Result.PASSED
+    total = StatInfo()
+    for node in config["workload"]["nodes"]:
+        node_dir = f"{workload_dir}/{node}"
+        if os.path.isdir(node_dir):
+            player = LogPlayer(config)
+
+            with open(os.path.join(node_dir, "workload.log"), "r") as workload_file:
+                for line in workload_file:
+                    player.apply(line)
+            
+            total.latency_err_history.extend(player.latency_err_history)
+            total.latency_ok_history.extend(player.latency_ok_history)
+            total.latency_commit_history.extend(player.latency_commit_history)
+            total.faults = player.faults
+            total.recoveries = player.recoveries
+
+            result = render_overview(config, node_dir, player)
+            render_availability(config, node_dir, player)
+            render_percentiles(config, node_dir, player)
+
+            check[node] = result
+        else:
+            check[node] = {
+                "result": Result.UNKNOWN,
+                "message": f"Can't find logs dir: {workload_dir}"
+            }
+        check["result"] = Result.more_severe(check["result"], check[node]["result"])
+    
+    total.latency_err_history.sort(key=lambda x:x[0])
+    total.latency_ok_history.sort(key=lambda x:x[0])
+    total.latency_commit_history.sort(key=lambda x:x[0])
+    
+    check["total"] = render_overview(config, workload_dir, total)
+    check["result"] = Result.more_severe(check["result"], check["total"]["result"])
+    
+    handler.flush()
+    handler.close()
+    logger.removeHandler(handler)
+    if check["result"] == Result.PASSED:
+        rm("-rf", logger_handler_path)
+    
+    return check
