@@ -378,17 +378,6 @@ def build(path):
                     experiment.fault = Fault()
                     experiment.fault.name = fault_config["name"]
                     experiment.fault.alias = fault_config["alias"]
-                for node in info["workload"]["nodes"]:
-                    node_dir = join(path, run, node)
-                    for img in listdir(node_dir):
-                        if not isfile(join(node_dir, img)):
-                            continue
-                        if img.endswith(".png"):
-                            image = Image()
-                            image.path = join(run, node, img)
-                            if img == "overview.png":
-                                image.is_overview = True
-                            experiment.images.append(image)
                 should_progress_check = False
                 if "checks" in info["workload"]:
                     for check in info["workload"]["checks"]:
@@ -412,9 +401,21 @@ def build(path):
                     elif experiment.fault.name in FAULTS:
                         if FAULTS[experiment.fault.name](None).fault_type == FaultType.ONEOFF:
                             should_progress_check = True
+                if experiment.workload in ["reads-writes / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java", "list-offsets / java"]:
+                    for node in info["workload"]["nodes"]:
+                        node_dir = join(path, run, node)
+                        for img in listdir(node_dir):
+                            if not isfile(join(node_dir, img)):
+                                continue
+                            if img.endswith(".png"):
+                                image = Image()
+                                image.path = join(run, node, img)
+                                if img == "overview.png":
+                                    image.is_overview = True
+                                experiment.images.append(image)
                 if experiment.workload in ["reads-writes / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java"]:
                     if len(info["workload"]["nodes"]) != 1:
-                        raise Exception("only one node workloads are supported")
+                        raise Exception(f"only one node workloads are supported: {run}")
                     for check in info["workload"]["checks"]:
                         if check["name"] == "stat":
                             if info["workload"]["nodes"][0] in check:
@@ -453,6 +454,35 @@ def build(path):
                                     experiment.throughput.max = stat["throughput"]["max/s"]
                                 if "max_unavailability_us" in stat:
                                     experiment.max_unavailability_us = stat["max_unavailability_us"]
+                elif experiment.workload == "tx-subscribe / java":
+                    for check in info["workload"]["checks"]:
+                        if check["name"] == "stat":
+                            if "total" in check:
+                                stat = check["total"]
+                                if "latency_us" in stat:
+                                    for latency_name in stat["latency_us"].keys():
+                                        latency = Latency()
+                                        latency.name = latency_name
+                                        latency.min = stat["latency_us"][latency_name]["min"]
+                                        latency.max = stat["latency_us"][latency_name]["max"]
+                                        latency.p99 = stat["latency_us"][latency_name]["p99"]
+                                        experiment.latencies.append(latency)
+                                if "throughput" in stat:
+                                    experiment.throughput = Throughput()
+                                    experiment.throughput.avg = stat["throughput"]["avg/s"]
+                                    experiment.throughput.max = stat["throughput"]["max/s"]
+                                if "max_unavailability_us" in stat:
+                                    experiment.max_unavailability_us = stat["max_unavailability_us"]
+                    node_dir = join(path, run)
+                    for img in listdir(node_dir):
+                        if not isfile(join(node_dir, img)):
+                            continue
+                        if img.endswith(".png"):
+                            image = Image()
+                            image.path = join(run, img)
+                            if img == "overview.png":
+                                image.is_overview = True
+                            experiment.images.append(image)
                 else:
                     raise Exception(f"unsupported workload: {experiment.workload}")
                 if should_progress_check and experiment.max_unavailability_us != None:
