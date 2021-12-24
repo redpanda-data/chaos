@@ -9,6 +9,7 @@ set -e
 ./docker/test.suite.sh test_suite_reads_writes.json
 ./docker/fetch.logs.sh
 ./docker/down3.sh
+
 ./docker/rebuild6.sh
 ./docker/up6.sh
 ./docker/test.suite.sh test_suite_tx_money.json
@@ -16,4 +17,11 @@ set -e
 ./docker/test.suite.sh test_suite_tx_streaming.json
 ./docker/fetch.logs.sh
 ./docker/down6.sh
+
+./docker/rebuild6.2.sh
+./docker/up6.2.sh
+./docker/test.suite.sh test_suite_tx_subscribe.json
+./docker/fetch.logs.sh
+./docker/down6.2.sh
+
 python3 harness/combine.results.py
