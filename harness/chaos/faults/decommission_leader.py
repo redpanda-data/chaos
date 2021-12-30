@@ -4,7 +4,7 @@ from sh import ssh
 import logging
 import json
 from chaos.faults.types import FaultType
-from chaos.redpanda_cluster import TimeoutException
+from chaos.redpanda_static_cluster import TimeoutException
 
 logger = logging.getLogger("chaos")
 

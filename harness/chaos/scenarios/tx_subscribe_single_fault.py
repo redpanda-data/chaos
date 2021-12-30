@@ -8,7 +8,7 @@ import copy
 
 import logging
 
-from chaos.redpanda_cluster import RedpandaCluster
+from chaos.redpanda_static_cluster import RedpandaCluster
 
 logger = logging.getLogger("chaos")
 

@@ -9,7 +9,7 @@ import sys
 import traceback
 import time
 from time import sleep
-from chaos.redpanda_cluster import RedpandaNode, TimeoutException
+from chaos.redpanda_static_cluster import RedpandaNode, TimeoutException
 from chaos.checks.result import Result
 from chaos.workloads.writes import consistency
 from chaos.workloads.writes import stat

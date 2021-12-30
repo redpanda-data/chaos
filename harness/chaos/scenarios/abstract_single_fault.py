@@ -11,13 +11,13 @@ from chaos.workloads.all import WORKLOADS, wait_all_workloads_killed
 from time import sleep
 from chaos.checks.result import Result
 import copy
-from chaos.redpanda_cluster import TimeoutException
+from chaos.redpanda_static_cluster import TimeoutException
 import sys
 import traceback
 
 import logging
 
-from chaos.redpanda_cluster import RedpandaCluster
+from chaos.redpanda_static_cluster import RedpandaCluster
 
 logger = logging.getLogger("chaos")
 
