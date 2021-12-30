@@ -3,7 +3,7 @@ import sys
 import time
 import traceback
 import logging
-from chaos.redpanda_static_cluster import TimeoutException
+from chaos.types import TimeoutException
 from chaos.faults.types import FaultType
 
 logger = logging.getLogger("chaos")

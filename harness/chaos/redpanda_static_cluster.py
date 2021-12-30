@@ -4,6 +4,7 @@ from time import sleep
 from sh import ssh
 import sys
 import traceback
+from chaos.types import TimeoutException
 
 import logging
 logger = logging.getLogger("chaos")
@@ -18,9 +19,6 @@ class PartitionDetails:
         self.replicas = []
         self.leader = None
         self.status = None
-
-class TimeoutException(Exception):
-    pass
 
 class RedpandaCluster:
     def __init__(self, nodes_path):
