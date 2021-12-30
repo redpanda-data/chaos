@@ -200,7 +200,7 @@ class RedpandaCluster:
         for node in self.nodes:
             if node != that:
                 return node
-        raise Exception(f"can't find any but ip: {ip}")
+        raise Exception(f"can't find any but ip: {that.ip}")
     
     def transfer_leadership_to(self, target, namespace, topic, partition):
         logger.debug(f"transfering leadership of \"{namespace}/{topic}/{partition}\" to {target.ip} ({target.id})")
