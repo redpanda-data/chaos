@@ -136,21 +136,21 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         for partition in range(0, self.partitions):
             self._reconfigure(data_nodes, self.source, partition=partition, namespace="kafka", timeout_s=20)
         
-        self.workload_cluster.wait_progress(timeout_s=10)
+        self.workload_cluster.wait_progress(timeout_s=20)
 
         # transfer controller to other[0]
-        self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=10)
+        self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=20)
         # transfer id_allocator to other[1]
-        self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
         # transfer consumer groups to other[1]
-        self._transfer(internal_nodes[1], "group", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(internal_nodes[1], "group", partition=0, namespace="kafka_internal", timeout_s=20)
         # transfer tx to other[2]
-        self._transfer(internal_nodes[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(internal_nodes[2], "tx", partition=0, namespace="kafka_internal", timeout_s=20)
 
-        self._transfer(data_nodes[0], self.target, partition=0, namespace="kafka", timeout_s=10)
+        self._transfer(data_nodes[0], self.target, partition=0, namespace="kafka", timeout_s=20)
 
         for partition in range(0, self.partitions):
-            self._transfer(data_nodes[partition%len(data_nodes)], self.source, partition=partition, namespace="kafka", timeout_s=10)
+            self._transfer(data_nodes[partition%len(data_nodes)], self.source, partition=partition, namespace="kafka", timeout_s=20)
 
         logger.info(f"warming up for 20s")
         sleep(20)
