@@ -24,6 +24,7 @@ import java.util.concurrent.Semaphore;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.HashSet;
 import java.util.Collection;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -37,33 +38,23 @@ import org.apache.kafka.clients.CommonClientConfigs;
 
 public class Workload {
     private static class TrackingRebalanceListener implements ConsumerRebalanceListener {
-        public final Consumer<String, String> consumer;
-        public final String brokers;
-        public final String source;
-        public final String group_id;
         public final Workload workload;
         public final int sid;
-        public final Map<Integer, Producer<String, String>> producers;
-        public final Set<Integer> tracked;
-        public boolean reset_requested = false;
 
-        public TrackingRebalanceListener(Workload workload, int sid, Consumer<String, String> consumer, String brokers, String source, String group_id) {
+        public final HashSet<Integer> lost_partitions;
+        public final HashSet<Integer> added_partitions;
+
+        public TrackingRebalanceListener(Workload workload, int sid) {
             this.workload = workload;
             this.sid = sid;
-            this.consumer = consumer;
-            this.brokers = brokers;
-            this.source = source;
-            this.group_id = group_id;
-            this.producers = new HashMap<>();
-            this.tracked = new HashSet<>();
+
+            this.lost_partitions = new HashSet<>();
+            this.added_partitions = new HashSet<>();
         }
 
-        public void close() {
-            for (var producer : producers.values()) {
-                try {
-                    producer.close();
-                } catch(Exception e) { }
-            }
+        public void resetPartitions() {
+            this.lost_partitions.clear();
+            this.added_partitions.clear();
         }
         
         @Override
@@ -72,9 +63,7 @@ public class Workload {
                 try {
                     workload.log(sid, "log\trevoke\t" + tp.partition());
                 } catch (Exception e1) {}
-                if (tp.topic().equals(source)) {
-                    this.tracked.remove(tp.partition());
-                }
+                this.lost_partitions.add(tp.partition());
             }
         }
  
@@ -84,143 +73,17 @@ public class Workload {
                 try {
                     workload.log(sid, "log\tlost\t" + tp.partition());
                 } catch (Exception e1) {}
-                if (tp.topic().equals(source)) {
-                    this.tracked.remove(tp.partition());
-                }
+                this.lost_partitions.add(tp.partition());
             }
-        }
-
-        private void createProducer(int partition) {
-            Producer<String, String> producer = null;
-            
-            if (producers.containsKey(partition)) {
-                producer = producers.get(partition);
-                try {
-                    producer.close();
-                } catch (Exception e1) {}
-                producers.remove(partition);
-                producer = null;
-            }
-            
-            Properties props = new Properties();
-            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
-            props.put(ProducerConfig.ACKS_CONFIG, "all");
-            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-            
-            // default value: 600000
-            props.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
-            // default value: 120000
-            props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
-            // default value: 0
-            props.put(ProducerConfig.LINGER_MS_CONFIG, 0);
-            // default value: 60000
-            props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 10000);
-            // default value: 1000
-            props.put(ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
-            // default value: 50
-            props.put(ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
-            // default value: 30000
-            props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
-            // default value: 100
-            props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
-            // default value: 300000
-            props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
-            // default value: 300000
-            props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
-            
-            props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-            props.put(ProducerConfig.RETRIES_CONFIG, 5);
-            props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-            props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-consume-" + source + "-partition-" + partition);
-
-            producer =  new KafkaProducer<>(props);
-            producer.initTransactions();
-            producers.put(partition, producer);
         }
 
         @Override
         public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
             for (var tp : partitions) {
                 try {
-                    workload.log(sid, "log\tassigned\t" + tp.partition());
+                    workload.log(sid, "log\tassign\t" + tp.partition());
                 } catch (Exception e1) {}
-                if (!tp.topic().equals(source)) {
-                    continue;
-                }
-                try {
-                    // initializing new txn client to force finish previous
-                    // ongoing transactions
-                    createProducer(tp.partition());
-                    tracked.add(tp.partition());
-                } catch (Exception e1) {
-                    System.out.println("=== error on onPartitionsAssigned: KafkaProducer::ctor");
-                    System.out.println(e1);
-                    e1.printStackTrace();
-
-                    reset_requested = true;
-                    return;
-                }
-            }
-            
-            // onPartitionsAssigned is called after the offsets are set, see kafka doc
-            // https://kafka.apache.org/24/javadoc/org/apache/kafka/clients/consumer/ConsumerRebalanceListener.html
-            // in case of externally managed offsets they suggest to seek inside
-            // onPartitionsAssigned, so the set offsets may come from before the previous
-            // tx is committed; setting offset manuattly after we force committed the
-            // transacitons above
-
-            AdminClient client = null;
-            try {
-                Properties props = new Properties();
-                props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
-                // default value: 600000
-                props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
-                // default value: 300000
-                props.put(AdminClientConfig.METADATA_MAX_AGE_CONFIG, 10000);
-                // default value: 1000
-                props.put(AdminClientConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
-                // default value: 50
-                props.put(AdminClientConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
-                // default value: 30000
-                props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
-                // default value: 100
-                props.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, 100);
-                // default.api.timeout.ms 60000
-                props.put(CommonClientConfigs.DEFAULT_API_TIMEOUT_MS_CONFIG, 10000);
-                // request.timeout.ms 30000
-                props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
-                // default value: 30000
-                props.put(AdminClientConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG, 10000);
-                // default value: 10000
-                props.put(AdminClientConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG, 10000);
-                props.put(AdminClientConfig.RETRIES_CONFIG, 0);
-                props.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, 10000);
-
-                client = AdminClient.create(props);
-                var result = client.listConsumerGroupOffsets(group_id);
-                var offsets = result.partitionsToOffsetAndMetadata().get();
-
-                for (var tp : partitions) {
-                    if (!tp.topic().equals(source)) {
-                        continue;
-                    }
-                    if (!offsets.containsKey(tp)) {
-                        continue;
-                    }
-                    consumer.seek(tp, offsets.get(tp).offset());
-                }
-            } catch(Exception e1) {
-                System.out.println("=== error on AdminClient::listConsumerGroupOffsets");
-                System.out.println(e1);
-                e1.printStackTrace();
-                reset_requested = true;
-            }
-
-            if (client != null) {
-                try {
-                    client.close();
-                } catch (Exception e1) {}
+                this.added_partitions.add(tp.partition());
             }
         }
     }
@@ -344,8 +207,10 @@ public class Workload {
                 try {
                     producingProcess(pid, j);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    synchronized (this) {
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
                     System.exit(1);
                 }
             }));
@@ -360,8 +225,10 @@ public class Workload {
                 try {
                     streamingProcess(sid);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    synchronized (this) {
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
                     System.exit(1);
                 }
             });
@@ -375,8 +242,10 @@ public class Workload {
                 try {
                     consumingProcess(rid);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    synchronized(this) {
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
                     System.exit(1);
                 }
             });
@@ -465,7 +334,7 @@ public class Workload {
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.RETRIES_CONFIG, 5);
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-produce-" + args.source + "-partition-" + partition);
+        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString());
 
         log(pid, "started\t" + args.server + "\tproducing\t" + partition);
     
@@ -496,9 +365,11 @@ public class Workload {
                 }
             } catch (Exception e1) {
                 log(pid, "err");
-                System.out.println("=== error on KafkaProducer ctor");
-                System.out.println(e1);
-                e1.printStackTrace();
+                synchronized (this) {
+                    System.out.println("=== error on KafkaProducer ctor pid:" + pid);
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
                 try {
                     if (producer != null) {
                         producer.close();
@@ -537,9 +408,11 @@ public class Workload {
                 }
 
                 log(pid, "err");
-                System.out.println("=== error on send");
-                System.out.println(e1);
-                e1.printStackTrace();
+                synchronized (this) {
+                    System.out.println("=== error on send pid:" + pid);
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
                 try {
                     producer.close();
                 } catch (Exception e3) {}
@@ -608,6 +481,10 @@ public class Workload {
 
         Consumer<String, String> consumer = null;
         TrackingRebalanceListener tracker = null;
+
+        HashSet<Integer> assigned_partitions = new HashSet<>();
+        HashMap<Integer, Producer<String, String>> producers = new HashMap<>();
+
         while (is_active) {
             tick(sid);
 
@@ -623,9 +500,6 @@ public class Workload {
                     }
 
                     if (tracker != null) {
-                        try {
-                            tracker.close();
-                        } catch(Exception e) {}
                         tracker = null;
                     }
                 }
@@ -639,9 +513,6 @@ public class Workload {
                     }
 
                     if (tracker != null) {
-                        try {
-                            tracker.close();
-                        } catch(Exception e) {}
                         tracker = null;
                     }
 
@@ -657,15 +528,19 @@ public class Workload {
                 if (consumer == null) {
                     log(sid, "constructing\tstreaming");
                     consumer = new KafkaConsumer<>(cprops);
-                    tracker = new TrackingRebalanceListener(this, sid, consumer, args.brokers, args.source, args.group_id);
+                    tracker = new TrackingRebalanceListener(this, sid);
                     consumer.subscribe(Collections.singleton(args.source), tracker);
                     log(sid, "constructed");
+                    assigned_partitions.clear();
+                    producers.clear();
                 }
             } catch (Exception e1) {
                 log(sid, "err");
-                System.out.println("=== error on KafkaConsumer ctor");
-                System.out.println(e1);
-                e1.printStackTrace();
+                synchronized (this) {
+                    System.out.println("=== error on KafkaConsumer ctor");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
 
                 if (consumer != null) {
                     try {
@@ -677,29 +552,35 @@ public class Workload {
                 continue;
             }
 
+            log(sid, "log\ttick");
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
+            log(sid, "log\ttack");
+
+            progress(sid);
+
+            for (int partition : tracker.lost_partitions) {
+                log(sid, "log\ttracking:stop:" + partition);
+                assigned_partitions.remove(partition);
+                if (producers.containsKey(partition)) {
+                    var producer = producers.get(partition);
+                    try {
+                        producer.close();
+                    } catch(Exception e1) { }
+                    producers.remove(partition);
+                }
+            }
+
             var it = records.iterator();
             while (it.hasNext()) {
                 var record = it.next();
 
-                if (tracker.reset_requested) {
-                    if (consumer != null) {
-                        try {
-                            consumer.close();
-                        } catch (Exception e2) {}
-                        consumer = null;
-                        tracker = null;
-                    }
-                    break;
+                if (!producers.containsKey(record.partition())) {
+                    continue;
                 }
 
                 log(sid, "read\t" + record.key() + "\t" + record.partition() + "\t" + record.value());
 
-                if (!tracker.tracked.contains(record.partition())) {
-                    violation(sid, "partition " + record.partition() + " isn't tracked");
-                }
-
-                var producer = tracker.producers.get(record.partition());
+                var producer = producers.get(record.partition());
                 
                 try {
                     log(sid, "tx");
@@ -709,9 +590,11 @@ public class Workload {
                     offsets.put(new TopicPartition(args.source, record.partition()), new OffsetAndMetadata(record.offset() + 1));
                     producer.sendOffsetsToTransaction(offsets, args.group_id);
                 } catch (Exception e1) {
-                    System.out.println("=== error on send or sendOffsetsToTransaction");
-                    System.out.println(e1);
-                    e1.printStackTrace();
+                    synchronized (this) {
+                        System.out.println("=== error on send or sendOffsetsToTransaction");
+                        System.out.println(e1);
+                        e1.printStackTrace();
+                    }
 
                     try {
                         log(sid, "brt");
@@ -720,13 +603,13 @@ public class Workload {
                         failed(sid);
                     } catch (Exception e2) {
                         log(sid, "err");
-                        System.out.println("=== error on abort");
-                        System.out.println(e2);
-                        e2.printStackTrace();
+                        synchronized(this) {
+                            System.out.println("=== error on abort");
+                            System.out.println(e2);
+                            e2.printStackTrace();
+                        }
                     }
-
-                    tracker.reset_requested = true;
-
+                    producers.remove(record.partition());
                     continue;
                 }
                 
@@ -735,15 +618,66 @@ public class Workload {
                     producer.commitTransaction();
                     log(sid, "ok");
                     succeeded(sid);
-                    progress(sid);
-                    produce_limiter.get(record.partition()).release();
                 } catch (Exception e1) {
                     log(sid, "err");
                     failed(sid);
-                    System.out.println("=== error on commit");
-                    System.out.println(e1);
-                    e1.printStackTrace();
-                    tracker.reset_requested = true;
+                    synchronized (this) {
+                        System.out.println("=== error on commit");
+                        System.out.println(e1);
+                        e1.printStackTrace();
+                    }
+                    producers.remove(record.partition());
+                    continue;
+                }
+
+                produce_limiter.get(record.partition()).release();
+            }
+
+            for (int partition : tracker.added_partitions) {
+                log(sid, "log\ttracking:start:" + partition);
+                assigned_partitions.add(partition);
+            }
+
+            tracker.resetPartitions();
+
+            for (int partition : assigned_partitions) {
+                if (producers.containsKey(partition)) {
+                    continue;
+                }
+
+                var tp = new TopicPartition(args.source, partition);
+
+                try {
+                    log(sid, "log\tassigning:" + partition);
+                    var producer = createProducer(partition);
+                    
+                    try {
+                        long offset = 0;
+                        var read_offsets = getOffsets(sid, args.group_id);
+                        if (read_offsets == null) {
+                            continue;
+                        }
+                        if (read_offsets.containsKey(tp)) {
+                            offset = read_offsets.get(tp).offset();
+                        }
+                        
+                        producer.beginTransaction();
+                        var offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
+                        offsets.put(tp, new OffsetAndMetadata(offset));
+                        producer.sendOffsetsToTransaction(offsets, args.group_id);
+                        producer.commitTransaction();
+                        
+                        consumer.seek(tp, offset);
+                        producers.put(partition, producer);
+                        log(sid, "log\tassigning:" + partition + ":ok");
+                    } catch (Exception e2) {
+                        try {
+                            producer.close();
+                        } catch (Exception e3) { }
+                        throw e2;
+                    }
+                } catch(Exception e1) {
+                    log(sid, "log\tassigning:" + partition + ":err");
                 }
             }
         }
@@ -818,8 +752,10 @@ public class Workload {
                 }
             } catch (Exception e) {
                 log(rid, "err");
-                System.out.println(e);
-                e.printStackTrace();
+                synchronized (this) {
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
                 failed(rid);
                 continue;
             }
@@ -901,5 +837,107 @@ public class Workload {
                 }
             }
         }
+    }
+
+
+    private Producer<String, String> createProducer(int partition) {
+        Producer<String, String> producer = null;
+        
+        Properties props = new Properties();
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, args.brokers);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+        
+        // default value: 600000
+        props.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
+        // default value: 120000
+        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 0
+        props.put(ProducerConfig.LINGER_MS_CONFIG, 0);
+        // default value: 60000
+        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 10000);
+        // default value: 1000
+        props.put(ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
+        // default value: 50
+        props.put(ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
+        // default value: 30000
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        // default value: 100
+        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
+        // default value: 300000
+        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
+        // default value: 300000
+        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
+        
+        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
+        props.put(ProducerConfig.RETRIES_CONFIG, 5);
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-consume-" + args.source + "-partition-" + partition);
+
+        producer =  new KafkaProducer<>(props);
+        producer.initTransactions();
+        return producer;
+    }
+
+    private Map<TopicPartition, OffsetAndMetadata> getOffsets(int id, String group_id) {
+        Map<TopicPartition, OffsetAndMetadata> result = null;
+        
+        AdminClient admin = null;
+        try {
+            log(id, "log\tadmin:fetch");
+            Properties props = new Properties();
+            props.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, args.brokers);
+            // default value: 600000
+            props.put(AdminClientConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
+            // default value: 300000
+            props.put(AdminClientConfig.METADATA_MAX_AGE_CONFIG, 10000);
+            // default value: 1000
+            props.put(AdminClientConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
+            // default value: 50
+            props.put(AdminClientConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
+            // default value: 30000
+            props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+            // default value: 100
+            props.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, 0);
+            // default.api.timeout.ms 60000
+            props.put(CommonClientConfigs.DEFAULT_API_TIMEOUT_MS_CONFIG, 10000);
+            // request.timeout.ms 30000
+            props.put(AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+            // default value: 30000
+            props.put(AdminClientConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MAX_MS_CONFIG, 10000);
+            // default value: 10000
+            props.put(AdminClientConfig.SOCKET_CONNECTION_SETUP_TIMEOUT_MS_CONFIG, 10000);
+            props.put(AdminClientConfig.RETRIES_CONFIG, 0);
+            props.put(AdminClientConfig.RETRY_BACKOFF_MS_CONFIG, 10000);
+
+            admin = AdminClient.create(props);
+            var f = admin.listConsumerGroupOffsets(group_id);
+            result = f.partitionsToOffsetAndMetadata().get();
+            log(id, "log\tadmin:fetch:ok");
+        } catch(Exception e1) {
+            synchronized (this) {
+                System.out.println("=== error on AdminClient::listConsumerGroupOffsets thread:" + id);
+                System.out.println(e1);
+                e1.printStackTrace();
+            }
+            try {
+                log(id, "log\tadmin:fetch:err");
+            } catch (Exception e2) {}
+        }
+
+        if (admin != null) {
+            try {
+                log(id, "log\tadmin:close");
+                admin.close();
+                log(id, "log\tadmin:close:ok");
+            } catch (Exception e1) {
+                try {
+                    log(id, "log\tadmin:close:err");
+                } catch(Exception e2) {}
+            }
+        }
+
+        return result;
     }
 }

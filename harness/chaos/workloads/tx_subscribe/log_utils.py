@@ -52,7 +52,7 @@ threads = {
         State.ABORT: [State.OK, State.ERROR],
         State.COMMIT: [State.OK, State.ERROR],
         State.OK: [State.READ, State.CONSTRUCTING],
-        State.ERROR: [State.CONSTRUCTING]
+        State.ERROR: [State.CONSTRUCTING, State.READ]
     },
     "consuming": {
         State.STARTED: [State.CONSTRUCTING],
