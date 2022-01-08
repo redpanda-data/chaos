@@ -556,8 +556,6 @@ public class Workload {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
             log(sid, "log\ttack");
 
-            progress(sid);
-
             for (int partition : tracker.lost_partitions) {
                 log(sid, "log\ttracking:stop:" + partition);
                 assigned_partitions.remove(partition);
@@ -572,6 +570,8 @@ public class Workload {
 
             var it = records.iterator();
             while (it.hasNext()) {
+                progress(sid);
+                
                 var record = it.next();
 
                 if (!producers.containsKey(record.partition())) {
