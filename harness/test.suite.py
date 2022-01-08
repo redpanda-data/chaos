@@ -34,9 +34,20 @@ with open(args.suite, "r") as suite_file:
     suite = json.load(suite_file)
 
 if "settings" not in suite:
-    suite["settings"] = {}
+    suite["settings"] = {
+        "test": {},
+        "suite": {}
+    }
 
 tests = {}
+ignore_transient_errors = False
+at_least_one_passes = False
+
+if "ignore_transient_errors" in suite["settings"]["suite"]:
+    ignore_transient_errors = suite["settings"]["suite"]["ignore_transient_errors"]
+
+if "at_least_one_passes" in suite["settings"]["suite"]:
+    at_least_one_passes = suite["settings"]["suite"]["at_least_one_passes"]
 
 for test_path in suite["tests"]:
     test_path = os.path.join(os.path.dirname(args.suite), "tests", test_path)
@@ -49,8 +60,8 @@ for test_path in suite["tests"]:
         raise Exception(f"unknown scenario: {test['scenario']}")
     if "settings" not in test:
         test["settings"] = {}
-    for key in suite["settings"].keys():
-        test["settings"][key] = suite["settings"][key]
+    for key in suite["settings"]["test"].keys():
+        test["settings"][key] = suite["settings"]["test"][key]
     
     scenario = SCENARIOS[test["scenario"]]()
     scenario.validate(test)
@@ -64,6 +75,8 @@ results = {
 }
 
 for i in range(0, args.repeat):
+    most_severe_result = Result.PASSED
+    least_severe_result = Result.FAILED
     for name in tests:
         if name not in results["test_runs"]:
             results["test_runs"][name] = {}
@@ -90,9 +103,20 @@ for i in range(0, args.repeat):
             handler.flush()
             handler.close()
             logger.removeHandler(handler)
-        results["result"] = Result.more_severe(results["result"], results["test_runs"][test["name"]][experiment_id])
+        
+        most_severe_result = Result.more_severe(most_severe_result, results["test_runs"][test["name"]][experiment_id])
+        least_severe_result = Result.least_severe(least_severe_result, results["test_runs"][test["name"]][experiment_id])
 
         with open(f"/mnt/vectorized/experiments/{args.run_id}.json", "w") as info:
             info.write(json.dumps(results, indent=2))
         with open(f"/mnt/vectorized/experiments/latest.json", "w") as info:
             info.write(json.dumps(results, indent=2))
+    
+    if most_severe_result == Result.FAILED:
+        least_severe_result = Result.FAILED
+    
+    if ignore_transient_errors:
+        if at_least_one_passes:
+            results["result"] = Result.more_severe(results["result"], least_severe_result)
+    else:
+        results["result"] = Result.more_severe(results["result"], most_severe_result)

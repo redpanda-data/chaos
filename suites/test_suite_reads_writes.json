@@ -17,6 +17,12 @@
         "reads_writes/rolling_restart.json"
     ],
     "settings": {
-        "remove_logs_on_success": true
+        "test": {
+            "remove_logs_on_success": true
+        },
+        "suite": {
+            "ignore_transient_errors": true,
+            "at_least_one_passes": true
+        }
     }
 }
