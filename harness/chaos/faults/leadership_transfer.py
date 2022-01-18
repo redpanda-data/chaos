@@ -16,6 +16,8 @@ class LeadershipTransferFault:
 
     def execute(self, scenario):
         timeout_s = 10
+        if "timeout_s" in self.fault_config:
+            timeout_s = self.fault_config["timeout_s"]
         controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=timeout_s)
         logger.debug(f"controller's leader: {controller.ip}")
         

@@ -18,7 +18,8 @@
         "name": "leadership_transfer",
         "topic": "acc0",
         "partition": 0,
-        "alias": "transfer_data_leadership"
+        "alias": "transfer_data_leadership",
+        "timeout_s": 20
     },
     "checks": [
         { "name": "redpanda_process_liveness" }
