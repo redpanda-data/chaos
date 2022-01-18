@@ -18,7 +18,6 @@ from chaos.faults.reconfigure_kill_11 import ReconfigureKill11Fault
 from chaos.faults.isolate_clients_kill_leader import IsolateClientsKillLeader
 from chaos.faults.rolling_restart import RollingRestartFault
 from chaos.faults.decommission_leader import DecommissionLeaderFault
-from chaos.faults.transfer_tx_leadership import TransferTxLeadershipFault
 from chaos.faults.hijack_tx_ids import HijackTxIDsFault
 from chaos.faults.isolate_tx_all import IsolateTxAllFault
 from chaos.faults.isolate_client_topic_leader import IsolateClientTopicLeader
@@ -46,7 +45,6 @@ FAULTS = {
     "reconfigure_kill_11": ReconfigureKill11Fault,
     "rolling_restart": RollingRestartFault,
     "decommission_leader": DecommissionLeaderFault,
-    "transfer_tx_leadership": TransferTxLeadershipFault,
     "hijack_tx_ids": HijackTxIDsFault,
     "isolate_client_topic_leader": IsolateClientTopicLeader,
     "stop_client": StopClient
