@@ -35,6 +35,14 @@ class TxMoneySingleFault(AbstractSingleFault):
         self.partition = None
         self.replication = None
     
+    def read_config(self, path, default):
+        root = self.config
+        for node in path:
+            if node not in root:
+                return default
+            root = root[node]
+        return root
+    
     def prepare_experiment(self, config, experiment_id):
         self.config = copy.deepcopy(config)
         self.accounts = self.config["accounts"]
@@ -80,14 +88,21 @@ class TxMoneySingleFault(AbstractSingleFault):
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
         # waiting for the controller to be up before creating a topic
-        self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=30)
+        self.redpanda_cluster.wait_leader(
+            "controller",
+            namespace="redpanda",
+            replication=len(self.redpanda_cluster.nodes),
+            timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "controller"], 30))
 
         for i in range(0, self.accounts):
             logger.info(f"creating \"acc{i}\" topic with replication factor {self.replication}")
             self.redpanda_cluster.create_topic(f"acc{i}", self.replication, 1)
         for i in range(0, self.accounts):
             # waiting for the topic to come online
-            self.redpanda_cluster.wait_leader(f"acc{i}", replication=self.replication, timeout_s=20)
+            self.redpanda_cluster.wait_leader(
+                f"acc{i}",
+                replication=self.replication,
+                timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "account"], 20))
 
         logger.info(f"launching workload service")
         self.workload_cluster.launch_everywhere()
@@ -103,13 +118,22 @@ class TxMoneySingleFault(AbstractSingleFault):
             self.workload_cluster.start(node)
         
         ### distributing internal and data topic across different nodes
+        wait_progress_timeout_s = self.read_config(["settings", "setup", "wait_progress_timeout_s"], 20)
         
         logger.info(f"waiting for progress")
-        self.workload_cluster.wait_progress(timeout_s=10)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
         logger.info(f"waiting for id_allocator")
-        self.redpanda_cluster.wait_leader("id_allocator", namespace="kafka_internal", replication=3, timeout_s=10)
+        self.redpanda_cluster.wait_leader(
+            "id_allocator",
+            namespace="kafka_internal",
+            replication=3,
+            timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "id_allocator"], 20))
         logger.info(f"waiting for tx coordinator")
-        self.redpanda_cluster.wait_leader("tx", namespace="kafka_internal", replication=3, timeout_s=10)
+        self.redpanda_cluster.wait_leader(
+            "tx",
+            namespace="kafka_internal",
+            replication=3,
+            timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "tx"], 20))
 
         logger.info(f"warming up for 20s")
         sleep(20)
@@ -117,25 +141,48 @@ class TxMoneySingleFault(AbstractSingleFault):
         internal_nodes = self.redpanda_cluster.nodes[0:3]
         data_nodes = self.redpanda_cluster.nodes[3:]
 
+        reconfigure_timeout_s = self.read_config(["settings", "setup", "reconfigure_timeout_s"], 20)
+
         # reconfigure id_allocator to use internal_nodes
-        self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
+        self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
         # reconfigure tx to use internal_nodes
-        self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
+        self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
 
         for i in range(0, self.accounts):
-            self._reconfigure(data_nodes, f"acc{i}", partition=0, namespace="kafka", timeout_s=20)
+            self._reconfigure(data_nodes, f"acc{i}", partition=0, namespace="kafka", timeout_s=reconfigure_timeout_s)
         
-        self.workload_cluster.wait_progress(timeout_s=10)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
 
+        leadership_transfer_timeout_s = self.read_config(["settings", "setup", "leadship_transfer_timeout_s"], 20)
         # transfer controller to other[0]
-        self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=10)
+        self._transfer(
+            internal_nodes[0],
+            "controller",
+            partition=0,
+            namespace="redpanda",
+            timeout_s=leadership_transfer_timeout_s)
         # transfer id_allocator to other[1]
-        self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(
+            internal_nodes[1],
+            "id_allocator",
+            partition=0,
+            namespace="kafka_internal",
+            timeout_s=leadership_transfer_timeout_s)
         # transfer tx to other[2]
-        self._transfer(internal_nodes[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(
+            internal_nodes[2],
+            "tx",
+            partition=0,
+            namespace="kafka_internal",
+            timeout_s=leadership_transfer_timeout_s)
 
         for i in range(0, self.accounts):
-            self._transfer(data_nodes[i%len(data_nodes)], f"acc{i}", partition=0, namespace="kafka", timeout_s=10)
+            self._transfer(
+                data_nodes[i%len(data_nodes)],
+                f"acc{i}",
+                partition=0,
+                namespace="kafka",
+                timeout_s=leadership_transfer_timeout_s)
 
         logger.info(f"warming up for 20s")
         sleep(20)
