@@ -14,6 +14,19 @@
             "retries": 5
         }
     },
+    "settings": {
+        "setup": {
+            "wait_leader_timeout_s": {
+                "controller": 30,
+                "account": 20,
+                "id_allocator": 20,
+                "tx": 20
+            },
+            "leadship_transfer_timeout_s": 20,
+            "wait_progress_timeout_s": 20,
+            "reconfigure_timeout_s": 20
+        }
+    },
     "fault": {
         "name": "leadership_transfer",
         "topic": "acc0",
