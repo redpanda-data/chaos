@@ -120,3 +120,8 @@ for i in range(0, args.repeat):
             results["result"] = Result.more_severe(results["result"], least_severe_result)
     else:
         results["result"] = Result.more_severe(results["result"], most_severe_result)
+    
+    with open(f"/mnt/vectorized/experiments/{args.run_id}.json", "w") as info:
+        info.write(json.dumps(results, indent=2))
+    with open(f"/mnt/vectorized/experiments/latest.json", "w") as info:
+        info.write(json.dumps(results, indent=2))
