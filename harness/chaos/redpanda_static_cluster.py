@@ -112,33 +112,48 @@ class RedpandaCluster:
             if meta == None:
                 return None
             if "replicas" not in meta:
+                logger.debug(f"replicas are missing")
                 return None
             if "status" not in meta:
+                logger.debug(f"status is missing")
                 return None
             if status == None:
                 status = meta["status"]
+                logger.debug(f"get status:{status}")
             if status != meta["status"]:
+                logger.debug(f"get status:{meta['status']} while already observed:{status} before")
                 return None
             if replicas == None:
                 replicas = {}
                 for replica in meta["replicas"]:
                     replicas[replica["node_id"]] = True
+                logger.debug(f"get replicas:{','.join(map(str, replicas.keys()))}")
             else:
-                if len(replicas) != len(meta["replicas"]):
+                read_replicas = {}
+                for replica in meta["replicas"]:
+                    read_replicas[replica["node_id"]] = True
+                if len(replicas) != len(read_replicas):
+                    logger.debug(f"get conflicting replicas:{','.join(map(str, read_replicas.keys()))}")
                     return None
                 for replica in meta["replicas"]:
                     if replica["node_id"] not in replicas:
+                        logger.debug(f"get conflicting replicas:{','.join(map(str, read_replicas.keys()))}")
                         return None
             if replication != None:
                 if len(meta["replicas"]) != replication:
+                    logger.debug(f"expected replication:{replication} got:{len(meta['replicas'])}")
                     return None
             if meta["leader_id"] < 0:
+                logger.debug(f"doesn't have leader")
                 return None
             if last_leader < 0:
                 last_leader = meta["leader_id"]
+                logger.debug(f"get leader:{last_leader}")
             if last_leader not in replicas:
+                logger.debug(f"leader:{last_leader} isn't in the replica set")
                 return None
             if last_leader != meta["leader_id"]:
+                logger.debug(f"got leader:{meta['leader_id']} but observed {last_leader} before")
                 return None
         info = PartitionDetails()
         info.status = status
@@ -191,6 +206,8 @@ class RedpandaCluster:
         ip = node.ip
         r = requests.get(f"http://{ip}:9644/v1/partitions/{namespace}/{topic}/{partition}")
         if r.status_code != 200:
+            logger.error(f"status code: {r.status_code}")
+            logger.error(f"content: {r.content}")
             return None
         return r.json()
     
@@ -223,7 +240,7 @@ class RedpandaCluster:
         r = requests.put(f"http://{node.ip}:9644/v1/brokers/{to_decommission_node.id}/decommission")
         if r.status_code != 200:
             logger.error(f"status code: {r.status_code}")
-            logger.error(f"status code: {r.content}")
+            logger.error(f"content: {r.content}")
             raise Exception(f"Can't decommission {to_decommission_node.ip} from {node.ip}")
     
     def admin_brokers(self, node):
