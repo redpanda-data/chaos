@@ -83,10 +83,15 @@ class AbstractSingleFault(ABC):
             self.workload_cluster.kill_everywhere()
             self.workload_cluster.wait_killed(timeout_s=10)
             for node in self.workload_cluster.nodes:
-                logger.info(f"fetching oplog from {node.ip}")
-                mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}")
-                scp(f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/{node.ip}/workload.log",
+                try:
+                    logger.info(f"fetching oplog from {node.ip}")
+                    mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}")
+                    scp(f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/{node.ip}/workload.log",
                     f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/workload.log")
+                    scp(f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/system.log",
+                        f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/system.log")
+                except:
+                    pass
             self.is_workload_log_fetched = True
     
     def fetch_redpanda_logs(self):
