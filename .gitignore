@@ -20,6 +20,7 @@ docker/bind_mounts/
 workloads/list-offsets/target/
 workloads/reads-writes/target/
 workloads/writes/concurrency/target/
+workloads/writes/tx-writes/target/
 workloads/tx-single-reads-writes/target/
 workloads/tx-money/target/
 workloads/tx-streaming/target/

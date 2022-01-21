@@ -28,6 +28,8 @@ RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
 RUN cd /mnt/vectorized/workloads/writes/kafka-clients && \
     mvn clean dependency:copy-dependencies package
+RUN cd /mnt/vectorized/workloads/writes/tx-writes && \
+    mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/writes/concurrency && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/list-offsets && \

@@ -1,0 +1,20 @@
+{
+    "name": "tx-writes / java / baseline",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 2
+        }
+    },
+    "fault": null,
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

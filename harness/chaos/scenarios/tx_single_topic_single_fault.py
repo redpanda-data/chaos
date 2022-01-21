@@ -14,7 +14,7 @@ logger = logging.getLogger("chaos")
 
 class TxSingleTopicSingleFault(AbstractSingleFault):
     SUPPORTED_WORKLOADS = {
-        "tx-single-reads-writes / java"
+        "tx-single-reads-writes / java", "tx-writes / java"
     }
 
     SUPPORTED_FAULTS = {

@@ -17,6 +17,14 @@ def kafka_clients_workload(nodes_path):
     writing_java.name = "writes / java"
     return writes.Workload(writing_java, nodes_path)
 
+def tx_writes_workload(nodes_path):
+    writing_java = writes.Control()
+    writing_java.launch = "/mnt/vectorized/control/tx-writes.java.start.sh"
+    writing_java.alive = "/mnt/vectorized/control/tx-writes.java.alive.sh"
+    writing_java.kill = "/mnt/vectorized/control/tx-writes.java.stop.sh"
+    writing_java.name = "tx-writes / java"
+    return writes.Workload(writing_java, nodes_path)
+
 def concurrency_workload(nodes_path):
     writing_java = writes.Control()
     writing_java.launch = "/mnt/vectorized/control/concurrency.java.start.sh"
@@ -90,7 +98,8 @@ WORKLOADS = {
     "writes / concurrency": concurrency_workload,
     "tx-money / java": tx_money_workload,
     "tx-streaming / java": tx_streaming_workload,
-    "tx-subscribe / java": tx_subscribe_workload
+    "tx-subscribe / java": tx_subscribe_workload,
+    "tx-writes / java": tx_writes_workload
 }
 
 def wait_all_workloads_killed(nodes_path):
