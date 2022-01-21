@@ -35,14 +35,6 @@ class TxMoneySingleFault(AbstractSingleFault):
         self.partition = None
         self.replication = None
     
-    def read_config(self, path, default):
-        root = self.config
-        for node in path:
-            if node not in root:
-                return default
-            root = root[node]
-        return root
-    
     def prepare_experiment(self, config, experiment_id):
         self.config = copy.deepcopy(config)
         self.accounts = self.config["accounts"]

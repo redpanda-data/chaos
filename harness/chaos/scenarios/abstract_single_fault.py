@@ -170,6 +170,14 @@ class AbstractSingleFault(ABC):
             self.redpanda_cluster.wait_leader_is(new_leader, namespace, topic, partition, timeout_s=timeout_s)
             logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
 
+    def read_config(self, path, default):
+        root = self.config
+        for node in path:
+            if node not in root:
+                return default
+            root = root[node]
+        return root
+
     @abstractmethod
     def prepare_experiment(self, config, experiment_id):
         pass
