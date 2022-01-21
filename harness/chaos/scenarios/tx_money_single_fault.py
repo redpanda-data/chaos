@@ -176,5 +176,8 @@ class TxMoneySingleFault(AbstractSingleFault):
                 namespace="kafka",
                 timeout_s=leadership_transfer_timeout_s)
 
-        logger.info(f"warming up for 20s")
-        sleep(20)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        warmup_s = self.read_config(["settings", "setup", "warmup_s"], 20)
+        if warmup_s > 0:
+            logger.info(f"warming up for {warmup_s}s")
+            sleep(warmup_s)

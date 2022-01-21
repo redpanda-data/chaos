@@ -124,23 +124,23 @@ class SingleTopicSingleFault(AbstractSingleFault):
             logger.info(f"starting workload on {node.ip}")
             self.workload_cluster.start(node)
         
-        logger.info(f"warming up")
-        while True:
+        wait_progress_timeout_s = self.read_config(["settings", "setup", "wait_progress_timeout_s"], 20)
+
+        logger.info(f"waiting for progress")
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+
+        topic_leader = self.redpanda_cluster.wait_leader(self.topic, timeout_s=10)
+        logger.debug(f"leader of \"{self.topic}\": {topic_leader.ip} (id={topic_leader.id})")
+        controller_leader = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
+        logger.debug(f"controller leader: {controller_leader.ip} (id={controller_leader.id})")
+
+        if topic_leader == controller_leader:
+            target = self.redpanda_cluster.any_node_but(topic_leader)
+            self._transfer(target, topic="controller", partition=0, namespace="redpanda", timeout_s=10)
             logger.info(f"waiting for progress")
-            self.workload_cluster.wait_progress(timeout_s=10)
-
-            logger.info(f"warming up for 20s")
-            sleep(20)
-            
-            topic_leader = self.redpanda_cluster.wait_leader(self.topic, timeout_s=10)
-            logger.debug(f"leader of \"{self.topic}\": {topic_leader.ip} (id={topic_leader.id})")
-            
-            controller_leader = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
-            logger.debug(f"controller leader: {controller_leader.ip} (id={controller_leader.id})")
-
-            if topic_leader == controller_leader:
-                target = self.redpanda_cluster.any_node_but(topic_leader)
-                self._transfer(target, topic="controller", partition=0, namespace="redpanda", timeout_s=10)
-                continue
-            
-            break
+            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        
+        warmup_s = self.read_config(["settings", "setup", "warmup_s"], 20)
+        if warmup_s > 0:
+            logger.info(f"warming up for {warmup_s}s")
+            sleep(warmup_s)

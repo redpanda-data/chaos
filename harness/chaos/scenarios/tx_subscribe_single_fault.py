@@ -109,9 +109,10 @@ class TxSubscribeSingleFault(AbstractSingleFault):
             self.workload_cluster.start(node)
         
         ### distributing internal and data topic across different nodes
+        wait_progress_timeout_s = self.read_config(["settings", "setup", "wait_progress_timeout_s"], 20)
         
         logger.info(f"waiting for progress")
-        self.workload_cluster.wait_progress(timeout_s=20)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
         logger.info(f"waiting for id_allocator")
         self.redpanda_cluster.wait_leader("id_allocator", namespace="kafka_internal", replication=3, timeout_s=10)
         logger.info(f"waiting for tx coordinator")
@@ -136,7 +137,7 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         for partition in range(0, self.partitions):
             self._reconfigure(data_nodes, self.source, partition=partition, namespace="kafka", timeout_s=20)
         
-        self.workload_cluster.wait_progress(timeout_s=20)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
 
         # transfer controller to other[0]
         self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=20)
@@ -152,5 +153,8 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         for partition in range(0, self.partitions):
             self._transfer(data_nodes[partition%len(data_nodes)], self.source, partition=partition, namespace="kafka", timeout_s=20)
 
-        logger.info(f"warming up for 20s")
-        sleep(20)
+        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        warmup_s = self.read_config(["settings", "setup", "warmup_s"], 20)
+        if warmup_s > 0:
+            logger.info(f"warming up for {warmup_s}s")
+            sleep(warmup_s)
