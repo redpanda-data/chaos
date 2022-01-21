@@ -188,11 +188,15 @@ class AbstractSingleFault(ABC):
             self.workload_cluster.emit_event(node, "measure")
 
         if self.fault == None:
-            logger.info(f"wait for 180 seconds to record steady state")
-            sleep(180)
+            steady_s = self.read_config(["settings", "steady_s"], 180)
+            if steady_s > 0:
+                logger.info(f"wait for {steady_s} seconds to record steady state")
+                sleep(steady_s)
         elif self.fault.fault_type==FaultType.RECOVERABLE:
-            logger.info(f"wait for 60 seconds to record steady state")
-            sleep(60)
+            steady_s = self.read_config(["settings", "steady_s"], 60)
+            if steady_s > 0:
+                logger.info(f"wait for {steady_s} seconds to record steady state")
+                sleep(steady_s)
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injecting")
             logger.info(f"injecting {self.fault.name}")
@@ -203,8 +207,10 @@ class AbstractSingleFault(ABC):
             after_fault_info = {}
             for node in self.workload_cluster.nodes:
                 after_fault_info[node.ip] = self.workload_cluster.info(node)
-            logger.info(f"wait for 60 seconds to record impacted state")
-            sleep(60)
+            impact_s = self.read_config(["settings", "impact_s"], 60)
+            if impact_s > 0:
+                logger.info(f"wait for {impact_s} seconds to record impacted state")
+                sleep(impact_s)
             before_heal_info = {}
             for node in self.workload_cluster.nodes:
                 before_heal_info[node.ip] = self.workload_cluster.info(node)
@@ -240,11 +246,15 @@ class AbstractSingleFault(ABC):
             logger.info(f"healed {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "healed")
-            logger.info(f"wait for 60 seconds to record recovering state")
-            sleep(60)
+            recovery_s = self.read_config(["settings", "recovery_s"], 60)
+            if recovery_s > 0:
+                logger.info(f"wait for {recovery_s} seconds to record recovering state")
+                sleep(recovery_s)
         elif self.fault.fault_type==FaultType.ONEOFF:
-            logger.info(f"wait for 60 seconds to record steady state")
-            sleep(60)
+            steady_s = self.read_config(["settings", "steady_s"], 60)
+            if steady_s > 0:
+                logger.info(f"wait for {steady_s} seconds to record steady state")
+                sleep(steady_s)
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injecting")
             logger.info(f"injecting {self.fault.name}")
@@ -252,8 +262,10 @@ class AbstractSingleFault(ABC):
             logger.info(f"injected {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injected")
-            logger.info(f"wait for 120 seconds to record impacted / recovering state")
-            sleep(120)
+            recovery_s = self.read_config(["settings", "recovery_s"], 60)
+            if recovery_s > 0:
+                logger.info(f"wait for {recovery_s} seconds to record recovering / impacted state")
+                sleep(recovery_s)
         else:
             raise Exception(f"Unknown fault type {self.fault.fault_type}")
 
