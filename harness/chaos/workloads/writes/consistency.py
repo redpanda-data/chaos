@@ -7,6 +7,7 @@ from confluent_kafka import Consumer, TopicPartition, OFFSET_BEGINNING
 from chaos.checks.result import Result
 from chaos.workloads.writes.log_utils import State, cmds, transitions, phantoms
 import logging
+from time import sleep
 import os
 
 logger = logging.getLogger("consistency")
@@ -116,11 +117,12 @@ def validate(config, workload_dir):
                         raise Exception(f"last_time can't be None when processing: {new_state}")
                     delta_us = int(parts[1])
                     last_time = last_time + delta_us
-                    write = last_write[thread_id]
-                    last_write[thread_id] = None
-                    write.offset = None
-                    write.finished = last_time
-                    err_writes[write.op] = write
+                    if thread_id in last_write and last_write[thread_id] != None:
+                        write = last_write[thread_id]
+                        last_write[thread_id] = None
+                        write.offset = None
+                        write.finished = last_time
+                        err_writes[write.op] = write
                 elif new_state == State.EVENT:
                     if last_time == None:
                         raise Exception(f"last_time can't be None when processing: {new_state}")
@@ -150,7 +152,8 @@ def validate(config, workload_dir):
                 "statistics.interval.ms": 0, # default: 0
                 "api.version.request.timeout.ms": 10000, # default: 10000
                 "api.version.fallback.ms": 0, # default: 0
-                "fetch.wait.max.ms": 500 # default: 0
+                "fetch.wait.max.ms": 500, # default: 0
+                "isolation.level": "read_committed"
             })
 
             c.assign([TopicPartition(config["topic"], 0, OFFSET_BEGINNING)])
@@ -166,6 +169,7 @@ def validate(config, workload_dir):
                 msgs = c.consume(timeout=10)
                 if len(msgs)==0:
                     retries-=1
+                    sleep(5)
                     continue
                 for msg in msgs:
                     retries=RETRIES
