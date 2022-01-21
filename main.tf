@@ -1,11 +1,11 @@
 variable "public_key_path" {
   description = "The public key used to ssh to the hosts"
-  default     = "~/.ssh/id_ed25519.pub"
+  default     = "./id_ed25519.pub"
 }
 
 variable "private_key_path" {
   description = "The private key used to connect to the hosts via ssh"
-  default     = "~/.ssh/id_ed25519"
+  default     = "./id_ed25519.pub"
 }
 
 variable "username" {

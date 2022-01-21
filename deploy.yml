@@ -121,7 +121,7 @@
         mode: 0700
     - name: copy keys
       copy:
-        src: ~/.ssh/id_ed25519
+        src: ./id_ed25519
         dest: /home/ubuntu/.ssh/id_ed25519
         owner: ubuntu
         group: ubuntu
