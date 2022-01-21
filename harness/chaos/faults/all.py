@@ -11,6 +11,7 @@ from chaos.faults.kill_tx_follower import KillTxFollowerFault
 from chaos.faults.kill_all import KillAllFault
 from chaos.faults.pause_follower import PauseFollowerFault
 from chaos.faults.pause_leader import PauseLeaderFault
+from chaos.faults.pause_all import PauseAllFault
 from chaos.faults.leadership_transfer import LeadershipTransferFault
 from chaos.faults.reconfigure_11_kill import Reconfigure11KillFault
 from chaos.faults.reconfigure_313 import Reconfigure313Fault
@@ -39,6 +40,7 @@ FAULTS = {
     "kill_all": KillAllFault,
     "pause_follower": PauseFollowerFault,
     "pause_leader": PauseLeaderFault,
+    "pause_all": PauseAllFault,
     "leadership_transfer": LeadershipTransferFault,
     "reconfigure_11_kill": Reconfigure11KillFault,
     "reconfigure_313": Reconfigure313Fault,

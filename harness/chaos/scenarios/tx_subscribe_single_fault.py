@@ -21,7 +21,7 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         "isolate_controller", "isolate_leader", "kill_leader", "leadership_transfer",
         "baseline", "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
         "isolate_all", "rolling_restart", "kill_tx_leader", "kill_tx_follower",
-        "isolate_tx_leader", "isolate_tx_follower",
+        "isolate_tx_leader", "isolate_tx_follower", "pause_all",
         "hijack_tx_ids", "isolate_tx_all", "reconfigure_313", "kill_follower",
         "isolate_client_topic_leader", "stop_client"
     }

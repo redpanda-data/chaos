@@ -27,7 +27,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         "kill_follower", "kill_leader", "leadership_transfer", "baseline",
         "reconfigure_11_kill", "reconfigure_313", "reconfigure_kill_11",
         "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
-        "isolate_all", "rolling_restart", "decommission_leader"
+        "isolate_all", "rolling_restart", "decommission_leader", "pause_all"
     }
 
     SUPPORTED_CHECKS = {
