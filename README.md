@@ -4,6 +4,11 @@ Set `DEB_PATH` with path to the redpanda deb package (build redpanda with `task 
 
 ## Test on AWS (terraform & ansible)
 
+Install terraform and ansible:
+
+  - https://learn.hashicorp.com/tutorials/terraform/install-cli
+  - https://docs.ansible.com/ansible/latest/installation_guide/intro_installation.html#installing-ansible-on-ubuntu
+
 Provision redpanda nodes, client & control node:
 
     terraform apply
