@@ -468,8 +468,11 @@ def collect(config, check, workload_dir):
             player = LogPlayer(config)
 
             with open(os.path.join(node_dir, "workload.log"), "r") as workload_file:
+                last_line = None
                 for line in workload_file:
-                    player.apply(line)
+                    if last_line != None:
+                        player.apply(last_line)
+                    last_line = line
             
             total.latency_err_history.extend(player.latency_err_history)
             total.latency_ok_history.extend(player.latency_ok_history)
