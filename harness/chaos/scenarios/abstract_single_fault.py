@@ -262,7 +262,7 @@ class AbstractSingleFault(ABC):
             logger.info(f"injected {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injected")
-            recovery_s = self.read_config(["settings", "recovery_s"], 60)
+            recovery_s = self.read_config(["settings", "recovery_s"], 120)
             if recovery_s > 0:
                 logger.info(f"wait for {recovery_s} seconds to record recovering / impacted state")
                 sleep(recovery_s)
