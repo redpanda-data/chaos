@@ -1,16 +1,16 @@
 from enum import Enum
 
 class State(Enum):
-    INIT = 0
-    STARTED = 1
-    CONSTRUCTING = 2
-    CONSTRUCTED = 3
-    SENDING = 4
-    OK = 5
-    ERROR = 6
-    TIMEOUT = 7
-    EVENT = 8
-    VIOLATION = 9
+    STARTED = 0
+    CONSTRUCTING = 1
+    CONSTRUCTED = 2
+    SENDING = 3
+    OK = 4
+    ERROR = 5
+    TIMEOUT = 6
+    EVENT = 7
+    VIOLATION = 8
+    LOG = 9
 
 cmds = {
     "started": State.STARTED,
@@ -21,11 +21,11 @@ cmds = {
     "err": State.ERROR,
     "time": State.TIMEOUT,
     "event": State.EVENT,
-    "violation": State.VIOLATION
+    "violation": State.VIOLATION,
+    "log": State.LOG
 }
 
 transitions = {
-    State.INIT: [State.STARTED],
     State.STARTED: [State.CONSTRUCTING],
     State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
     State.CONSTRUCTED: [State.SENDING, State.CONSTRUCTING],
@@ -35,4 +35,4 @@ transitions = {
     State.TIMEOUT: [State.SENDING, State.CONSTRUCTING]
 }
 
-phantoms = [ State.EVENT, State.VIOLATION ]
+phantoms = [ State.EVENT, State.VIOLATION, State.LOG ]
