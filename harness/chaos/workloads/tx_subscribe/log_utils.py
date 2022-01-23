@@ -1,21 +1,20 @@
 from enum import Enum
 
 class State(Enum):
-    INIT = 0
-    STARTED = 1
-    CONSTRUCTING = 2
-    CONSTRUCTED = 3
-    TX = 4
-    COMMIT = 5
-    OK = 6
-    ERROR = 7
-    VIOLATION = 8
-    EVENT = 9
-    ABORT = 10
-    LOG = 11
-    SEND = 12
-    READ = 13
-    SEEN = 14
+    STARTED = 0
+    CONSTRUCTING = 1
+    CONSTRUCTED = 2
+    TX = 3
+    COMMIT = 4
+    OK = 5
+    ERROR = 6
+    VIOLATION = 7
+    EVENT = 8
+    ABORT = 9
+    LOG = 10
+    SEND = 11
+    READ = 12
+    SEEN = 13
 
 cmds = {
     "started": State.STARTED,

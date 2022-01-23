@@ -1,7 +1,6 @@
 from enum import Enum
 import sys
 import json
-from tkinter.messagebox import NO
 from sh import mkdir, rm
 import traceback
 from chaos.checks.result import Result
@@ -148,7 +147,6 @@ def validate(config, workload_dir):
     
     try:
         has_violation = False
-
         checker = ReadChecker(config)
         for node in config["workload"]["nodes"]:
             player = LogPlayer(node, checker)
@@ -158,11 +156,11 @@ def validate(config, workload_dir):
                     if last_line != None:
                         player.apply(last_line)
                     last_line = line
-        
-        has_errors = player.has_violation
+            has_violation = has_violation or player.has_violation
+        has_errors = has_violation
 
         return {
-            "result": Result.FAILED if player.has_violation else Result.PASSED
+            "result": Result.FAILED if has_violation else Result.PASSED
         }
     except:
         e, v = sys.exc_info()[:2]
