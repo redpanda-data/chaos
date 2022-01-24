@@ -3,7 +3,7 @@ import sys
 import json
 from sh import mkdir, rm
 import traceback
-from confluent_kafka import Producer, Consumer, TopicPartition, OFFSET_BEGINNING, OFFSET_END
+from confluent_kafka import KafkaException, Producer, Consumer, TopicPartition, OFFSET_BEGINNING, OFFSET_END
 from chaos.checks.result import Result
 from chaos.workloads.tx_money.log_utils import State, cmds, transitions, phantoms
 import logging
