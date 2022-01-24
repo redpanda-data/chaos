@@ -40,27 +40,6 @@ class SingleTopicSingleFault(AbstractSingleFault):
         self.partition = None
         self.replication = None
     
-    def _transfer(self, new_leader, topic, partition=0, namespace="kafka", timeout_s=10):
-        old_leader = self.redpanda_cluster.wait_leader(topic, namespace=namespace, timeout_s=timeout_s)
-        logger.debug(f"{namespace}/{topic}/{partition} leader: {old_leader.ip} (id={old_leader.id})")
-        if new_leader != old_leader:
-            begin = time.time()
-            while True:
-                if time.time() - begin > timeout_s:
-                    raise TimeoutException(f"can't transfer leader of {topic} to {new_leader.ip} within {timeout_s} sec")
-                try:
-                    self.redpanda_cluster.transfer_leadership_to(new_leader, namespace, topic, partition)
-                    break
-                except:
-                    e, v = sys.exc_info()[:2]
-                    trace = traceback.format_exc()
-                    logger.error(e)
-                    logger.error(v)
-                    logger.error(trace)
-                    sleep(1)
-            self.redpanda_cluster.wait_leader_is(new_leader, namespace, topic, partition, timeout_s=timeout_s)
-            logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
-    
     def prepare_experiment(self, config, experiment_id):
         self.config = copy.deepcopy(config)
         self.topic = self.config["topic"]
