@@ -41,14 +41,20 @@ class DecommissionLeaderFault:
 
         begin = time.time()
         decommissioned = False
-        while not decommissioned:
+        while True:
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't decommision {leader.ip} within {timeout_s} sec")
             decommissioned = True
             for node in survivors:
                 brokers = _denoise(scenario.redpanda_cluster.admin_brokers(node))
                 if len(brokers) != len(survivors):
+                    r = {node["node_id"]:node["membership_status"] for node in brokers}
+                    logger.debug(f"expected {len(survivors)}, got: {json.dumps(r)} from {node.id}")
                     decommissioned = False
                 for broker in brokers:
                     if broker["node_id"] not in survivors_id:
+                        logger.debug(f"node {broker['node_id']}={broker['membership_status']} isn't expected")
                         decommissioned = False
+            if decommissioned:
+                break
+            sleep(5)
