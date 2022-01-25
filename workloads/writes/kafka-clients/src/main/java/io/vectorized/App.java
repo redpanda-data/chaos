@@ -14,6 +14,9 @@ public class App
         public int concurrency = 1;
         public int ballast = 0;
         public int retries = 0;
+        // 0 - unique
+        // n - cycling through [0,n)
+        public int key_rank = 0;
         public Boolean enable_idempotency = false;
     }
     

@@ -70,6 +70,8 @@ class LogPlayer:
         RETRIES=5
         retries=RETRIES
 
+        final_ko = dict()
+
         prev_offset = -1
         is_active = True
         is_first = True
@@ -95,6 +97,9 @@ class LogPlayer:
                 op = int(parts[0])
                 key = msg.key().decode('utf-8')
 
+                if self.cleanup == "compact":
+                    final_ko[key] = offset
+
                 if is_first:
                     if self.cleanup == "delete":
                         for woff in list(self.ok_writes.keys()):
@@ -116,10 +121,10 @@ class LogPlayer:
                 if offset in self.ok_writes:
                     write = self.ok_writes[offset]
                     if write.op != op:
-                        logger.error(f"read message {key}={op}@{offset} doesn't match written message {write.key}={write.op}@{offset}")
+                        logger.error(f"read message [{key}]={op}@{offset} doesn't match written message [{write.key}]={write.op}@{offset}")
                         self.has_violation = True
                     if write.key != key:
-                        logger.error(f"read message {key}={op}@{offset} doesn't match written message {write.key}={write.op}@{offset}")
+                        logger.error(f"read message [{key}]={op}@{offset} doesn't match written message [{write.key}]={write.op}@{offset}")
                         self.has_violation = True
                     del self.ok_writes[offset]
                     if op in self.err_writes:
@@ -127,14 +132,14 @@ class LogPlayer:
                 elif op in self.err_writes:
                     write = self.err_writes[op]
                     if write.key != key:
-                        logger.error(f"read message {key}={op}@{offset} doesn't match written message {write.key}={write.op}")
+                        logger.error(f"read message [{key}]={op}@{offset} doesn't match written message [{write.key}]={write.op}")
                         self.has_violation = True
                     if offset <= write.max_offset:
-                        logger.error(f"message got lesser offset that was known ({write.max_offset}) before it's written: {write.key}={write.op}@{offset}")
+                        logger.error(f"message got lesser offset that was known ({write.max_offset}) before it's written: [{write.key}]={write.op}@{offset}")
                         self.has_violation = True
                     del self.err_writes[op]
                 else:
-                    logger.error(f"read unknown message {key}={op}@{offset}")
+                    logger.error(f"read unknown message [{key}]={op}@{offset}")
                     self.has_violation = True
 
                 if offset >= self.last_offset:
@@ -143,16 +148,30 @@ class LogPlayer:
         c.close()
 
         if len(self.ok_writes) != 0:
-            self.has_violation = True
-            for offset in self.ok_writes:
-                write = self.ok_writes[offset]
-                logger.error(f"lost message found {write.key}={write.op}@{offset}")
+            if self.cleanup == "compact":
+                for offset in self.ok_writes:
+                    write = self.ok_writes[offset]
+                    if write.key not in final_ko:
+                        self.has_violation = True
+                        logger.error(f"lost message found [{write.key}]={write.op}@{offset}")
+                        continue
+                    if final_ko[write.key] == offset:
+                        raise Exception("an observed record can't be skipped")
+                    if final_ko[write.key] < offset:
+                        self.has_violation = True
+                        logger.error(f"lost message found [{write.key}]={write.op}@{offset} last seen is [{write.key}]@{final_ko[write.key]}")
+                        continue
+            else:
+                self.has_violation = True
+                for offset in self.ok_writes:
+                    write = self.ok_writes[offset]
+                    logger.error(f"lost message found [{write.key}]={write.op}@{offset}")
     
     def writing_apply(self, thread_id, parts):
         if self.curr_state[thread_id] == State.SENDING:
             write = Write()
-            write.key = self.key[thread_id]
-            write.op = int(parts[3])
+            write.key = parts[3]
+            write.op = int(parts[4])
             write.started = self.ts_us
             write.max_offset = self.max_offset
             self.last_write[thread_id] = write
@@ -166,11 +185,11 @@ class LogPlayer:
             write.finished = self.ts_us
             if offset <= write.max_offset:
                 self.has_violation = True
-                logger.error(f"message got lesser offset that was known ({write.max_offset}) before it's written: {write.key}={write.op}@{offset}")
+                logger.error(f"message got lesser offset that was known ({write.max_offset}) before it's written: [{write.key}]={write.op}@{offset}")
             self.max_offset = max(self.max_offset, offset)
             if offset in self.ok_writes:
                 known = self.ok_writes[offset]
-                logger.error(f"message got already assigned offset: {write.key}={write.op} vs {known.key}={known.op} @ {offset}")
+                logger.error(f"message got already assigned offset: [{write.key}]={write.op} vs [{known.key}]={known.op} @ {offset}")
                 self.has_violation = True
             self.ok_writes[offset] = write
         elif self.curr_state[thread_id] in [State.ERROR, State.TIMEOUT]:

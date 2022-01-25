@@ -28,6 +28,7 @@ public class Workload {
     private long past_us;
     private long before_us = -1;
     private long last_op = 0;
+    private long last_key = 0;
 
     private long last_success_us = -1;
     private HashMap<Integer, Boolean> should_reset;
@@ -35,6 +36,14 @@ public class Workload {
 
     synchronized long get_op() {
         return ++this.last_op;
+    }
+
+    synchronized String get_key() {
+        this.last_key++;
+        if (args.settings.key_rank <= 0) {
+            return "" + this.last_key;
+        }
+        return "" + (this.last_key % args.settings.key_rank);
     }
 
     private synchronized void tick() {
@@ -200,6 +209,7 @@ public class Workload {
             }
 
             long op = get_op();
+            String key = get_key();
             
             try {
                 if (producer == null) {
@@ -217,12 +227,12 @@ public class Workload {
             }
             
             try {
-                log(thread_id, "msg\t" + op);
+                log(thread_id, "msg\t" + key + "\t" + op);
                 var ballast = "X";
                 if (args.settings.ballast > 0) {
                     ballast = randomString(random, 1024);
                 }
-                var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op + "\t" + ballast));
+                var f = producer.send(new ProducerRecord<String, String>(args.topic, key, "" + op + "\t" + ballast));
                 var m = f.get();
                 succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());

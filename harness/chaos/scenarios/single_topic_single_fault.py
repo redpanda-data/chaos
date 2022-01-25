@@ -45,6 +45,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         self.topic = self.config["topic"]
         self.replication = self.config["replication"]
         self.partition = 0
+        self.cleanup = self.read_config(["cleanup"], "delete")
         self.config["experiment_id"] = experiment_id
         self.config["result"] = Result.PASSED
         logger.info(f"starting experiment {self.config['name']} (id={self.config['experiment_id']})")
@@ -86,7 +87,8 @@ class SingleTopicSingleFault(AbstractSingleFault):
         self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=30)
 
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
-        self.redpanda_cluster.create_topic(self.topic, self.replication, 1)
+        self.redpanda_cluster.create_topic(self.topic, self.replication, 1, cleanup=self.cleanup)
+
         # waiting for the topic to come online
         self.redpanda_cluster.wait_leader(self.topic, replication=self.replication, timeout_s=20)
 
