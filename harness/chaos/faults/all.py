@@ -23,6 +23,8 @@ from chaos.faults.hijack_tx_ids import HijackTxIDsFault
 from chaos.faults.isolate_tx_all import IsolateTxAllFault
 from chaos.faults.isolate_client_topic_leader import IsolateClientTopicLeader
 from chaos.faults.stop_client import StopClient
+from chaos.faults.combinator_as_oneoff import AsOneoffCombinator
+from chaos.faults.combinator_repeat import RepeatCombinator
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -49,5 +51,7 @@ FAULTS = {
     "decommission_leader": DecommissionLeaderFault,
     "hijack_tx_ids": HijackTxIDsFault,
     "isolate_client_topic_leader": IsolateClientTopicLeader,
-    "stop_client": StopClient
+    "stop_client": StopClient,
+    "as_oneoff": lambda config: AsOneoffCombinator(FAULTS, config),
+    "repeat": lambda config: RepeatCombinator(FAULTS, config)
 }
