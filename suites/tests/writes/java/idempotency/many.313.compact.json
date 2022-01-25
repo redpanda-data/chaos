@@ -1,0 +1,51 @@
+{
+    "name": "writes / java / many.313.compact",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "cleanup": "compact",
+    "replication": 3,
+    "workload": {
+        "name": "writes / java",
+        "checks": [
+            { 
+                "name": "consistency",
+                "cleanup": "compact"
+            },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5,
+            "enable_idempotency": true,
+            "concurrency": 2,
+            "ballast": 1024,
+            "key_rank": 5
+        }
+    },
+    "fault": {
+        "name": "repeat",
+        "delay_s": 5,
+        "times": 3,
+        "subject": {
+            "name": "as_oneoff",
+            "delay_s": 5,
+            "subject": {
+                "name": "reconfigure_313",
+                "timeout_s": 60
+            }
+        }
+    },
+    "settings": {
+        "redpanda": {
+            "redpanda.log_segment_size": 10485760,
+            "redpanda.compacted_log_segment_size": 1048576,
+            "redpanda.log_compaction_interval_ms": 1000,
+            "redpanda.compaction_ctrl_min_shares": 1000,
+            "redpanda.compaction_ctrl_max_shares": 1000,
+            "redpanda.max_compacted_log_segment_size": 1
+        },
+        "recovery_s": 60
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

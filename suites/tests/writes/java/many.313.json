@@ -1,0 +1,39 @@
+{
+    "name": "writes / java / many.313",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "writes / java",
+        "checks": [
+            { 
+                "name": "consistency"
+            },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 2,
+            "ballast": 1024,
+            "key_rank": 5
+        }
+    },
+    "fault": {
+        "name": "repeat",
+        "delay_s": 5,
+        "times": 3,
+        "subject": {
+            "name": "as_oneoff",
+            "delay_s": 5,
+            "subject": {
+                "name": "reconfigure_313",
+                "timeout_s": 60
+            }
+        }
+    },
+    "settings": {
+        "recovery_s": 60
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
