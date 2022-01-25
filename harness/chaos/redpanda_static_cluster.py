@@ -1,4 +1,5 @@
 import time
+from itsdangerous import json
 import requests
 from time import sleep
 from sh import ssh
@@ -67,9 +68,11 @@ class RedpandaCluster:
             logger.debug(f"cleaning a redpanda instance on {node.ip}")
             self.clean(node)
     
-    def launch_everywhere(self):
+    def launch_everywhere(self, settings):
         for node in self.nodes:
-            logger.debug(f"starting a redpanda instance on {node.ip}")
+            logger.debug(f"starting a redpanda instance on {node.ip} with {json.dumps(settings)}")
+            for key in settings.keys():
+                ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.config.sh", key, settings[key])
             self.launch(node)
 
     def wait_alive(self, timeout_s=10):

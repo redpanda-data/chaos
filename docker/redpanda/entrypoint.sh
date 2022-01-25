@@ -46,6 +46,10 @@ rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump"
 rpk redpanda mode production
 rpk redpanda tune all
 
+cp /etc/redpanda/redpanda.yaml /mnt/vectorized/redpanda.yaml
+chown -R ubuntu:ubuntu /etc/redpanda
+chown ubuntu:ubuntu /mnt/vectorized/redpanda.yaml
+
 rm -rf /mnt/vectorized/redpanda.nodes
 for host in "${!redpandas[@]}"; do
   echo "${redpandas[$host]} ${node_ids[$host]}" >> /mnt/vectorized/redpanda.nodes

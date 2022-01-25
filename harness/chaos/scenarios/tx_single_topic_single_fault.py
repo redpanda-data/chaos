@@ -76,7 +76,7 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         self.redpanda_cluster.kill_everywhere()
         self.redpanda_cluster.wait_killed(timeout_s=10)
         self.redpanda_cluster.clean_everywhere()
-        self.redpanda_cluster.launch_everywhere()
+        self.redpanda_cluster.launch_everywhere(self.read_config(["settings", "redpanda"], {}))
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
         # waiting for the controller to be up before creating a topic
