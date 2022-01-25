@@ -16,6 +16,8 @@ import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.nio.charset.Charset;
+import java.util.Random;
 
 public class Workload {
     public volatile boolean is_active = false;
@@ -134,7 +136,19 @@ public class Workload {
         return result;
     }
 
+    private String randomString(Random random, int length) {
+        byte[] array = new byte[length];
+        random.nextBytes(array);
+        for (int i=0;i<length;i++) {
+            // 32 is ' ', 126 is '~', generating all in between
+            array[i] = (byte)(32 + array[i]%(126 - 32));
+        }
+        return new String(array, Charset.forName("UTF-8"));
+    }
+
     private void process(int thread_id) throws Exception {
+        var random = new Random();
+
         Properties props = new Properties();
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, args.brokers);
         props.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -204,7 +218,11 @@ public class Workload {
             
             try {
                 log(thread_id, "msg\t" + op);
-                var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
+                var ballast = "X";
+                if (args.settings.ballast > 0) {
+                    ballast = randomString(random, 1024);
+                }
+                var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op + "\t" + ballast));
                 var m = f.get();
                 succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());

@@ -195,7 +195,7 @@ class Workload:
                         check["result"] = Result.UNKNOWN
                         check["message"] = f"Can't find logs dir: {workload_dir}"
                 if check["result"] == Result.PASSED:
-                    result = consistency.validate(config, f"/mnt/vectorized/experiments/{config['experiment_id']}")
+                    result = consistency.validate(config, check, f"/mnt/vectorized/experiments/{config['experiment_id']}")
                     check["result"] = result["result"]
                 config["result"] = Result.more_severe(config["result"], check["result"])
             elif check["name"] == "stat":

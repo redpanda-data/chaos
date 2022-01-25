@@ -22,8 +22,14 @@ class Write:
         self.max_offset = None
 
 class LogPlayer:
-    def __init__(self, config):
+    def __init__(self, config, check_config):
         self.config = config
+        self.check_config = check_config
+        self.cleanup = None
+        if "cleanup" in self.check_config:
+            self.cleanup = self.check_config["cleanup"]
+            if self.cleanup not in ["compact", "delete"]:
+                raise Exception(f"unknown cleanup policy: {self.cleanup}")
         self.curr_state = dict()
         self.ts_us = None
         self.has_violation = False
@@ -66,6 +72,7 @@ class LogPlayer:
 
         prev_offset = -1
         is_active = True
+        is_first = True
         while is_active:
             if retries==0:
                 raise Exception("Can't connect to the redpanda cluster")
@@ -81,8 +88,22 @@ class LogPlayer:
                 if msg.error():
                     logger.debug("Consumer error: {}".format(msg.error()))
                     continue
-
+                
                 offset = msg.offset()
+                value = msg.value().decode('utf-8')
+                parts = value.split("\t")
+                op = int(parts[0])
+                key = msg.key().decode('utf-8')
+
+                if is_first:
+                    if self.cleanup == "delete":
+                        for woff in list(self.ok_writes.keys()):
+                            if woff < offset:
+                                del self.ok_writes[woff]
+                        for wop in list(self.err_writes.keys()):
+                            if wop < op:
+                                del self.err_writes[wop]
+                    is_first = False
 
                 if offset <= prev_offset:
                     logger.error(f"offsets must increase; observed {offset} after {prev_offset}")
@@ -91,9 +112,6 @@ class LogPlayer:
 
                 if offset<self.first_offset:
                     continue
-
-                op = int(msg.value().decode('utf-8'))
-                key = msg.key().decode('utf-8')
 
                 if offset in self.ok_writes:
                     write = self.ok_writes[offset]
@@ -201,7 +219,7 @@ class LogPlayer:
 
         self.writing_apply(thread_id, parts)
 
-def validate(config, workload_dir):
+def validate(config, check_config, workload_dir):
     logger.setLevel(logging.DEBUG)
     logger_handler_path = os.path.join(workload_dir, "consistency.log")
     handler = logging.FileHandler(logger_handler_path)
@@ -217,7 +235,7 @@ def validate(config, workload_dir):
             raise Exception("can't validate more than one workload nodes")
 
         for node in config["workload"]["nodes"]:
-            player = LogPlayer(config)
+            player = LogPlayer(config, check_config)
             with open(os.path.join(workload_dir, node, "workload.log"), "r") as workload_file:
                 last_line = None
                 for line in workload_file:

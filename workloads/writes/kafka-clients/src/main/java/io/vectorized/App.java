@@ -12,6 +12,7 @@ public class App
 {
     public static class WorkflowSettings {
         public int concurrency = 1;
+        public int ballast = 0;
         public int retries = 0;
         public Boolean enable_idempotency = false;
     }
