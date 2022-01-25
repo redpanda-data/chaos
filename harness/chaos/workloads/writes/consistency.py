@@ -128,7 +128,8 @@ class LogPlayer:
                         self.has_violation = True
                     del self.ok_writes[offset]
                     if op in self.err_writes:
-                        raise Exception("wat")
+                        logger.error(f"op ({op}) of an observed write [{key}]={op}@{offset} found in erroneous writes")
+                        self.has_violation = True
                 elif op in self.err_writes:
                     write = self.err_writes[op]
                     if write.key != key:
