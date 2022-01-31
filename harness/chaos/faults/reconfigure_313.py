@@ -54,7 +54,7 @@ class Reconfigure313Fault:
             new_leader = candidates[0]
         
         begin = time.time()
-        logger.debug(f"reconfiguring {namespace}/{topic}/{partition} to [{new_leader.ip}]")
+        logger.debug(f"reconfiguring {namespace}/{topic}/{partition} to {new_leader.id} ({new_leader.ip})")
         scenario.redpanda_cluster.reconfigure(controller, [new_leader], topic, partition=partition, namespace=namespace)
         while True:
             if time.time() - begin > timeout_s:

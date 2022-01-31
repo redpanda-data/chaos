@@ -110,7 +110,7 @@ class RedpandaCluster:
         status = None
         for node in nodes:
             ip = node.ip
-            logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" details from {node.ip}")
+            logger.debug(f"requesting \"{namespace}/{topic}/{partition}\" details from {node.id} ({node.ip})")
             meta = self._get_details(node, namespace, topic, partition)
             if meta == None:
                 return None
