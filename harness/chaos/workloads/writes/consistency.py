@@ -41,6 +41,7 @@ class LogPlayer:
         self.key = dict()
         self.ok_writes = dict()
         self.err_writes = dict()
+        self.inlight_writes = dict()
     
     def reread_and_check(self):
         if self.has_violation:
@@ -140,8 +141,26 @@ class LogPlayer:
                         self.has_violation = True
                     del self.err_writes[op]
                 else:
-                    logger.error(f"read unknown message [{key}]={op}@{offset}")
-                    self.has_violation = True
+                    found = False
+                    for thread_id in self.last_write.keys():
+                        write = self.last_write[thread_id]
+                        if write == None:
+                            continue
+                        if write.key != key:
+                            continue
+                        if op != write.op:
+                            logger.error(f"read op={op} for key={key} doesn't match inflight op={write.op}")
+                            self.has_violation = True
+                            break
+                        if offset <= write.max_offset:
+                            logger.error(f"message got lesser offset that was known ({write.max_offset}) before it's written: [{write.key}]={write.op}@{offset}")
+                            self.has_violation = True
+                            break
+                        found = True
+                        break
+                    if not(found) and not(self.has_violation):
+                        logger.error(f"read unknown message [{key}]={op}@{offset}")
+                        self.has_violation = True
 
                 if offset >= self.last_offset:
                     is_active = False
