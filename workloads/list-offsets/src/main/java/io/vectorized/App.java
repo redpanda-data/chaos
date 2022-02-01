@@ -12,6 +12,9 @@ public class App
 {
     public static class WorkflowSettings {
         public int concurrency;
+        // 0 - unique
+        // n - cycling through [0,n)
+        public int key_rank = 0;
     }
     
     public static class InitBody {

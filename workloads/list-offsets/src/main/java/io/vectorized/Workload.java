@@ -32,6 +32,7 @@ public class Workload {
     private long known_offset;
     private long before_us = -1;
     private long last_op = 0;
+    private long last_key = 0;
 
     private HashMap<Integer, App.OpsInfo> ops_info;
 
@@ -55,6 +56,14 @@ public class Workload {
 
     synchronized long get_op() {
         return ++this.last_op;
+    }
+
+    synchronized String get_key() {
+        this.last_key++;
+        if (args.settings.key_rank <= 0) {
+            return "" + this.last_key;
+        }
+        return "" + (this.last_key % args.settings.key_rank);
     }
 
     synchronized void update_known_offset(long offset) {
@@ -185,6 +194,7 @@ public class Workload {
 
         while (is_active) {
             long op = get_op();
+            String key = get_key();
             
             try {
                 if (producer == null) {
@@ -202,8 +212,8 @@ public class Workload {
             }
             
             try {
-                log(thread_id, "msg\t" + op);
-                var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
+                log(thread_id, "msg\t" + key + "\t" + op);
+                var f = producer.send(new ProducerRecord<String, String>(args.topic, key, "" + op));
                 var m = f.get();
                 succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());

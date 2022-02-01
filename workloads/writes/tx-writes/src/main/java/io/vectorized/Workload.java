@@ -27,11 +27,20 @@ public class Workload {
     private long past_us;
     private long before_us = -1;
     private long last_op = 0;
+    private long last_key = 0;
 
     private HashMap<Integer, App.OpsInfo> ops_info;
 
     synchronized long get_op() {
         return ++this.last_op;
+    }
+
+    synchronized String get_key() {
+        this.last_key++;
+        if (args.settings.key_rank <= 0) {
+            return "" + this.last_key;
+        }
+        return "" + (this.last_key % args.settings.key_rank);
     }
 
     public Workload(App.InitBody args) {
@@ -161,6 +170,7 @@ public class Workload {
 
         while (is_active) {
             long op = get_op();
+            String key = get_key();
             
             try {
                 if (producer == null) {
@@ -188,9 +198,9 @@ public class Workload {
 
             long offset = -1;
             try {
-                log(tid, "msg\t" + op);
+                log(tid, "msg\t" + key + "\t" + op);
                 producer.beginTransaction();
-                var f = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op));
+                var f = producer.send(new ProducerRecord<String, String>(args.topic, key, "" + op));
                 offset = f.get().offset();
             } catch (Exception e1) {
                 synchronized (this) {
