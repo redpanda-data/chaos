@@ -2,7 +2,6 @@
     "name": "all",
     "tests": [
         "reads_writes/baseline.json",
-        "reads_writes/decommission_leader.json",
         "reads_writes/isolate_all.json",
         "reads_writes/isolate_follower.json",
         "reads_writes/isolate_leader.json",

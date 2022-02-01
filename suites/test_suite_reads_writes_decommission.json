@@ -1,0 +1,15 @@
+{
+    "name": "all",
+    "tests": [
+        "reads_writes/decommission_leader.json"
+    ],
+    "settings": {
+        "test": {
+            "remove_logs_on_success": true
+        },
+        "suite": {
+            "ignore_transient_errors": true,
+            "at_least_one_passes": false
+        }
+    }
+}

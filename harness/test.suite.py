@@ -118,6 +118,8 @@ for i in range(0, args.repeat):
     if ignore_transient_errors:
         if at_least_one_passes:
             results["result"] = Result.more_severe(results["result"], least_severe_result)
+        elif least_severe_result == Result.FAILED:
+            results["result"] = Result.FAILED
     else:
         results["result"] = Result.more_severe(results["result"], most_severe_result)
     
