@@ -5,6 +5,7 @@ from time import sleep
 from sh import ssh
 import sys
 import traceback
+import random
 from chaos.types import TimeoutException
 
 import logging
@@ -173,9 +174,11 @@ class RedpandaCluster:
     def wait_details(self, topic, partition=0, namespace="kafka", replication=None, timeout_s=10, nodes=None):
         if nodes == None:
             nodes = self.nodes
+        nodes = list(nodes)
         begin = time.time()
         info = None
         while info == None:
+            random.shuffle(nodes)
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't fetch stable replicas for {namespace}/{topic}/{partition} within {timeout_s} sec")
             try:
