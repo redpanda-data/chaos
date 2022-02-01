@@ -84,6 +84,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         self.redpanda_cluster.launch_everywhere(self.read_config(["settings", "redpanda"], {}))
         self.redpanda_cluster.wait_alive(timeout_s=10)
 
+        sleep(5)
         # waiting for the controller to be up before creating a topic
         self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=30)
 
@@ -96,6 +97,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         logger.info(f"launching workload service")
         self.workload_cluster.launch_everywhere()
         self.workload_cluster.wait_alive(timeout_s=10)
+        sleep(5)
         self.workload_cluster.wait_ready(timeout_s=10)
 
         for node in self.workload_cluster.nodes:
