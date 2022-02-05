@@ -1,0 +1,47 @@
+{
+    "name": "tx-poll / java / transfer data leadership n times (commit delay)",
+    "scenario": "tx_poll_single_fault",
+    "replication": 3,
+    "workload": {
+        "name": "tx-poll / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 24,
+            "topics": 2,
+            "partitions": 2,
+            "threads": 16,
+            "subscribe_percent": 40,
+            "group_id": "group1",
+            "consume_commit_pause_s": 1
+        }
+    },
+    "fault": {
+        "name": "repeat",
+        "delay_s": 10,
+        "times": 10,
+        "subject": {
+            "name": "leadership_transfer",
+            "topic": {
+                "name": "random",
+                "values": ["topic0", "topic1"]
+            },
+            "partition": {
+                "name": "random",
+                "values": [0, 1]
+            }
+        }
+    },
+    "settings": {
+        "recovery_s": 10,
+        "steady_s": 10,
+        "setup": {
+            "warmup_s": 0
+        }
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

@@ -1,0 +1,22 @@
+{
+    "name": "tx_poll",
+    "tests": [
+        "tx_poll/many_transfer_group_leadership.1.poll.json",
+        "tx_poll/many_transfer_group_leadership.1.commit.json",
+        "tx_poll/many_transfer_group_leadership.json",
+        "tx_poll/many_transfer_data_leadership.1.poll.json",
+        "tx_poll/many_transfer_data_leadership.1.commit.json",
+        "tx_poll/many_transfer_data_leadership.json",
+        "tx_poll/many_transfer_tx_leadership.json",
+        "tx_poll/baseline.json"
+    ],
+    "settings": {
+        "test": {
+            "remove_logs_on_success": false
+        },
+        "suite": {
+            "ignore_transient_errors": true,
+            "at_least_one_passes": true
+        }
+    }
+}

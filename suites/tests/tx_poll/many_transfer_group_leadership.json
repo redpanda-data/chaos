@@ -1,0 +1,41 @@
+{
+    "name": "tx-poll / java / transfer group leadership n times",
+    "scenario": "tx_poll_single_fault",
+    "replication": 3,
+    "workload": {
+        "name": "tx-poll / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 24,
+            "topics": 2,
+            "partitions": 2,
+            "threads": 16,
+            "subscribe_percent": 40,
+            "group_id": "group1"
+        }
+    },
+    "fault": {
+        "name": "repeat",
+        "delay_s": 10,
+        "times": 10,
+        "subject": {
+            "name": "leadership_transfer",
+            "topic": "group",
+            "namespace": "kafka_internal",
+            "partition": 0
+        }
+    },
+    "settings": {
+        "recovery_s": 10,
+        "steady_s": 10,
+        "setup": {
+            "warmup_s": 0
+        }
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
