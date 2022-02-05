@@ -1,6 +1,9 @@
+from random import Random
+from itsdangerous import json
 from time import sleep
 import sys
 import time
+from random import Random
 import traceback
 import logging
 from chaos.types import TimeoutException
@@ -13,6 +16,7 @@ class LeadershipTransferFault:
         self.fault_type = FaultType.ONEOFF
         self.name = "leadership transfer"
         self.fault_config = fault_config
+        self.random = Random()
 
     def execute(self, scenario):
         timeout_s = 10
@@ -28,7 +32,12 @@ class LeadershipTransferFault:
             topic = scenario.topic
         partition = 0
         if "partition" in self.fault_config:
-            partition = self.fault_config["partition"]
+            if isinstance(self.fault_config["partition"], dict):
+                if self.fault_config["partition"]["name"] != "random":
+                    raise Exception(f"only random command supported; {json.dumps(self.fault_config['partition'])}")
+                partition = self.random.randrange(0, self.fault_config["partition"]["supremum"])
+            else:
+                partition = self.fault_config["partition"]
         else:
             partition = scenario.partition
         namespace="kafka"
