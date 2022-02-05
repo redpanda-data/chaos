@@ -18,5 +18,9 @@ class RepeatCombinator:
                 sleep(self.fault_config["delay_s"])
                 scenario.workload_cluster.wait_progress(timeout_s=60)
             logger.debug(f"repeating {self.fault_config['subject']['name']}")
+            for node in scenario.workload_cluster.nodes:
+                scenario.workload_cluster.emit_event(node, "injecting")
             subject = self.FAULTS[self.fault_config["subject"]["name"]](self.fault_config["subject"])
             subject.execute(scenario)
+            for node in scenario.workload_cluster.nodes:
+                scenario.workload_cluster.emit_event(node, "injected")
