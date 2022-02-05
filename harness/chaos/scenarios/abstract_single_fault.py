@@ -150,7 +150,7 @@ class AbstractSingleFault(ABC):
             time.sleep(1)
     
     def _transfer(self, new_leader, topic, partition=0, namespace="kafka", timeout_s=10):
-        old_leader = self.redpanda_cluster.wait_leader(topic, namespace=namespace, timeout_s=timeout_s)
+        old_leader = self.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
         logger.debug(f"{namespace}/{topic}/{partition} leader: {old_leader.ip} (id={old_leader.id})")
         if new_leader != old_leader:
             begin = time.time()
@@ -159,7 +159,6 @@ class AbstractSingleFault(ABC):
                     raise TimeoutException(f"can't transfer leader of {topic} to {new_leader.ip} within {timeout_s} sec")
                 try:
                     self.redpanda_cluster.transfer_leadership_to(new_leader, namespace, topic, partition)
-                    break
                 except:
                     e, v = sys.exc_info()[:2]
                     trace = traceback.format_exc()
@@ -167,7 +166,9 @@ class AbstractSingleFault(ABC):
                     logger.error(v)
                     logger.error(trace)
                     sleep(1)
-            self.redpanda_cluster.wait_leader_is(new_leader, namespace, topic, partition, timeout_s=timeout_s)
+                current_leader = self.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
+                if current_leader == new_leader:
+                    break
             logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
 
     def read_config(self, path, default):
