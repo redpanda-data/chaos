@@ -17,6 +17,16 @@ class LeadershipTransferFault:
         self.name = "leadership transfer"
         self.fault_config = fault_config
         self.random = Random()
+    
+    def read_config(self, key, default):
+        if key in self.fault_config:
+            if isinstance(self.fault_config[key], dict):
+                if self.fault_config[key]["name"] != "random":
+                    raise Exception(f"only random command supported; {json.dumps(self.fault_config[key])}")
+                return self.random.choice(self.fault_config[key]["values"])
+            else:
+                return self.fault_config[key]
+        return default()
 
     def execute(self, scenario):
         timeout_s = 10
@@ -25,21 +35,9 @@ class LeadershipTransferFault:
         controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=timeout_s)
         logger.debug(f"controller's leader: {controller.ip}")
         
-        topic = None
-        if "topic" in self.fault_config:
-            topic = self.fault_config["topic"]
-        else:
-            topic = scenario.topic
-        partition = 0
-        if "partition" in self.fault_config:
-            if isinstance(self.fault_config["partition"], dict):
-                if self.fault_config["partition"]["name"] != "random":
-                    raise Exception(f"only random command supported; {json.dumps(self.fault_config['partition'])}")
-                partition = self.random.randrange(0, self.fault_config["partition"]["supremum"])
-            else:
-                partition = self.fault_config["partition"]
-        else:
-            partition = scenario.partition
+        topic = self.read_config("topic", lambda: scenario.topic)
+        partition = self.read_config("partition", lambda: 0)
+
         namespace="kafka"
         if "namespace" in self.fault_config:
             namespace = self.fault_config["namespace"]
