@@ -32,6 +32,6 @@ sleep 1m
 ansible-playbook deploy.yml --key-file id_ed25519
 ansible-playbook playbooks/test.suite.yml --key-file id_ed25519 -e suite_path=test_suite_tx_money.json
 ansible-playbook playbooks/test.suite.yml --key-file id_ed25519 -e suite_path=test_suite_tx_reads_writes.json
-ansible-playbook playbooks/test.suite.yml --key-file id_ed25519 -e suite_path=test_suite_tx_streaming.json
+ansible-playbook playbooks/test.suite.yml --key-file id_ed25519 -e suite_path=test_suite_reads_writes_decommission.json
 ./playbooks/fetch.logs.sh
 terraform destroy -var="username=$AWS_CHAOS_RESOURCE_PREFIX" -var="redpanda_cluster_size=6" -var="workload_cluster_size=1" -auto-approve
