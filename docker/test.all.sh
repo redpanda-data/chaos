@@ -15,7 +15,7 @@ set -e
 ./docker/test.suite.sh test_suite_reads_writes_decommission.json
 ./docker/test.suite.sh test_suite_tx_money.json
 ./docker/test.suite.sh test_suite_tx_reads_writes.json
-./docker/test.suite.sh test_suite_tx_streaming.json
+./docker/test.suite.sh test_suite_tx_poll.json
 ./docker/fetch.logs.sh
 ./docker/down6.sh
 
