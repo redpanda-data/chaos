@@ -55,19 +55,4 @@ class LeadershipTransferFault:
             if replica != controller:
                 follower = replica
         
-        logger.debug(f"tranferring {namespace}/{topic}/{partition}'s leadership from {replicas_info.leader.ip} to {follower.ip}")
-        
-        begin = time.time()
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't transfer leader of {namespace}/{topic}/{partition} to {follower.ip} within {timeout_s} sec")
-            try:
-                scenario.redpanda_cluster.transfer_leadership_to(follower, namespace, topic, partition)
-                break
-            except:
-                e, v = sys.exc_info()[:2]
-                trace = traceback.format_exc()
-                logger.error(e)
-                logger.error(v)
-                logger.error(trace)
-                sleep(1)
+        scenario._transfer(follower, topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
