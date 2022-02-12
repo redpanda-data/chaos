@@ -25,7 +25,8 @@
             "name": "leadership_transfer",
             "topic": "tx",
             "namespace": "kafka_internal",
-            "partition": 0
+            "partition": 0,
+            "timeout_s": 20
         }
     },
     "settings": {
