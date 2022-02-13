@@ -11,7 +11,7 @@ terraform.tfstate.backup
 tmp/
 workloads/writes/kafka-clients/target
 violations/
-redpanda_0.0-dev-0000000_amd64.deb
+*.deb
 id_ed25519.pub
 id_ed25519
 docker/bind_mounts/
