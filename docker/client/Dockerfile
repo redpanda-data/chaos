@@ -13,9 +13,9 @@ RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p /mnt/vectorized
 RUN mkdir -p /home/ubuntu/.ssh
-COPY id_ed25519.pub /home/ubuntu/.ssh/authorized_keys
+COPY --chown=ubuntu:ubuntu id_ed25519.pub /home/ubuntu/.ssh/authorized_keys
 COPY docker/client/entrypoint.sh /mnt/vectorized/entrypoint.sh
-COPY control /mnt/vectorized/control
+COPY --chown=ubuntu:ubuntu control /mnt/vectorized/control
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/control
 COPY $REDPANDA_DEB /mnt/vectorized/$REDPANDA_DEB
 RUN dpkg --force-confold -i /mnt/vectorized/$REDPANDA_DEB
