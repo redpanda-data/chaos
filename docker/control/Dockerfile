@@ -28,6 +28,6 @@ RUN pip3 install sh
 RUN pip3 install flask
 RUN pip3 install pyyaml
 RUN pip3 install confluent_kafka
-COPY harness /mnt/vectorized/harness
-COPY suites /mnt/vectorized/suites
+COPY --chown=ubuntu:ubuntu harness /mnt/vectorized/harness
+COPY --chown=ubuntu:ubuntu suites /mnt/vectorized/suites
 CMD /mnt/vectorized/entrypoint.sh
