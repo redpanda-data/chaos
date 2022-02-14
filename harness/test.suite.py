@@ -26,7 +26,8 @@ parser.add_argument('--repeat', type=int, default=1, required=False)
 parser.add_argument('--run_id', required=True)
 args = parser.parse_args()
 
-logger = logging.getLogger("chaos")
+chaos_logger = logging.getLogger("chaos")
+tasks_logger = logging.getLogger("tasks")
 formatter = Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 suite = None
@@ -86,7 +87,8 @@ for i in range(0, args.repeat):
         mkdir("-p", f"/mnt/vectorized/experiments/{experiment_id}")
         handler = FileHandler(f"/mnt/vectorized/experiments/{experiment_id}/log")
         handler.setFormatter(formatter)
-        logger.addHandler(handler)
+        chaos_logger.addHandler(handler)
+        tasks_logger.addHandler(handler)
         
         test = tests[name]
         try:
@@ -96,13 +98,14 @@ for i in range(0, args.repeat):
         except:
             e, v = sys.exc_info()[:2]
             trace = traceback.format_exc()
-            logger.error(v)
-            logger.error(trace)
-            results["test_runs"][test["name"]][experiment_id] = "UNKNOWN"
+            chaos_logger.error(v)
+            chaos_logger.error(trace)
+            results["test_runs"][test["name"]][experiment_id] = Result.UNKNOWN
         finally:
             handler.flush()
             handler.close()
-            logger.removeHandler(handler)
+            chaos_logger.removeHandler(handler)
+            tasks_logger.removeHandler(handler)
         
         most_severe_result = Result.more_severe(most_severe_result, results["test_runs"][test["name"]][experiment_id])
         least_severe_result = Result.least_severe(least_severe_result, results["test_runs"][test["name"]][experiment_id])

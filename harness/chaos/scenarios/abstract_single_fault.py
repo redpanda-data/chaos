@@ -17,9 +17,8 @@ import traceback
 
 import logging
 
-from chaos.redpanda_static_cluster import RedpandaCluster
-
-logger = logging.getLogger("chaos")
+chaos_logger = logging.getLogger("chaos")
+tasks_logger = logging.getLogger("tasks")
 
 class AbstractSingleFault(ABC):
     SUPPORTED_WORKLOADS = set()
@@ -75,7 +74,7 @@ class AbstractSingleFault(ABC):
         if self.workload_cluster != None:
             if self.is_workload_log_fetched:
                 return
-            logger.info(f"stopping workload everywhere")
+            chaos_logger.info(f"stopping workload everywhere")
             try:
                 self.workload_cluster.stop_everywhere()
             except:
@@ -84,7 +83,7 @@ class AbstractSingleFault(ABC):
             self.workload_cluster.wait_killed(timeout_s=10)
             for node in self.workload_cluster.nodes:
                 try:
-                    logger.info(f"fetching oplog from {node.ip}")
+                    chaos_logger.info(f"fetching oplog from {node.ip}")
                     mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}")
                     scp(f"ubuntu@{node.ip}:/mnt/vectorized/workloads/logs/{self.config['experiment_id']}/{node.ip}/workload.log",
                     f"/mnt/vectorized/experiments/{self.config['experiment_id']}/{node.ip}/workload.log")
@@ -98,13 +97,13 @@ class AbstractSingleFault(ABC):
         if self.redpanda_cluster != None:
             if self.is_redpanda_log_fetched:
                 return
-            logger.info(f"stopping redpanda")
+            chaos_logger.info(f"stopping redpanda")
             self.redpanda_cluster.kill_everywhere()
             self.redpanda_cluster.wait_killed(timeout_s=10)
             mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
             for node in self.redpanda_cluster.nodes:
                 mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
-                logger.info(f"fetching logs from {node.ip}")
+                chaos_logger.info(f"fetching logs from {node.ip}")
                 scp(
                     f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log.*",
                     f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/")
@@ -124,7 +123,7 @@ class AbstractSingleFault(ABC):
         return None
     
     def _reconfigure(self, replicas, topic, partition=0, namespace="kafka", timeout_s=10):
-        logger.info(f"reconfiguring {namespace}/{topic}")
+        chaos_logger.info(f"reconfiguring {namespace}/{topic}")
         info = self.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
         is_target_node_id = {node.id: True for node in replicas}
         is_same = len(info.replicas) == len(replicas)
@@ -151,25 +150,26 @@ class AbstractSingleFault(ABC):
     
     def _transfer(self, new_leader, topic, partition=0, namespace="kafka", timeout_s=10):
         old_leader = self.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
-        logger.debug(f"{namespace}/{topic}/{partition} leader: {old_leader.ip} (id={old_leader.id})")
+        chaos_logger.debug(f"{namespace}/{topic}/{partition} leader: {old_leader.ip} (id={old_leader.id})")
         if new_leader != old_leader:
             begin = time.time()
             while True:
                 if time.time() - begin > timeout_s:
                     raise TimeoutException(f"can't transfer leader of {topic} to {new_leader.ip} within {timeout_s} sec")
                 try:
+                    chaos_logger.debug(f"transferring {namespace}/{topic}/{partition}'s leadership to {new_leader.ip} id={new_leader.id}")
                     self.redpanda_cluster.transfer_leadership_to(new_leader, namespace, topic, partition)
                 except:
                     e, v = sys.exc_info()[:2]
                     trace = traceback.format_exc()
-                    logger.error(e)
-                    logger.error(v)
-                    logger.error(trace)
+                    chaos_logger.error(e)
+                    chaos_logger.error(v)
+                    chaos_logger.error(trace)
                     sleep(1)
                 current_leader = self.redpanda_cluster.wait_leader(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
                 if current_leader == new_leader:
                     break
-            logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
+            chaos_logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
 
     def read_config(self, path, default):
         root = self.config
@@ -184,25 +184,25 @@ class AbstractSingleFault(ABC):
         pass
     
     def measure_experiment(self):
-        logger.info(f"start measuring")
+        tasks_logger.info(f"start measuring")
         for node in self.workload_cluster.nodes:
             self.workload_cluster.emit_event(node, "measure")
 
         if self.fault == None:
             steady_s = self.read_config(["settings", "steady_s"], 180)
             if steady_s > 0:
-                logger.info(f"wait for {steady_s} seconds to record steady state")
+                chaos_logger.info(f"wait for {steady_s} seconds to record steady state")
                 sleep(steady_s)
         elif self.fault.fault_type==FaultType.RECOVERABLE:
             steady_s = self.read_config(["settings", "steady_s"], 60)
             if steady_s > 0:
-                logger.info(f"wait for {steady_s} seconds to record steady state")
+                chaos_logger.info(f"wait for {steady_s} seconds to record steady state")
                 sleep(steady_s)
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injecting")
-            logger.info(f"injecting {self.fault.name}")
+            tasks_logger.info(f"injecting {self.fault.name}")
             self.fault.inject(self)
-            logger.info(f"injected {self.fault.name}")
+            tasks_logger.info(f"injected {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injected")
             after_fault_info = {}
@@ -210,7 +210,7 @@ class AbstractSingleFault(ABC):
                 after_fault_info[node.ip] = self.workload_cluster.info(node)
             impact_s = self.read_config(["settings", "impact_s"], 60)
             if impact_s > 0:
-                logger.info(f"wait for {impact_s} seconds to record impacted state")
+                chaos_logger.info(f"wait for {impact_s} seconds to record impacted state")
                 sleep(impact_s)
             before_heal_info = {}
             for node in self.workload_cluster.nodes:
@@ -242,30 +242,30 @@ class AbstractSingleFault(ABC):
                 self.save_config()
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "healing")
-            logger.info(f"healing {self.fault.name}")
+            tasks_logger.info(f"healing {self.fault.name}")
             self.fault.heal(self)
-            logger.info(f"healed {self.fault.name}")
+            tasks_logger.info(f"healed {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "healed")
             recovery_s = self.read_config(["settings", "recovery_s"], 60)
             if recovery_s > 0:
-                logger.info(f"wait for {recovery_s} seconds to record recovering state")
+                chaos_logger.info(f"wait for {recovery_s} seconds to record recovering state")
                 sleep(recovery_s)
         elif self.fault.fault_type==FaultType.ONEOFF:
             steady_s = self.read_config(["settings", "steady_s"], 60)
             if steady_s > 0:
-                logger.info(f"wait for {steady_s} seconds to record steady state")
+                chaos_logger.info(f"wait for {steady_s} seconds to record steady state")
                 sleep(steady_s)
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injecting")
-            logger.info(f"injecting {self.fault.name}")
+            tasks_logger.info(f"injecting {self.fault.name}")
             self.fault.execute(self)
-            logger.info(f"injected {self.fault.name}")
+            tasks_logger.info(f"injected {self.fault.name}")
             for node in self.workload_cluster.nodes:
                 self.workload_cluster.emit_event(node, "injected")
             recovery_s = self.read_config(["settings", "recovery_s"], 120)
             if recovery_s > 0:
-                logger.info(f"wait for {recovery_s} seconds to record recovering / impacted state")
+                chaos_logger.info(f"wait for {recovery_s} seconds to record recovering / impacted state")
                 sleep(recovery_s)
         else:
             raise Exception(f"Unknown fault type {self.fault.fault_type}")
@@ -283,7 +283,7 @@ class AbstractSingleFault(ABC):
         self.save_config()
 
         self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
-        logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
+        chaos_logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
         self.save_config()
 
         if self.config["result"] == Result.FAILED:
