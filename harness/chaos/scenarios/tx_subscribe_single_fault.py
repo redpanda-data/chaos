@@ -1,4 +1,4 @@
-from chaos.scenarios.abstract_single_fault import AbstractSingleFault
+from chaos.scenarios.abstract_single_fault import AbstractSingleFault, ProgressException
 from chaos.types import TimeoutException
 from sh import mkdir
 from chaos.faults.all import FAULTS
@@ -119,7 +119,10 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         wait_progress_timeout_s = self.read_config(["settings", "setup", "wait_progress_timeout_s"], 20)
         
         tasks_logger.info(f"waiting for initial progress")
-        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        try:
+            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        except TimeoutException:
+            raise ProgressException()
         tasks_logger.info(f"waiting for id_allocator to have leader")
         self.redpanda_cluster.wait_leader("id_allocator", namespace="kafka_internal", replication=3, timeout_s=10)
         tasks_logger.info(f"waiting for tx coordinator to have leader")
@@ -150,7 +153,10 @@ class TxSubscribeSingleFault(AbstractSingleFault):
             self._reconfigure(data_nodes, self.source, partition=partition, namespace="kafka", timeout_s=20)
         
         tasks_logger.info(f"waiting for post reconfigure progress")
-        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        try:
+            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        except TimeoutException:
+            raise ProgressException()
 
         tasks_logger.info(f"transfer controller leadership to {internal_nodes[0].id}")
         self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=20)
@@ -169,7 +175,10 @@ class TxSubscribeSingleFault(AbstractSingleFault):
             self._transfer(data_nodes[partition%len(data_nodes)], self.source, partition=partition, namespace="kafka", timeout_s=20)
 
         tasks_logger.info(f"waiting for post transfer progress")
-        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        try:
+            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+        except TimeoutException:
+            raise ProgressException()
         warmup_s = self.read_config(["settings", "setup", "warmup_s"], 20)
         if warmup_s > 0:
             chaos_logger.info(f"warming up for {warmup_s}s")

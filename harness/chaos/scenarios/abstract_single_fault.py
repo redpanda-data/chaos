@@ -17,6 +17,9 @@ import traceback
 
 import logging
 
+class ProgressException(Exception):
+    pass
+
 chaos_logger = logging.getLogger("chaos")
 tasks_logger = logging.getLogger("tasks")
 
@@ -303,6 +306,10 @@ class AbstractSingleFault(ABC):
         try:
             self.prepare_experiment(config, experiment_id)
             self.measure_experiment()
+            return self.config
+        except ProgressException:
+            self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
+            self.save_config()
             return self.config
         except:
             self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
