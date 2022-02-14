@@ -30,6 +30,9 @@ class RedpandaCluster:
                 line = line.rstrip()
                 parts = line.split(" ")
                 self.nodes.append(RedpandaNode(parts[0], int(parts[1])))
+        logger.debug(f"RedpandaCluster inited with:")
+        for node in self.nodes:
+            logger.debug(f"node id={node.id} ip={node.ip}")
     
     def heal(self):
         for node in self.nodes:
@@ -179,6 +182,8 @@ class RedpandaCluster:
         info = None
         while info == None:
             random.shuffle(nodes)
+            msg = ",".join(map(lambda node: f"{node.id}", nodes))
+            logger.debug(f"wait details for {namespace}/{topic}/{partition} from nodes: {msg}")
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't fetch stable replicas for {namespace}/{topic}/{partition} within {timeout_s} sec")
             try:
@@ -240,7 +245,7 @@ class RedpandaCluster:
         if r.status_code != 200:
             logger.error(f"status code: {r.status_code}")
             logger.error(f"content: {r.content}")
-            raise Exception(f"Can't transfer to {target.id}")
+            raise Exception(f"Can't transfer to id={target.id}")
     
     def admin_decommission(self, node, to_decommission_node):
         r = requests.put(f"http://{node.ip}:9644/v1/brokers/{to_decommission_node.id}/decommission")
