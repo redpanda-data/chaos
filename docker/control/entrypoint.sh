@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
+  echo 'error: unable to read /mnt/vectorized/redpanda.deb'
+  exit 1
+fi
+
+dpkg --force-confold -i /mnt/vectorized/redpanda.deb
+systemctl disable redpanda
+systemctl disable wasm_engine
+
 declare -A clients=( ["client1"]="")
 
 for (( i=1; i<=$WORKLOAD_CLUSTER_SIZE; i++ )); do  
