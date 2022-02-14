@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
   echo 'error: unable to read /mnt/vectorized/redpanda.deb'
   exit 1
