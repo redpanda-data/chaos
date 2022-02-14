@@ -33,7 +33,7 @@ class Reconfigure313Fault:
 
         replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
         if len(replicas_info.replicas)!=3:
-            raise Exception(f"topic {scenario.topic} doesn't have replication factor of 3")
+            raise Exception(f"topic {topic} doesn't have replication factor of 3")
 
         new_leader = None
         self.old_replicas = set(replicas_info.replicas)
@@ -58,10 +58,11 @@ class Reconfigure313Fault:
         scenario.redpanda_cluster.reconfigure(controller, [new_leader], topic, partition=partition, namespace=namespace)
         while True:
             if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't reconfigure {scenario.topic} within {timeout_s} sec")
+                raise TimeoutException(f"can't reconfigure {topic} within {timeout_s} sec")
             replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
             if replicas_info.leader == new_leader and replicas_info.status == "done" and len(replicas_info.replicas)==1:
                 break
+            logger.debug(f"isn't reconfigured status={replicas_info.status} leader={replicas_info.leader.id} len(replicas)={len(replicas_info.replicas)}")
             time.sleep(1)
         logger.debug(f"reconfigured {namespace}/{topic}/{partition} to [{new_leader.ip}]")
 
@@ -96,5 +97,6 @@ class Reconfigure313Fault:
             replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
             if replicas_info.status == "done" and len(replicas_info.replicas)==3:
                 break
+            logger.debug(f"isn't reconfigured status={replicas_info.status} len(replicas)={len(replicas_info.replicas)}")
             time.sleep(1)
         logger.debug(f"reconfigured {namespace}/{topic}/{partition} to replication factor of 3")
