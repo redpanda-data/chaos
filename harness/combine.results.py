@@ -28,7 +28,7 @@ def combine(path):
             for test_run_key in result["test_runs"][test_key].keys():
                 status = result["test_runs"][test_key][test_run_key]
                 combined["test_runs"][test_key][test_run_key] = status
-                combined["result"] = Result.more_severe(combined["result"], status)
+        combined["result"] = Result.more_severe(combined["result"], result["result"])
     with open(join(path,"all.json"), "w") as all_file:
         all_file.write(json.dumps(combined, indent=2))
 
