@@ -1,7 +1,6 @@
 FROM ubuntu:20.04
 LABEL maintainer="Denis Rystsov <denis@vectorized.io>"
 ARG DEBIAN_FRONTEND=noninteractive
-ARG REDPANDA_DEB
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
@@ -17,8 +16,4 @@ RUN mkdir -p /mnt/vectorized
 COPY --chown=ubuntu:ubuntu control /mnt/vectorized/control
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/control
 COPY docker/redpanda/entrypoint.sh /mnt/vectorized/entrypoint.sh
-COPY $REDPANDA_DEB /mnt/vectorized/$REDPANDA_DEB
-RUN dpkg --force-confold -i /mnt/vectorized/$REDPANDA_DEB
-RUN systemctl disable redpanda
-RUN systemctl disable wasm_engine
 CMD /mnt/vectorized/entrypoint.sh

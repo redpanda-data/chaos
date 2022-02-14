@@ -1,7 +1,6 @@
 FROM ubuntu:20.04
 LABEL maintainer="Denis Rystsov <denis@vectorized.io>"
 ARG DEBIAN_FRONTEND=noninteractive
-ARG REDPANDA_DEB
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
@@ -17,10 +16,6 @@ COPY --chown=ubuntu:ubuntu id_ed25519.pub /home/ubuntu/.ssh/authorized_keys
 COPY docker/client/entrypoint.sh /mnt/vectorized/entrypoint.sh
 COPY --chown=ubuntu:ubuntu control /mnt/vectorized/control
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/control
-COPY $REDPANDA_DEB /mnt/vectorized/$REDPANDA_DEB
-RUN dpkg --force-confold -i /mnt/vectorized/$REDPANDA_DEB
-RUN systemctl disable redpanda
-RUN systemctl disable wasm_engine
 RUN pip3 install sh
 RUN pip3 install flask
 RUN pip3 install confluent_kafka
