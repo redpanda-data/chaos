@@ -74,11 +74,11 @@ Start local cluster:
 
 Run a specific test suite:
 
-    ./docker/test.suite.sh test_suite_all.json
+    ./docker/test.suite.sh test_suite_reads_writes.json
 
-Run a specific test suite `n` times:
+Run a specific test suite `n` times, e.g. three times:
 
-    ./docker/test.suite.sh test_suite_all.json n
+    ./docker/test.suite.sh test_suite_reads_writes.json 3
 
 Run a specific test:
 
