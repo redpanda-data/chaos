@@ -1,5 +1,5 @@
 from random import Random
-from itsdangerous import json
+import json
 from time import sleep
 import sys
 import time
