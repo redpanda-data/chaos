@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.list_offsets;
 
 import com.google.gson.Gson;
 import java.io.*;
@@ -7,7 +7,7 @@ import java.util.HashMap;
 import static spark.Spark.*;
 import spark.*;
 
-// java -cp $(pwd)/target/tx-performance-1.0-SNAPSHOT.jar:$(pwd)/target/dependency/* io.vectorized.App
+// java -cp $(pwd)/target/uber-1.0-SNAPSHOT.jar:$(pwd)/target/dependency/* io.vectorized.list_offsets.App
 public class App
 {
     public static class WorkflowSettings {

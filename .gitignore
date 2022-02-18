@@ -18,7 +18,7 @@ docker/bind_mounts/
 .classpath
 .project
 .settings
-workloads/list-offsets/target/
+workloads/uber/target/
 workloads/reads-writes/target/
 workloads/writes/concurrency/target/
 workloads/writes/tx-writes/target/

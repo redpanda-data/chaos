@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.list_offsets;
 import java.io.*;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
@@ -297,13 +297,13 @@ public class Workload {
             }
             
             try {
-                var last_offset = get_known_offset();
+                var known_offset = get_known_offset();
                 var result = client.listOffsets(partitions, listOffsetsOptions);
                 var f = result.partitionResult(tp);
                 var info = f.get();
                 var offset = info.offset();
-                if (offset < last_offset) {
-                    log(thread_id, "violation\t" + "listOffset observed offset:" + offset + " after offset:" + last_offset + " was already known");
+                if (offset < known_offset) {
+                    log(thread_id, "violation\t" + "listOffset observed offset:" + offset + " after offset:" + known_offset + " was already known");
                 }
                 update_known_offset(offset);
             } catch (ExecutionException e) {

@@ -236,7 +236,7 @@
         recurse: true
     - name: build writing/app
       shell: |
-        cd /mnt/vectorized/workloads/list-offsets
+        cd /mnt/vectorized/workloads/uber
         mvn clean dependency:copy-dependencies package
         cd /mnt/vectorized/workloads/reads-writes
         mvn clean dependency:copy-dependencies package
