@@ -5,8 +5,8 @@ ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
 RUN apt-get update -y
-RUN apt-get install -y wget iptables ssh python3-pip sudo
-RUN apt-get install -y iputils-ping vim tmux less openjdk-11-jdk maven
+RUN apt-get install -y wget iptables ssh python3-pip sudo --fix-missing
+RUN apt-get install -y iputils-ping vim tmux less openjdk-11-jdk maven --fix-missing
 RUN adduser --disabled-password --gecos "" ubuntu
 RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers

@@ -7,8 +7,8 @@ ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
 ARG WORKLOAD_CLUSTER_SIZE
 ENV WORKLOAD_CLUSTER_SIZE=${WORKLOAD_CLUSTER_SIZE}
 RUN apt-get update -y
-RUN apt-get install -y curl wget iptables python3-pip gnuplot
-RUN apt-get install -y iputils-ping vim tmux less ssh sudo
+RUN apt-get install -y curl wget iptables python3-pip gnuplot --fix-missing
+RUN apt-get install -y iputils-ping vim tmux less ssh sudo --fix-missing
 RUN adduser --disabled-password --gecos "" ubuntu
 RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
