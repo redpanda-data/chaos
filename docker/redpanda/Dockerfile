@@ -4,9 +4,10 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
-RUN apt-get update -y
-RUN apt-get install -y wget iptables ssh sudo --fix-missing
-RUN apt-get install -y iputils-ping vim tmux less --fix-missing
+RUN apt update -y
+RUN apt install -f -y
+RUN apt install -y wget iptables ssh sudo --fix-missing
+RUN apt install -y iputils-ping vim tmux less --fix-missing
 RUN adduser --disabled-password --gecos "" ubuntu
 RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
