@@ -22,7 +22,7 @@ RUN pip3 install flask
 RUN pip3 install confluent_kafka
 RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
-RUN cd /mnt/vectorized/workloads/list-offsets && \
+RUN cd /mnt/vectorized/workloads/uber && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/reads-writes && \
     mvn clean dependency:copy-dependencies package
