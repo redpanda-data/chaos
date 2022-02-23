@@ -1,0 +1,18 @@
+name: bash
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Setup shfmt
+      run: |
+        wget 'https://github.com/mvdan/sh/releases/download/v3.4.3/shfmt_v3.4.3_linux_amd64' -O shfmt
+        chmod +x shfmt
+    - name: Check format
+      run: ./shfmt -i 2 -s -d .
