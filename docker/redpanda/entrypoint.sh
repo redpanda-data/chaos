@@ -14,7 +14,7 @@ systemctl disable wasm_engine
 declare -A redpandas
 declare -A node_ids
 
-for (( i=1; i<=$REDPANDA_CLUSTER_SIZE; i++ )); do  
+for ((i = 1; i <= REDPANDA_CLUSTER_SIZE; i++)); do
   redpandas["redpanda$i"]=""
   node_ids["redpanda$i"]="$i"
 done
@@ -63,7 +63,7 @@ chown ubuntu:ubuntu /mnt/vectorized/redpanda.yaml
 
 rm -rf /mnt/vectorized/redpanda.nodes
 for host in "${!redpandas[@]}"; do
-  echo "${redpandas[$host]} ${node_ids[$host]}" >> /mnt/vectorized/redpanda.nodes
+  echo "${redpandas[$host]} ${node_ids[$host]}" >>/mnt/vectorized/redpanda.nodes
 done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 

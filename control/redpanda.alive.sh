@@ -3,22 +3,22 @@
 set -e
 
 if [ ! -f /mnt/vectorized/redpanda/pid ]; then
-    echo "NO"
-    exit 0
+  echo "NO"
+  exit 0
 fi
 
 pid=$(cat /mnt/vectorized/redpanda/pid)
 
 if [ $pid == "" ]; then
-    echo "NO"
-    exit 0
+  echo "NO"
+  exit 0
 fi
 
 if process=$(ps -p $pid -o comm=); then
-    if [ $process == "redpanda" ]; then
-        echo "YES"
-        exit 0
-    fi
+  if [ $process == "redpanda" ]; then
+    echo "YES"
+    exit 0
+  fi
 fi
 
 echo "NO"
