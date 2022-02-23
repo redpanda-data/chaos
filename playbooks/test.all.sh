@@ -3,12 +3,12 @@
 set -e
 
 if [ "$AWS_CHAOS_RESOURCE_PREFIX" == "" ]; then
-    echo "set AWS_CHAOS_RESOURCE_PREFIX to distinguish aws resources between users"
-    exit 1
+  echo "set AWS_CHAOS_RESOURCE_PREFIX to distinguish aws resources between users"
+  exit 1
 fi
 
 if [ ! -f id_ed25519 ]; then
-    ssh-keygen -t ed25519 -f id_ed25519 -N ""
+  ssh-keygen -t ed25519 -f id_ed25519 -N ""
 fi
 
 terraform apply -var="username=$AWS_CHAOS_RESOURCE_PREFIX" -var="redpanda_cluster_size=3" -var="workload_cluster_size=1" -auto-approve

@@ -3,8 +3,8 @@
 set -e
 
 if [ "$DEB_PATH" == "" ]; then
-    echo "env var DEB_PATH must contain a path to redpanda deb file"
-    exit 1
+  echo "env var DEB_PATH must contain a path to redpanda deb file"
+  exit 1
 fi
 
 docker-compose -f docker/docker-compose6.2.yaml --project-directory . down --remove-orphans || true
@@ -15,7 +15,7 @@ docker-compose -f docker/docker-compose3.yaml --project-directory . down --remov
 docker-compose -f docker/docker-compose3.yaml --project-directory . rm -f || true
 
 if [ ! -f id_ed25519 ]; then
-    ssh-keygen -t ed25519 -f id_ed25519 -N ""
+  ssh-keygen -t ed25519 -f id_ed25519 -N ""
 fi
 
 rm -rf ./docker/bind_mounts
