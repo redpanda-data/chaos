@@ -401,7 +401,7 @@ def build(path):
                     elif experiment.fault.name in FAULTS:
                         if FAULTS[experiment.fault.name](None).fault_type == FaultType.ONEOFF:
                             should_progress_check = True
-                if experiment.workload in ["reads-writes / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java", "list-offsets / java"]:
+                if experiment.workload in ["reads-writes / java", "tx-poll / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java", "list-offsets / java"]:
                     for node in info["workload"]["nodes"]:
                         node_dir = join(path, run, node)
                         for img in listdir(node_dir):
@@ -413,7 +413,7 @@ def build(path):
                                 if img == "overview.png":
                                     image.is_overview = True
                                 experiment.images.append(image)
-                if experiment.workload in ["reads-writes / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java"]:
+                if experiment.workload in ["reads-writes / java", "tx-poll / java", "tx-money / java", "tx-single-reads-writes / java", "tx-streaming / java"]:
                     if len(info["workload"]["nodes"]) != 1:
                         raise Exception(f"only one node workloads are supported: {run}")
                     for check in info["workload"]["checks"]:
@@ -444,9 +444,6 @@ def build(path):
                                 if "latency_us" in stat:
                                     latency = Latency()
                                     latency.name = "send latency"
-                                    latency.min = stat["latency_us"]["min"]
-                                    latency.max = stat["latency_us"]["max"]
-                                    latency.p99 = stat["latency_us"]["p99"]
                                     experiment.latencies.append(latency)
                                 if "throughput" in stat:
                                     experiment.throughput = Throughput()
