@@ -442,19 +442,20 @@ def build(path):
                             if info["workload"]["nodes"][0] in check:
                                 stat = check[info["workload"]["nodes"][0]]
                                 if "latency_us" in stat:
-                                    latency = Latency()
-                                    latency.name = "send latency"
-                                    latency.min = stat["latency_us"]["min"]
-                                    latency.max = stat["latency_us"]["max"]
-                                    latency.p99 = stat["latency_us"]["p99"]
-                                    experiment.latencies.append(latency)
+                                    for latency_name in stat["latency_us"].keys():
+                                        latency = Latency()
+                                        latency.name = latency_name
+                                        latency.min = stat["latency_us"][latency_name]["min"]
+                                        latency.max = stat["latency_us"][latency_name]["max"]
+                                        latency.p99 = stat["latency_us"][latency_name]["p99"]
+                                        experiment.latencies.append(latency)
                                 if "throughput" in stat:
                                     experiment.throughput = Throughput()
                                     experiment.throughput.avg = stat["throughput"]["avg/s"]
                                     experiment.throughput.max = stat["throughput"]["max/s"]
                                 if "max_unavailability_us" in stat:
                                     experiment.max_unavailability_us = stat["max_unavailability_us"]
-                elif experiment.workload == "tx-subscribe / java":
+                elif experiment.workload in ["tx-subscribe / java", "tx-poll / java"]:
                     for check in info["workload"]["checks"]:
                         if check["name"] == "stat":
                             if "total" in check:
