@@ -23,8 +23,6 @@ import java.util.HashSet;
 import java.util.Collection;
 import java.util.Random;
 
-import javax.lang.model.type.TypeKind;
-
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.apache.kafka.common.errors.OutOfOrderSequenceException;
 import org.apache.kafka.common.errors.AuthorizationException;
