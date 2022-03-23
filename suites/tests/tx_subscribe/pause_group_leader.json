@@ -18,8 +18,8 @@
     },
     "fault": {
         "name": "pause_leader",
-        "topic": "group",
-        "namespace": "kafka_internal",
+        "topic": "__consumer_offsets",
+        "namespace": "kafka",
         "partition": 0,
         "alias": "pause_group_leader"
     },

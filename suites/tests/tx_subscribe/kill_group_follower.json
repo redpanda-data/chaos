@@ -18,8 +18,8 @@
     },
     "fault": {
         "name": "kill_follower",
-        "topic": "group",
-        "namespace": "kafka_internal",
+        "topic": "__consumer_offsets",
+        "namespace": "kafka",
         "partition": 0,
         "alias": "kill_group_follower"
     },

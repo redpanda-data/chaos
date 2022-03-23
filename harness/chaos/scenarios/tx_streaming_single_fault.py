@@ -116,7 +116,7 @@ class TxStreamingSingleFault(AbstractSingleFault):
         logger.info(f"waiting for tx coordinator")
         self.redpanda_cluster.wait_leader("tx", namespace="kafka_internal", replication=3, timeout_s=10)
         logger.info(f"waiting for consumer groups")
-        self.redpanda_cluster.wait_leader("group", namespace="kafka_internal", replication=3, timeout_s=10)
+        self.redpanda_cluster.wait_leader("__consumer_offsets", namespace="kafka", replication=3, timeout_s=10)
 
         logger.info(f"warming up for 20s")
         sleep(20)
@@ -129,7 +129,7 @@ class TxStreamingSingleFault(AbstractSingleFault):
         # reconfigure tx to use internal_nodes
         self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
         # reconfigure consumer groups to use internal_nodes
-        self._reconfigure(internal_nodes, "group", partition=0, namespace="kafka_internal", timeout_s=20)
+        self._reconfigure(internal_nodes, "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
 
         for topic in [self.source, self.target]:
             self._reconfigure(data_nodes, topic, partition=0, namespace="kafka", timeout_s=20)
@@ -141,7 +141,7 @@ class TxStreamingSingleFault(AbstractSingleFault):
         # transfer id_allocator to other[1]
         self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
         # transfer consumer groups to other[1]
-        self._transfer(internal_nodes[1], "group", partition=0, namespace="kafka_internal", timeout_s=10)
+        self._transfer(internal_nodes[1], "__consumer_offsets", partition=0, namespace="kafka", timeout_s=10)
         # transfer tx to other[2]
         self._transfer(internal_nodes[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
 

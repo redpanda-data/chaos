@@ -24,8 +24,8 @@
         "times": 10,
         "subject": {
             "name": "leadership_transfer",
-            "topic": "group",
-            "namespace": "kafka_internal",
+            "topic": "__consumer_offsets",
+            "namespace": "kafka",
             "partition": 0
         }
     },

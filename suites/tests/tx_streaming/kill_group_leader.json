@@ -17,8 +17,8 @@
     },
     "fault": {
         "name": "kill_leader",
-        "topic": "group",
-        "namespace": "kafka_internal",
+        "topic": "__consumer_offsets",
+        "namespace": "kafka",
         "partition": 0,
         "alias": "kill_group_leader"
     },

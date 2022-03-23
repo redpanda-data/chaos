@@ -18,8 +18,8 @@
     "fault": {
         "name": "reconfigure_313",
         "timeout_s": 60,
-        "topic": "group",
-        "namespace": "kafka_internal",
+        "topic": "__consumer_offsets",
+        "namespace": "kafka",
         "partition": 0,
         "alias": "reconfigure_313_group"
     },

@@ -128,7 +128,7 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         tasks_logger.info(f"waiting for tx coordinator to have leader")
         self.redpanda_cluster.wait_leader("tx", namespace="kafka_internal", replication=3, timeout_s=10)
         tasks_logger.info(f"waiting for consumer groups to have leader")
-        self.redpanda_cluster.wait_leader("group", namespace="kafka_internal", replication=3, timeout_s=10)
+        self.redpanda_cluster.wait_leader("__consumer_offsets", namespace="kafka", replication=3, timeout_s=10)
 
         chaos_logger.info(f"warming up for 20s")
         sleep(20)
@@ -144,7 +144,7 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
         # reconfigure consumer groups to use internal_nodes
         tasks_logger.info(f"reconfigure consumer groups")
-        self._reconfigure(internal_nodes, "group", partition=0, namespace="kafka_internal", timeout_s=20)
+        self._reconfigure(internal_nodes, "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
 
         tasks_logger.info(f"reconfigure topic {self.target}")
         self._reconfigure(data_nodes, self.target, partition=0, namespace="kafka", timeout_s=20)
@@ -163,7 +163,7 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         tasks_logger.info(f"transfer id_allocator leadership to {internal_nodes[1].id}")
         self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
         tasks_logger.info(f"transfer consumer group leadership to {internal_nodes[1].id}")
-        self._transfer(internal_nodes[1], "group", partition=0, namespace="kafka_internal", timeout_s=20)
+        self._transfer(internal_nodes[1], "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
         tasks_logger.info(f"transfer tx coordinator leadership to {internal_nodes[2].id}")
         self._transfer(internal_nodes[2], "tx", partition=0, namespace="kafka_internal", timeout_s=20)
 
