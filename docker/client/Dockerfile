@@ -22,12 +22,6 @@ RUN pip3 install flask
 RUN pip3 install confluent_kafka
 RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
-RUN cd /mnt/vectorized/workloads/writes/kafka-clients && \
-    mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/writes/tx-writes && \
-    mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/writes/concurrency && \
-    mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/list-offsets && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/reads-writes && \
@@ -35,8 +29,6 @@ RUN cd /mnt/vectorized/workloads/reads-writes && \
 RUN cd /mnt/vectorized/workloads/tx-single-reads-writes && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-money && \
-    mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/tx-streaming && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-subscribe && \
     mvn clean dependency:copy-dependencies package
