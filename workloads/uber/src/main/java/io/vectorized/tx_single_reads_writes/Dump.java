@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.tx_single_reads_writes;
 
 import java.util.Collections;
 import org.apache.kafka.common.TopicPartition;
