@@ -238,8 +238,6 @@
       shell: |
         cd /mnt/vectorized/workloads/uber
         mvn clean dependency:copy-dependencies package
-        cd /mnt/vectorized/workloads/reads-writes
-        mvn clean dependency:copy-dependencies package
         cd /mnt/vectorized/workloads/tx-single-reads-writes
         mvn clean dependency:copy-dependencies package
         cd /mnt/vectorized/workloads/tx-money

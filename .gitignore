@@ -19,7 +19,6 @@ docker/bind_mounts/
 .project
 .settings
 workloads/uber/target/
-workloads/reads-writes/target/
 workloads/writes/concurrency/target/
 workloads/writes/tx-writes/target/
 workloads/tx-single-reads-writes/target/
