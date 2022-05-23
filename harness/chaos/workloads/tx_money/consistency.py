@@ -3,7 +3,8 @@ import sys
 import json
 from sh import mkdir, rm
 import traceback
-from confluent_kafka import KafkaException, Producer, Consumer, TopicPartition, OFFSET_BEGINNING, OFFSET_END
+from confluent_kafka import KafkaException, Producer
+from chaos.workloads.retryable_consumer import RetryableConsumer
 from chaos.checks.result import Result
 from chaos.workloads.tx_money.log_utils import State, cmds, transitions, phantoms
 import logging
@@ -142,46 +143,26 @@ def validate(config, workload_dir):
                 sync_producer = SyncTxProducer(config["brokers"], config["workload"]["settings"]["retries"], f"tx-{i}")
                 sync_producer.init()
             
+            RETRIES=5
             for i in range(0, config["accounts"]):
                 last_offset = sync_producer.produce(f"acc{i}", None, "0".encode('utf-8'))["offset"]
-                c = Consumer({
-                    "isolation.level": "read_committed",
-                    "bootstrap.servers": config["brokers"],
-                    "enable.auto.commit": False,
-                    "group.id": "group1",
-                    "topic.metadata.refresh.interval.ms": 5000, # default: 300000
-                    "metadata.max.age.ms": 10000, # default: 900000
-                    "topic.metadata.refresh.fast.interval.ms": 250, # default: 250
-                    "topic.metadata.propagation.max.ms": 10000, # default: 30000
-                    "socket.timeout.ms": 10000, # default: 60000
-                    "connections.max.idle.ms": 0, # default: 0
-                    "reconnect.backoff.ms": 100, # default: 100
-                    "reconnect.backoff.max.ms": 10000, # default: 10000
-                    "statistics.interval.ms": 0, # default: 0
-                    "api.version.request.timeout.ms": 10000, # default: 10000
-                    "api.version.fallback.ms": 0, # default: 0
-                    "fetch.wait.max.ms": 500 # default: 0
-                })
-                c.assign([TopicPartition(f"acc{i}", 0, OFFSET_BEGINNING)])
-                RETRIES=5
+                c = RetryableConsumer(logger, config["brokers"])
+                c.init(f"acc{i}", RETRIES)
                 retries=RETRIES
 
-                prev_offset = -1
                 is_active = True
                 while is_active:
                     if retries==0:
                         raise Exception("Can't connect to the redpanda cluster")
                     msgs = c.consume(timeout=10)
-                    if len(msgs)==0:
-                        retries-=1
-                        continue
+                    retries-=1
                     for msg in msgs:
-                        retries=RETRIES
                         if msg is None:
                             continue
                         if msg.error():
                             logger.debug("Consumer error: {}".format(msg.error()))
                             continue
+                        retries=RETRIES
 
                         offset = msg.offset()
                         value = int(msg.value().decode('utf-8'))

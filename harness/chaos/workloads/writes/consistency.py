@@ -3,7 +3,7 @@ import sys
 import json
 from sh import mkdir, rm
 import traceback
-from confluent_kafka import Consumer, TopicPartition, OFFSET_BEGINNING
+from chaos.workloads.retryable_consumer import RetryableConsumer
 from chaos.checks.result import Result
 from chaos.workloads.writes.log_utils import State, cmds, transitions, phantoms
 import logging
@@ -47,28 +47,9 @@ class LogPlayer:
         if self.has_violation:
             return
 
-        c = Consumer({
-            "bootstrap.servers": self.config["brokers"],
-            "enable.auto.commit": False,
-            "group.id": "group1",
-            "topic.metadata.refresh.interval.ms": 5000, # default: 300000
-            "metadata.max.age.ms": 10000, # default: 900000
-            "topic.metadata.refresh.fast.interval.ms": 250, # default: 250
-            "topic.metadata.propagation.max.ms": 10000, # default: 30000
-            "socket.timeout.ms": 10000, # default: 60000
-            "connections.max.idle.ms": 0, # default: 0
-            "reconnect.backoff.ms": 100, # default: 100
-            "reconnect.backoff.max.ms": 10000, # default: 10000
-            "statistics.interval.ms": 0, # default: 0
-            "api.version.request.timeout.ms": 10000, # default: 10000
-            "api.version.fallback.ms": 0, # default: 0
-            "fetch.wait.max.ms": 500, # default: 0
-            "isolation.level": "read_committed"
-        })
-
-        c.assign([TopicPartition(self.config["topic"], 0, OFFSET_BEGINNING)])
-
         RETRIES=5
+        c = RetryableConsumer(logger, self.config["brokers"])
+        c.init(self.config["topic"], RETRIES)
         retries=RETRIES
 
         final_ko = dict()
@@ -80,17 +61,14 @@ class LogPlayer:
             if retries==0:
                 raise Exception("Can't connect to the redpanda cluster")
             msgs = c.consume(timeout=10)
-            if len(msgs)==0:
-                retries-=1
-                sleep(5)
-                continue
+            retries-=1
             for msg in msgs:
-                retries=RETRIES
                 if msg is None:
                     continue
                 if msg.error():
                     logger.debug("Consumer error: {}".format(msg.error()))
                     continue
+                retries=RETRIES
                 
                 offset = msg.offset()
                 value = msg.value().decode('utf-8')
