@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.tx_money;
 import java.io.*;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
