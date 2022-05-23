@@ -26,8 +26,6 @@ RUN cd /mnt/vectorized/workloads/uber && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-single-reads-writes && \
     mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/tx-money && \
-    mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-subscribe && \
     mvn clean dependency:copy-dependencies package
 RUN cd /mnt/vectorized/workloads/tx-poll && \
