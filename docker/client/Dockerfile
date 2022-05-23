@@ -24,7 +24,5 @@ RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
 RUN cd /mnt/vectorized/workloads/uber && \
     mvn clean dependency:copy-dependencies package
-RUN cd /mnt/vectorized/workloads/tx-poll && \
-    mvn clean dependency:copy-dependencies package
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/workloads
 CMD /mnt/vectorized/entrypoint.sh
