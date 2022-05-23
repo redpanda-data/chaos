@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.tx_subscribe;
 import java.io.*;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
@@ -14,6 +14,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.Queue;
 import org.apache.kafka.common.TopicPartition;
+
+import io.vectorized.tx_subscribe.App;
+
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
