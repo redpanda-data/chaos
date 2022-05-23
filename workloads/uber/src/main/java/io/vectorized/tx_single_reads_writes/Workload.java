@@ -1,4 +1,4 @@
-package io.vectorized;
+package io.vectorized.tx_single_reads_writes;
 import java.io.*;
 import java.util.Properties;
 import org.apache.kafka.clients.producer.Producer;
