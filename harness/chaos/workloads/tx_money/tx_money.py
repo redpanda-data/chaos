@@ -116,7 +116,7 @@ class Workload:
         begin = time.time()
         started = dict()
         for node in self.nodes:
-            started[node.ip]=self.info(node)
+            started[node.ip]=self.info(node, timeout_s=timeout_s)
         made_progress = False
         progressed = dict()
         while True:
@@ -127,7 +127,7 @@ class Workload:
                 if node.ip in progressed:
                     continue
                 logger.debug(f"checking if node {node.ip} made progress")
-                info = self.info(node)
+                info = self.info(node, timeout_s=timeout_s)
                 if info.succeeded_ops > started[node.ip].succeeded_ops:
                     progressed[node.id]=True
                 else:
@@ -142,22 +142,22 @@ class Workload:
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
-    def init(self, node, server, brokers, accounts, experiment, settings):
+    def init(self, node, server, brokers, accounts, experiment, settings, timeout_s=10):
         ip = node.ip
         r = requests.post(f"http://{ip}:8080/init", json={
             "experiment": experiment,
             "server": server,
             "accounts": accounts,
             "brokers": brokers,
-            "settings": settings})
+            "settings": settings}, timeout=timeout_s)
         if r.status_code != 200:
             logger.error(f"status code: {r.status_code}")
             logger.error(f"content: {r.content}")
             raise Exception(f"unexpected status code: {r.status_code}")
     
-    def start(self, node):
+    def start(self, node, timeout_s=10):
         ip = node.ip
-        r = requests.post(f"http://{ip}:8080/start")
+        r = requests.post(f"http://{ip}:8080/start", timeout=timeout_s)
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
@@ -167,9 +167,9 @@ class Workload:
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
-    def info(self, node):
+    def info(self, node, timeout_s=10):
         ip = node.ip
-        r = requests.get(f"http://{ip}:8080/info")
+        r = requests.get(f"http://{ip}:8080/info", timeout=timeout_s)
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
         info = Info()
@@ -179,9 +179,9 @@ class Workload:
         info.is_active = r.json()["is_active"]
         return info
     
-    def ping(self, node):
+    def ping(self, node, timeout_s=10):
         ip = node.ip
-        r = requests.get(f"http://{ip}:8080/ping")
+        r = requests.get(f"http://{ip}:8080/ping", timeout=timeout_s)
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
