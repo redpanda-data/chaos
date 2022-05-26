@@ -215,6 +215,7 @@ class AbstractSingleFault(ABC):
             if impact_s > 0:
                 chaos_logger.info(f"wait for {impact_s} seconds to record impacted state")
                 sleep(impact_s)
+            chaos_logger.info(f"done waiting for {impact_s} seconds")
             before_heal_info = {}
             for node in self.workload_cluster.nodes:
                 before_heal_info[node.ip] = self.workload_cluster.info(node)
@@ -272,55 +273,86 @@ class AbstractSingleFault(ABC):
                 sleep(recovery_s)
         else:
             raise Exception(f"Unknown fault type {self.fault.fault_type}")
-
+    
+    def analyze(self):
         self.fetch_workload_logs()
 
-        for check_cfg in self.config["checks"]:
-            if check_cfg["name"] == "progress_during_fault":
-                continue
-            check = CHECKS[check_cfg["name"]]
-            result = check().check(self)
-            for key in result:
-                check_cfg[key] = result[key]
-            self.config["result"] = Result.more_severe(self.config["result"], check_cfg["result"])
-        self.save_config()
+        try:
+            for check_cfg in self.config["checks"]:
+                if check_cfg["name"] == "progress_during_fault":
+                    continue
+                check = CHECKS[check_cfg["name"]]
+                result = check().check(self)
+                for key in result:
+                    check_cfg[key] = result[key]
+                self.config["result"] = Result.more_severe(self.config["result"], check_cfg["result"])
+            self.save_config()
 
-        self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
-        chaos_logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
-        self.save_config()
+            self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
+            chaos_logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
+            self.save_config()
 
-        if self.config["result"] == Result.FAILED:
-            if "exit_on_violation" in self.config:
-                if self.config["exit_on_violation"]:
-                    os._exit(42)
-        
-        self.fetch_redpanda_logs()
+            if self.config["result"] == Result.FAILED:
+                if "exit_on_violation" in self.config:
+                    if self.config["exit_on_violation"]:
+                        os._exit(42)
+            
+            self.fetch_redpanda_logs()
 
-        if "settings" in self.config:
-            if "remove_logs_on_success" in self.config["settings"]:
-                if self.config["settings"]["remove_logs_on_success"]:
-                    if self.config["result"]==Result.PASSED:
-                        self.remove_logs()
+            if "settings" in self.config:
+                if "remove_logs_on_success" in self.config["settings"]:
+                    if self.config["settings"]["remove_logs_on_success"]:
+                        if self.config["result"]==Result.PASSED:
+                            self.remove_logs()
+        finally:
+            self.fetch_redpanda_logs()
     
     def execute(self, config, experiment_id):
+        has_problem = True
+        is_hang = False
+        
         try:
             self.prepare_experiment(config, experiment_id)
-            self.measure_experiment()
-            return self.config
+            has_problem = False
         except ProgressException:
+            is_hang = True
+        except:
+            chaos_logger.exception("prepare_experiment problem")
+        
+        if has_problem:
+            try:
+                self.analyze()
+            except:
+                chaos_logger.exception("post prepare analyze problem")
+            if is_hang:
+                self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
+                self.save_config()
+                return self.config
+            self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
+            self.save_config()
+            return self.config
+            
+        has_problem = True
+        is_hang = False
+        try:
+            self.measure_experiment()
+            has_problem = False
+        except ProgressException:
+            is_hang = True
+        except:
+            chaos_logger.exception("measure_experiment problem")
+        
+        try:
+            self.analyze()
+        except:
+            chaos_logger.exception("post measure analyze problem")
+            has_problem = True
+        if is_hang:
             self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
             self.save_config()
             return self.config
-        except:
+        if has_problem:
             self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
             self.save_config()
-            raise
-        finally:
-            try:
-                self.fetch_workload_logs()
-            except:
-                pass
-            try:
-                self.fetch_redpanda_logs()
-            except:
-                pass
+            return self.config
+        return self.config
