@@ -93,6 +93,16 @@ class LogPlayer:
                 logger.error(v)
                 logger.error(trace)
     
+    def is_violation(self, line):
+        if line == None:
+            return False
+        parts = line.rstrip().split('\t')
+        if len(parts)<3:
+            return False
+        if parts[2] not in cmds:
+            return False
+        return cmds[parts[2]] == State.VIOLATION
+
     def apply(self, line):
         if self.has_violation:
             return
@@ -156,6 +166,8 @@ def validate(config, workload_dir):
                     if last_line != None:
                         player.apply(last_line)
                     last_line = line
+                if player.is_violation(last_line):
+                    player.apply(last_line)
             has_violation = has_violation or player.has_violation
         has_errors = has_violation
 
