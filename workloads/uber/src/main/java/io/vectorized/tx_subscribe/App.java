@@ -23,6 +23,7 @@ public class App
         public String target;
         public String group_id;
         public int partitions;
+        public int idx;
         public WorkflowSettings settings;
     }
 

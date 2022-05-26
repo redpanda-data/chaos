@@ -175,7 +175,7 @@ class LogPlayer:
             self.is_commit[thread_id] = False
             self.end_txn_started[thread_id] = self.ts_us
         elif self.curr_state[thread_id] == State.READ:
-            self.read_partition[thread_id] = int(parts[4])
+            self.read_partition[thread_id] = int(parts[5])
         elif self.curr_state[thread_id] == State.OK:
             if self.should_measure:
                 if self.is_commit[thread_id]:
