@@ -18,7 +18,7 @@
     },
     "fault": {
         "name": "hijack_tx_ids",
-        "ids": [ "tx-consume-source1-partition-0" ]
+        "ids": [ "tx-consume-0" ]
     },
     "checks": [
         { "name": "redpanda_process_liveness" }

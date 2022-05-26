@@ -116,9 +116,11 @@ class TxSubscribeSingleFault(AbstractSingleFault):
         sleep(5)
         self.workload_cluster.wait_ready(timeout_s=10)
 
+        servers = [x.ip for x in self.workload_cluster.nodes]
+        servers.sort()
         for node in self.workload_cluster.nodes:
             chaos_logger.info(f"init workload with brokers=\"{self.redpanda_cluster.brokers()}\", source=\"{self.source}\", target=\"{self.target}\" & group_ip=\"{self.config['group_id']}\" on {node.ip}")
-            self.workload_cluster.init(node, node.ip, self.redpanda_cluster.brokers(), self.source, self.partitions, self.target, self.config['group_id'], self.config['experiment_id'], self.config["workload"]["settings"])
+            self.workload_cluster.init(servers.index(node.ip), node, node.ip, self.redpanda_cluster.brokers(), self.source, self.partitions, self.target, self.config['group_id'], self.config['experiment_id'], self.config["workload"]["settings"])
 
         for node in self.workload_cluster.nodes:
             chaos_logger.info(f"starting workload on {node.ip}")

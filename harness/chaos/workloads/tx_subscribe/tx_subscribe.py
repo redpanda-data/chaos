@@ -142,10 +142,11 @@ class Workload:
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
-    def init(self, node, server, brokers, source, partitions, target, group_id, experiment, settings, timeout_s=10):
+    def init(self, idx, node, server, brokers, source, partitions, target, group_id, experiment, settings, timeout_s=10):
         ip = node.ip
         r = requests.post(f"http://{ip}:8080/init", json={
             "experiment": experiment,
+            "idx": idx,
             "server": server,
             "source": source,
             "target": target,
