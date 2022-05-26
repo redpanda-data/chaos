@@ -198,6 +198,16 @@ class LogPlayer:
                 write.finished = self.ts_us
                 self.err_writes[write.op] = write
     
+    def is_violation(self, line):
+        if line == None:
+            return False
+        parts = line.rstrip().split('\t')
+        if len(parts)<3:
+            return False
+        if parts[2] not in cmds:
+            return False
+        return cmds[parts[2]] == State.VIOLATION
+
     def apply(self, line):
         parts = line.rstrip().split('\t')
 
@@ -259,6 +269,8 @@ def validate(config, check_config, workload_dir):
                     if last_line != None:
                         player.apply(last_line)
                     last_line = line
+                if player.is_violation(last_line):
+                    player.apply(last_line)
             player.reread_and_check()
             has_violation = has_violation or player.has_violation
         
