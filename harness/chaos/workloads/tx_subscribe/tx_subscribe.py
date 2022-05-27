@@ -67,8 +67,14 @@ class Workload:
     
     def stop_everywhere(self):
         for node in self.nodes:
-            logger.debug(f"stopping workload on node {node.ip}")
-            self.stop(node)
+            if self.is_alive(node):
+                try:
+                    logger.debug(f"stopping workload on node {node.ip}")
+                    self.stop(node)
+                except:
+                    logger.exception("error on stopping")
+            else:
+                logger.debug(f"workload on node {node.ip} is already stopped")
     
     def wait_killed(self, timeout_s=10):
         begin = time.time()
@@ -181,6 +187,7 @@ class Workload:
             raise Exception(f"unexpected status code: {r.status_code}")
 
     def info(self, node, timeout_s=10):
+        logger.debug(f"fetching info from {node.ip}")
         ip = node.ip
         r = requests.get(f"http://{ip}:8080/info", timeout=timeout_s)
         if r.status_code != 200:

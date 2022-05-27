@@ -75,6 +75,7 @@ class AbstractSingleFault(ABC):
     
     def fetch_workload_logs(self):
         if self.workload_cluster != None:
+            chaos_logger.info(f"fetching workload logs")
             if self.is_workload_log_fetched:
                 return
             chaos_logger.info(f"stopping workload everywhere")
