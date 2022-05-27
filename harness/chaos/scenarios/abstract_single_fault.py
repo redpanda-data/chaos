@@ -299,24 +299,18 @@ class AbstractSingleFault(ABC):
                         os._exit(42)
             
             self.fetch_redpanda_logs()
-
-            if "settings" in self.config:
-                if "remove_logs_on_success" in self.config["settings"]:
-                    if self.config["settings"]["remove_logs_on_success"]:
-                        if self.config["result"]==Result.PASSED:
-                            self.remove_logs()
         finally:
             self.fetch_redpanda_logs()
     
     def execute(self, config, experiment_id):
         has_problem = True
-        is_hang = False
         
         try:
             self.prepare_experiment(config, experiment_id)
             has_problem = False
         except ProgressException:
-            is_hang = True
+            self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
+            self.save_config()
         except:
             chaos_logger.exception("prepare_experiment problem")
         
@@ -325,21 +319,18 @@ class AbstractSingleFault(ABC):
                 self.analyze()
             except:
                 chaos_logger.exception("post prepare analyze problem")
-            if is_hang:
-                self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
+            if self.config["result"]==Result.PASSED:
+                self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
                 self.save_config()
-                return self.config
-            self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
-            self.save_config()
             return self.config
             
         has_problem = True
-        is_hang = False
         try:
             self.measure_experiment()
             has_problem = False
         except ProgressException:
-            is_hang = True
+            self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
+            self.save_config()
         except:
             chaos_logger.exception("measure_experiment problem")
         
@@ -348,12 +339,17 @@ class AbstractSingleFault(ABC):
         except:
             chaos_logger.exception("post measure analyze problem")
             has_problem = True
-        if is_hang:
-            self.config["result"] = Result.more_severe(self.config["result"], Result.HANG)
-            self.save_config()
-            return self.config
-        if has_problem:
-            self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
-            self.save_config()
-            return self.config
+
+        if self.config["result"]==Result.PASSED:
+            if has_problem:
+                self.config["result"] = Result.more_severe(self.config["result"], Result.UNKNOWN)
+                self.save_config()
+                return self.config
+        
+        if "settings" in self.config:
+            if "remove_logs_on_success" in self.config["settings"]:
+                if self.config["settings"]["remove_logs_on_success"]:
+                    if self.config["result"]==Result.PASSED:
+                        self.remove_logs()
+
         return self.config
