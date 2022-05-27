@@ -162,6 +162,9 @@ class LogPlayer:
 
         self.should_measure = False
     
+    def has_at_least(self, num):
+        return len(self.latency_commit_history) >= num and len(self.latency_ok_history) >= num
+    
     def streaming_apply(self, thread_id, parts):
         if self.curr_state[thread_id] == State.TX:
             self.txn_started[thread_id] = self.ts_us
@@ -237,6 +240,9 @@ class StatInfo:
         self.latency_commit_history = []
         self.faults = []
         self.recoveries = []
+    
+    def has_at_least(self, num):
+        return len(self.latency_commit_history) >= num and len(self.latency_ok_history) >= num
 
 
 def render_overview(config, workload_dir, stat):
@@ -480,23 +486,34 @@ def collect(config, check, workload_dir):
             total.faults = player.faults
             total.recoveries = player.recoveries
 
-            result = render_overview(config, node_dir, player)
-            render_availability(config, node_dir, player)
-            render_percentiles(config, node_dir, player)
-
-            check[node] = result
+            if player.has_at_least(10):
+                result = render_overview(config, node_dir, player)
+                render_availability(config, node_dir, player)
+                render_percentiles(config, node_dir, player)
+                check[node] = result
+                check["result"] = Result.more_severe(check["result"], check[node]["result"])
+            else:
+                check[node] = {
+                    "result": Result.NODATA
+                }
         else:
             check[node] = {
                 "result": Result.UNKNOWN,
                 "message": f"Can't find logs dir: {workload_dir}"
             }
-        check["result"] = Result.more_severe(check["result"], check[node]["result"])
+            check["result"] = Result.more_severe(check["result"], check[node]["result"])
     
-    total.latency_err_history.sort(key=lambda x:x[0])
-    total.latency_ok_history.sort(key=lambda x:x[0])
-    total.latency_commit_history.sort(key=lambda x:x[0])
+    if total.has_at_least(10):
+        total.latency_err_history.sort(key=lambda x:x[0])
+        total.latency_ok_history.sort(key=lambda x:x[0])
+        total.latency_commit_history.sort(key=lambda x:x[0])
     
-    check["total"] = render_overview(config, workload_dir, total)
+        check["total"] = render_overview(config, workload_dir, total)
+    else:
+        check["total"] = {
+            "result": Result.NODATA
+        }
+    
     check["result"] = Result.more_severe(check["result"], check["total"]["result"])
     
     handler.flush()

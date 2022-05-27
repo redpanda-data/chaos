@@ -123,23 +123,17 @@ class Workload:
         started = dict()
         for node in self.nodes:
             started[node.ip]=self.info(node, timeout_s=timeout_s)
-        made_progress = False
-        progressed = dict()
+        # tx_subscribe requires at least one client to make progress
+        # since there may be cases when a single client gets all
+        # subscriptions
         while True:
-            made_progress = True
             for node in self.nodes:
                 if time.time() - begin > timeout_s:
                     raise TimeoutException(f"workload haven't done progress within {timeout_s} sec")
-                if node.ip in progressed:
-                    continue
                 logger.debug(f"checking if node {node.ip} made progress")
                 info = self.info(node, timeout_s=timeout_s)
                 if info.succeeded_ops > started[node.ip].succeeded_ops:
-                    progressed[node.id]=True
-                else:
-                    made_progress = False
-            if made_progress:
-                break
+                    return
             sleep(1)
 
     def emit_event(self, node, name):
