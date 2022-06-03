@@ -12,48 +12,44 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.Queue;
 import java.util.Collections;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import java.time.Duration;
+import java.util.Random;
 
 public class Workload {
     static enum TxStatus {
-        ONGOING, COMMITTING, ABORTING, COMMITTED
+        ONGOING, COMMITTING, COMMITTED, ABORTING, UNKNOWN
     }
     
     static class TxRecord {
         public int wid;
         public long tid;
         public TxStatus status;
-        public HashSet<Integer> seen;
-        public boolean expired;
-        public boolean ended;
-        public Queue<Long> ops;
+        public LinkedList<OpRecord> ops;
         public long started_us;
         public long seen_us;
     }
 
     static class OpRecord {
+        public long tid;
         public long oid;
         public long offset;
-        public long tid;
+        public HashSet<Integer> seen;
     }
 
     public volatile boolean is_active = false;
     
     private volatile App.InitBody args;
     private BufferedWriter opslog;
+    private volatile Random random = new Random();
 
     private HashMap<Integer, App.OpsInfo> ops_info;
     private synchronized void succeeded(int thread_id) {
         ops_info.get(thread_id).succeeded_ops += 1;
-    }
-    private synchronized void timedout(int thread_id) {
-        ops_info.get(thread_id).timedout_ops += 1;
     }
     private synchronized void failed(int thread_id) {
         ops_info.get(thread_id).failed_ops += 1;
@@ -67,19 +63,6 @@ public class Workload {
     private long last_tx_id = 0;
     private synchronized long get_tx_id() {
         return ++this.last_tx_id;
-    }
-
-    private HashMap<Integer, Boolean> should_reset;
-    private HashMap<Integer, Long> last_success_us;
-    private synchronized void progress(int thread_id) {
-        last_success_us.put(thread_id, System.nanoTime() / 1000);
-    }
-    private synchronized void tick(int thread_id) {
-        var now_us = Math.max(last_success_us.get(thread_id), System.nanoTime() / 1000);
-        if (now_us - last_success_us.get(thread_id) > 10 * 1000 * 1000) {
-            should_reset.put(thread_id, true);
-            last_success_us.put(thread_id, now_us);
-        }
     }
 
     private long past_us;
@@ -111,17 +94,12 @@ public class Workload {
         log(-1, "event\t" + name);
     }
 
-    private volatile ArrayList<Thread> threads;
+    private volatile ArrayList<Thread> producers;
+    private volatile ArrayList<Thread> consumers;
 
     private HashMap<Long, TxRecord> txes;
-    private HashMap<Integer, HashMap<Long, Long>> next_tid;
-    private HashMap<Long, OpRecord> ops;
-
-    private HashMap<Long, Long> seen_offset_oid;
-    private HashMap<Long, Long> seen_next_offset;
-    private Queue<Long> seen_offsets;
-
-    private HashMap<Integer, Long> read_offset_front;
+    private HashMap<Integer, LinkedList<Long>> tids;
+    private long last_offset = -1;
 
     public Workload(App.InitBody args) {
         this.args = args;
@@ -138,31 +116,27 @@ public class Workload {
         past_us = 0;
         opslog = new BufferedWriter(new FileWriter(new File(new File(args.experiment, args.server), "workload.log")));
         
-        should_reset = new HashMap<>();
-        last_success_us = new HashMap<>();
         ops_info = new HashMap<>();
         txes = new HashMap<>();
-        next_tid = new HashMap<>();
-        ops = new HashMap<>();
-        seen_offset_oid = new HashMap<>();
-        seen_next_offset = new HashMap<>();
-        seen_offsets = new LinkedList<>();
-        read_offset_front = new HashMap<>();
-
+        tids = new HashMap<>();
+        
         int thread_id=0;
-        threads = new ArrayList<>();
+        producers = new ArrayList<>();
+        consumers = new ArrayList<>();
         for (int i=0;i<this.args.settings.writes;i++) {
             final var j=thread_id++;
-            next_tid.put(j, new HashMap<>());
-            should_reset.put(j, false);
-            last_success_us.put(j, -1L);
+            tids.put(j, new LinkedList<>());
             ops_info.put(j, new App.OpsInfo());
-            threads.add(new Thread(() -> { 
+            producers.add(new Thread(() -> { 
                 try {
                     writeProcess(j);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    synchronized(this) {
+                        System.out.println("=== err on writeProcess");
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
+                    
                     try {
                         opslog.flush();
                         opslog.close();
@@ -174,15 +148,15 @@ public class Workload {
 
         for (int i=0;i<this.args.settings.reads;i++) {
             final var j=thread_id++;
-            should_reset.put(j, false);
-            last_success_us.put(j, -1L);
-            read_offset_front.put(j, -1L);
-            threads.add(new Thread(() -> { 
+            consumers.add(new Thread(() -> { 
                 try {
                     readProcess(j);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    synchronized(this) {
+                        System.out.println("=== err on readProcess");
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
                     try {
                         opslog.flush();
                         opslog.close();
@@ -192,7 +166,11 @@ public class Workload {
             }));
         }
         
-        for (var th : threads) {
+        for (var th : producers) {
+            th.start();
+        }
+
+        for (var th : consumers) {
             th.start();
         }
     }
@@ -205,9 +183,14 @@ public class Workload {
             opslog.flush();
         }
 
-        for (var th : threads) {
+        for (var th : producers) {
             th.join();
         }
+
+        for (var th : consumers) {
+            th.join();
+        }
+
         if (opslog != null) {
             opslog.flush();
             opslog.close();
@@ -259,23 +242,8 @@ public class Workload {
         Producer<String, String> producer = null;
     
         log(wid, "started\t" + args.server);
-        long prev_tid = -1L;
     
         while (is_active) {
-            tick(wid);
-    
-            synchronized(this) {
-                if (should_reset.get(wid)) {
-                    should_reset.put(wid, false);
-                    if (producer != null) {
-                        try {
-                            producer.close();
-                            producer = null;
-                        } catch(Exception e) {}
-                    }
-                }
-            }
-    
             try {
                 if (producer == null) {
                     log(wid, "constructing");
@@ -285,10 +253,13 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e1) {
+                synchronized(this) {
+                    System.out.println("=== err on constructing KafkaProducer");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
+                
                 log(wid, "err");
-                System.out.println(e1);
-                e1.printStackTrace();
-                failed(wid);
                 try {
                     if (producer != null) {
                         producer.close();
@@ -299,82 +270,85 @@ public class Workload {
             }
     
     
+            boolean should_abort = random.nextInt(2)==0;
+            
             var tx = new TxRecord();
             tx.wid = wid;
             tx.tid = get_tx_id();
-            tx.status = TxStatus.ONGOING;
-            tx.seen = new HashSet<>();
-            tx.expired = false;
-            tx.ended = true;
+            tx.status = should_abort ? TxStatus.ABORTING : TxStatus.ONGOING;
+            tx.ops = new LinkedList<>();
             tx.started_us = System.nanoTime() / 1000;
             tx.seen_us = -1;
-            tx.ops = new LinkedList<>();
+
+            long known_offset = -1;
             
             synchronized(this) {
-                next_tid.get(wid).put(prev_tid, tx.tid);
+                tids.get(wid).add(tx.tid);
                 txes.put(tx.tid, tx);
-                prev_tid = tx.tid;
+                known_offset = last_offset;
             }
     
             log(wid, "tx\t" + tx.tid);
             producer.beginTransaction();
     
-            long tx_min_offset = Long.MAX_VALUE;
-            long tx_max_offset = Long.MIN_VALUE;
+            long last_oid = -1;
+            boolean is_err = false;
             try {
                 for (int i=0;i<10;i++) {
+                    last_oid = get_op_id();
+
                     var op = new OpRecord();
-                    op.oid = get_op_id();
                     op.tid = tx.tid;
+                    op.oid = last_oid;
                     op.offset = -1;
+                    op.seen = new HashSet<>();
+
                     synchronized(this) {
-                        tx.ops.add(op.oid);
-                        ops.put(op.oid, op);
+                        tx.ops.add(op);
                     }
-                    var offset = producer.send(new ProducerRecord<String, String>(args.topic, args.server, "" + op.oid)).get().offset();
-                    tx_min_offset = Math.min(tx_min_offset, offset);
-                    tx_max_offset = Math.max(tx_max_offset, offset);
+                    var offset = producer.send(new ProducerRecord<String, String>(args.topic, args.server, tx.tid + "\t" + last_oid)).get().offset();
+                    log(wid, "log\twriten\t" + last_oid + "@" + offset);
                     synchronized(this) {
-                        if (op.offset < 0) {
-                            op.offset = offset;
+                        if (op.offset != -1) {
+                            violation(wid, "tid:" + tx.tid + " wasn't committed so oid:" + op.oid + " shouldn't be visible but already has offset:" + op.offset);
                         }
-                        if (op.offset != offset) {
-                            violation(wid, "a write with oid:" + op.oid + " & offset:" + offset + " was observed before with offset:" + op.offset);
-                        }
+                        op.offset = offset;
                     }
                 }
             } catch (Exception e1) {
-                System.out.println("error on produce => aborting tx");
-                System.out.println(e1);
-                e1.printStackTrace();
-    
+                log(wid, "log\terr\t" + last_oid);
                 synchronized(this) {
-                    if (tx.status != TxStatus.ONGOING) {
-                        violation(wid, "tx failed before commit but its status isn't ongoing: " + tx.status.name());
+                    System.out.println("=== error on produce => aborting tx");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+
+                    if (!should_abort && tx.status != TxStatus.ONGOING) {
+                        violation(wid, "tx failed before commit but its status is: " + tx.status.name());
                     }
                     tx.status = TxStatus.ABORTING;
-                    tx.ended = true;
                 }
-    
+
+                should_abort = true;
+                is_err = true;
+            }
+
+            if (should_abort) {
                 try {
                     log(wid, "brt");
                     producer.abortTransaction();
-                    progress(wid);
-                    if (tx_min_offset <= tx_max_offset) {
-                        log(wid, "ok\t" + tx_min_offset + "\t" + tx_max_offset);
+                    log(wid, "ok");
+                    if (is_err) {
+                        failed(wid);
                     } else {
-                        log(wid, "ok");
+                        succeeded(wid);
                     }
-                    failed(wid);
                 } catch (Exception e2) {
-                    System.out.println("error on abort => reset producer");
-                    System.out.println(e2);
-                    e2.printStackTrace();
-                    if (tx_min_offset <= tx_max_offset) {
-                        log(wid, "err\t" + tx_min_offset + "\t" + tx_max_offset);
-                    } else {
-                        log(wid, "err");
+                    synchronized(this) {
+                        System.out.println("=== error on abort => reset producer");
+                        System.out.println(e2);
+                        e2.printStackTrace();
                     }
+                    log(wid, "err");
                     failed(wid);
                     try {
                         producer.close();
@@ -394,7 +368,6 @@ public class Workload {
                     tx.status = TxStatus.COMMITTING;
                 }
                 producer.commitTransaction();
-                progress(wid);
                 synchronized(this) {
                     if (tx.status == TxStatus.COMMITTING) {
                         tx.status = TxStatus.COMMITTED;
@@ -402,24 +375,31 @@ public class Workload {
                     if (tx.status != TxStatus.COMMITTED) {
                         violation(wid, "a committed tx can't have status: " + tx.status.name());
                     }
-                    tx.ended = true;
-                    if (tx.expired) {
-                        txes.remove(tx.tid);
-                        for (var oid : tx.ops) {
-                            ops.remove(oid);
+                    for (var op : tx.ops) {
+                        if (op.offset <= known_offset) {
+                            violation(wid, "written offset " + op.offset + " is less that last known offset: " + known_offset);
+                        }
+                        if (last_offset < op.offset) {
+                            last_offset = op.offset;
                         }
                     }
                 }
-                log(wid, "ok\t" + tx_min_offset + "\t" + tx_max_offset);
+                log(wid, "ok");
                 succeeded(wid);
             } catch (Exception e1) {
                 synchronized(this) {
-                    tx.ended = true;
+                    System.out.println("=== error on commit => reset producer");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                    if (tx.status == TxStatus.COMMITTED) {
+                        // ok it means it was already seen
+                    } else if (tx.status == TxStatus.COMMITTING) {
+                        tx.status = TxStatus.UNKNOWN;
+                    } else {
+                        violation(wid, "a tx with failed commit can't have status: " + tx.status.name());
+                    }
                 }
-                System.out.println("error on commit => reset producer");
-                System.out.println(e1);
-                e1.printStackTrace();
-                log(wid, "err\t" + tx_min_offset + "\t" + tx_max_offset);
+                log(wid, "err");
                 failed(wid);
                 try {
                     producer.close();
@@ -468,26 +448,18 @@ public class Workload {
         props.put(ConsumerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
 
         KafkaConsumer<String, String> consumer = null;
-        HashMap<Integer, Long> prev_tid_by_wid = new HashMap<>();
-        synchronized (this) {
-            for (var wid : next_tid.keySet()) {
-                prev_tid_by_wid.put(wid, -1L);
-            }
-        }
 
         log(rid, "started\t" + args.server + "\tconsumer");
 
         long prev_offset = -1;
-        HashMap<Long, Queue<Long>> local_tx_ops = new HashMap<>();
+        
+        long last_success_us = System.nanoTime() / 1000;
 
         while (is_active) {
-            tick(rid);
-
-            synchronized(this) {
-                if (should_reset.get(rid)) {
-                    should_reset.put(rid, false);
-                    consumer = null;
-                }
+            var now_us = Math.max(last_success_us, System.nanoTime() / 1000);
+            if (now_us - last_success_us > 10 * 1000 * 1000) {
+                consumer = null;
+                last_success_us = now_us;
             }
 
             try {
@@ -505,8 +477,13 @@ public class Workload {
                 }
             } catch (Exception e) {
                 log(rid, "err");
-                System.out.println(e);
-                e.printStackTrace();
+
+                synchronized(this) {
+                    System.out.println("=== err on constructing KafkaConsumer");
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
+
                 failed(rid);
                 continue;
             }
@@ -514,7 +491,7 @@ public class Workload {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(10000));
             var it = records.iterator();
             while (it.hasNext()) {
-                progress(rid);
+                last_success_us = System.nanoTime() / 1000;
                 var record = it.next();
 
                 if (!record.key().equals(args.server)) {
@@ -522,7 +499,11 @@ public class Workload {
                 }
 
                 long offset = record.offset();
-                long oid = Long.parseLong(record.value());
+                String[] parts = record.value().split("\t");
+                long tid = Long.parseLong(parts[0]);
+                long oid = Long.parseLong(parts[1]);
+
+                log(rid, "log\tread\t" + tid + ":" + oid + "@" + offset);
 
                 synchronized(this) {
                     // monotonicity
@@ -530,121 +511,122 @@ public class Workload {
                         violation(rid, "reads must be monotonic but observed " + offset + " after " + prev_offset);
                     }
 
-                    // all readers see the same sequence
-                    if (seen_offset_oid.containsKey(offset)) {
-                        if (seen_offset_oid.get(offset) != oid) {
-                            violation(rid, "read " + oid + "@" + offset + " but " + seen_offset_oid.get(offset) + "@" + offset + " was already seen");
-                        }
-                        if (!seen_next_offset.containsKey(prev_offset)) {
-                            violation(rid, "offset " + offset + " is aleady seen but it doesn't go after " + prev_offset);
-                        }
-                        if (seen_next_offset.get(prev_offset) != offset) {
-                            violation(rid, "read " + prev_offset + "->" + offset + " after " + prev_offset + "->" + seen_next_offset.get(prev_offset) + " was already seen");
-                        }
-                    } else {
-                        seen_offset_oid.put(offset, oid);
-                        seen_next_offset.put(prev_offset, offset);
-                        seen_offsets.add(offset);
+                    if (!txes.containsKey(tid)) {
+                        violation(rid, "can't find tid:" + tid);
                     }
-                    prev_offset = offset;
                     
-                    // gc aux structure needed for previous step
-                    read_offset_front.put(rid, offset);
-                    long min_offset = offset;
-                    for (var seen_offset : read_offset_front.values()) {
-                        min_offset = Math.min(min_offset, seen_offset);
-                    }
-                    if (min_offset == offset) {
-                        while (seen_offsets.element() < offset) {
-                            var old = seen_offsets.remove();
-                            seen_offset_oid.remove(old);
-                            seen_next_offset.remove(old);
+                    var tx = txes.get(tid);
+
+                    var prev_tids = tids.get(tx.wid);
+                    boolean found_tid = false;
+                    for (var prev_tid : prev_tids) {
+                        if (prev_tid == tid) {
+                            found_tid = true;
+                            break;
+                        }
+                        if (prev_tid > tid) {
+                            violation(rid, "can't find tid in tids");
+                        }
+                        var prev_tx = txes.get(prev_tid);
+                        if (prev_tx.status == TxStatus.ONGOING) {
+                            violation(rid, "prev tid:" + prev_tid + " can't have ongoing status");
+                        }
+                        if (prev_tx.status == TxStatus.COMMITTING) {
+                            violation(rid, "prev tid:" + prev_tid + " can't have committing status (because next tid was already written by the same producer => should be unknown)");
+                        }
+                        if (prev_tx.status == TxStatus.COMMITTED) {
+                            for (var op : prev_tx.ops) {
+                                if (!op.seen.contains(rid)) {
+                                    violation(rid, "skipped over " + prev_tid + ":" + op.oid + "@" + op.offset);
+                                }
+                            }
+                            continue;
+                        }
+                        if (prev_tx.status == TxStatus.UNKNOWN) {
+                            prev_tx.status = TxStatus.ABORTING;
                         }
                     }
-
-                    // validating integraty of oid/offset
-                    if (!ops.containsKey(oid)) {
-                        violation(rid, "observed unknown oid:" + oid);
-                    }
-                    var op = ops.get(oid);
-                    if (op.offset < 0) {
-                        op.offset = offset;
-                    }
-                    if (op.offset != offset) {
-                        violation(rid, "read " + oid + "@" + offset + " but " + oid + "@" + op.offset + " was already seen");
+                    if (!found_tid) {
+                        violation(rid, "can't find tid:" + tid + " in the tids");
                     }
 
-                    if (!txes.containsKey(op.tid)) {
-                        violation(rid, "unknown tid: " + op.tid + " assosiated with " + oid + "@" + offset);
-                    }
-                    var tx = txes.get(op.tid);
                     if (tx.status == TxStatus.ONGOING) {
-                        violation(rid, "observed tx before a commit attempt was made; tid:" + op.tid);
+                        violation(rid, "can't read ongoing tx but read tid:" + tid + " before commit");
                     }
                     if (tx.status == TxStatus.ABORTING) {
-                        violation(rid, "observed aborted tx; tid:" + op.tid);
+                        violation(rid, "can't read aborting tx but read tid:" + tid);
                     }
                     if (tx.status == TxStatus.COMMITTING) {
                         tx.status = TxStatus.COMMITTED;
                     }
-                    if (tx.seen_us < 0) {
-                        tx.seen_us = System.nanoTime() / 1000;
-                        log(rid, "seen\t" + (tx.seen_us - tx.started_us));
+                    if (tx.status == TxStatus.UNKNOWN) {
+                        tx.status = TxStatus.COMMITTED;
+                    }
+                    
+                    boolean found_oid = false;
+                    for (var op : tx.ops) {
+                        if (op.oid < oid) {
+                            if (!op.seen.contains(rid)) {
+                                violation(rid, "read " + tid + ":" + oid + "@" + offset + " before oid: " + op.oid);
+                            }
+                        } else if (op.oid == oid) {
+                            if (op.seen.contains(rid)) {
+                                violation(rid, "already seen oid:" + oid);
+                            }
+                            op.seen.add(rid);
+                            if (op.offset != offset) {
+                                violation(rid, "read offset " + tid + ":" + oid + "@" + offset + " doesn't match written offset:" + op.offset);
+                            }
+                            if (tx.seen_us < 0) {
+                                tx.seen_us = System.nanoTime() / 1000;
+                                log(rid, "seen\t" + (tx.seen_us - tx.started_us));
+                            }
+                            found_oid = true;
+                            break;
+                        }
                     }
 
-                    if (!local_tx_ops.containsKey(tx.tid)) {
-                        var prev_tid = prev_tid_by_wid.get(tx.wid);
-                        var curr_tid = prev_tid;
-                        // checking for missing transacitons before tx
-                        while (curr_tid != tx.tid) {
-                            if (curr_tid < 0) {
-                                curr_tid = next_tid.get(tx.wid).get(curr_tid);
-                                continue;
-                            }
-                            if (!txes.containsKey(curr_tid)) {
-                                throw new Exception("can't find tx for tid:" + curr_tid);
-                            }
-                            var curr_tx = txes.get(curr_tid);
-                            if (curr_tx.status == TxStatus.ONGOING) {
-                                curr_tx.status = TxStatus.ABORTING;
-                                curr_tx.seen.add(rid);
-                            } else if (curr_tx.status == TxStatus.ABORTING) {
-                                curr_tx.seen.add(rid);
-                            } else if (curr_tx.status == TxStatus.COMMITTING) {
-                                curr_tx.status = TxStatus.ABORTING;
-                                curr_tx.seen.add(rid);
-                            } else if (curr_tx.status == TxStatus.COMMITTED) {
-                                if (curr_tid != prev_tid) {
-                                    violation(rid, "observed tid:" + op.tid + " but skipped over tid:" + curr_tid);
+                    if (!found_oid) {
+                        violation(rid, "can't find oid:" + oid + " in tid:" + tid);
+                    }
+
+                    // gc
+                    if (tx.ops.getLast().oid == oid) {
+                        boolean has_processed = true;
+                        for (var op : tx.ops) {
+                            has_processed = has_processed && (op.seen.size() == consumers.size());
+                        }
+                        if (has_processed) {
+                            while (prev_tids.size()>0 && prev_tids.element()<=tid) {
+                                var prev_tid = prev_tids.remove();
+                                var prev_tx = txes.get(prev_tid);
+                                if (prev_tx.status == TxStatus.ONGOING) {
+                                    violation(rid, "prev tid:" + prev_tid + " can't have ongoing status");
                                 }
-                                curr_tx.seen.add(rid);
-                            } else {
-                                throw new Exception("Unknown status: " + curr_tx.status.name());
-                            }
-                            var next = next_tid.get(tx.wid).get(curr_tid);
-                            if (read_offset_front.keySet().stream().allMatch(x -> curr_tx.seen.contains(x))) {
-                                next_tid.get(tx.wid).remove(curr_tid);
-                                curr_tx.expired = true;
-                                if (curr_tx.ended) {
-                                    txes.remove(curr_tx.tid);
-                                    for (var id : curr_tx.ops) {
-                                        ops.remove(id);
+                                if (prev_tx.status == TxStatus.COMMITTING) {
+                                    violation(rid, "prev tid:" + prev_tid + " can't have committing status (because next tid was already written by the same producer => should be unknown)");
+                                }
+                                if (prev_tx.status == TxStatus.UNKNOWN) {
+                                    violation(rid, "prev tid:" + prev_tid + " can't have unknown status");
+                                }
+                                if (prev_tx.status == TxStatus.COMMITTED) {
+                                    for (var op : prev_tx.ops) {
+                                        if (op.seen.size() != consumers.size()) {
+                                            var msg = "" + prev_tid + ":" + op.oid + "@" + op.offset + " is seen only by:";
+                                            for (var cid : op.seen) {
+                                                msg += " " + cid;
+                                            }
+                                            violation(rid, msg);
+                                        }
                                     }
                                 }
+                                txes.remove(prev_tid);
+                                log(rid, "log\trm\t" + prev_tid);
                             }
-                            curr_tid = next;
                         }
-                        prev_tid_by_wid.put(tx.wid, tx.tid);
-                        local_tx_ops.put(tx.tid, new LinkedList<>(tx.ops));
                     }
 
-                    if (local_tx_ops.get(tx.tid).element() != oid) {
-                        violation(rid, "expected next read record of tid:" + tx.tid + " has oid:" + local_tx_ops.get(tx.tid).element() + " but observed oid:" + oid);
-                    }
-                    local_tx_ops.get(tx.tid).remove();
-                    if (local_tx_ops.get(tx.tid).size()==0) {
-                        local_tx_ops.remove(tx.tid);
-                    }
+                    prev_offset = offset;
                 }
             }
         }
