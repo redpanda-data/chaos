@@ -1,0 +1,24 @@
+{
+    "name": "rw-subscribe / java / kill all",
+    "scenario": "rw_subscribe_single_fault",
+    "topic": "topic1",
+    "partitions": 1,
+    "group_id": "group1",
+    "replication": 3,
+    "workload": {
+        "name": "rw-subscribe / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "retries": 5,
+            "writers": 2,
+            "readers": 2
+        }
+    },
+    "fault": "kill_all",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

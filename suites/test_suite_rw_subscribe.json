@@ -1,0 +1,28 @@
+{
+    "name": "all",
+    "tests": [
+        "rw_subscribe/restart_group.json",
+        "rw_subscribe/rolling_restart.json",
+        "rw_subscribe/kill_group.json",
+        "rw_subscribe/kill_all.json",
+        "rw_subscribe/isolate_topic_leader.json",
+        "rw_subscribe/isolate_group_leader.json",
+        "rw_subscribe/pause_group_leader.json",
+        "rw_subscribe/kill_topic_leader.json",
+        "rw_subscribe/kill_group_leader.json",
+        "rw_subscribe/reconfigure_313_group.json",
+        "rw_subscribe/baseline.json",
+        "rw_subscribe/transfer_group_leadership.json",
+        "rw_subscribe/transfer_topic_leadership.json",
+        "rw_subscribe/stop_client.json"
+    ],
+    "settings": {
+        "test": {
+            "remove_logs_on_success": false
+        },
+        "suite": {
+            "ignore_transient_errors": true,
+            "at_least_one_passes": true
+        }
+    }
+}
