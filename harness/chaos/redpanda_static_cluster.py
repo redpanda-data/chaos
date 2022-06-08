@@ -22,6 +22,11 @@ class RedpandaNode:
     def __init__(self, ip, id):
         self.ip = ip
         self.id = id
+        self.host = None
+
+class RedpandaHost:
+    def __init__(self, ip):
+        self.ip = ip
 
 class PartitionDetails:
     def __init__(self):
@@ -31,15 +36,100 @@ class PartitionDetails:
 
 class RedpandaCluster:
     def __init__(self, nodes_path):
+        self.last_id = 0
         self.nodes = []
+        self.hosts = []
+        self.nodes_path = nodes_path
         with open(nodes_path, "r") as f:
             for line in f:
                 line = line.rstrip()
                 parts = line.split(" ")
-                self.nodes.append(RedpandaNode(parts[0], int(parts[1])))
-        logger.debug(f"RedpandaCluster inited with:")
+                self.hosts.append(RedpandaHost(parts[0]))
+    
+    def get_id(self):
+        self.last_id += 1
+        return self.last_id
+    
+    def add_seed(self, host, node_id):
         for node in self.nodes:
-            logger.debug(f"node id={node.id} ip={node.ip}")
+            if node.ip == host.ip:
+                raise Exception(f"node with ip={host.ip} is already added")
+            if node.id == node_id:
+                raise Exception(f"node with id={node_id} is already added")
+        node = RedpandaNode(host.ip, node_id)
+        node.host = host
+        self.nodes.append(node)
+        logger.info(f"adding seed id={node_id} ip={host.ip}")
+        ssh("ubuntu@" + host.ip, "/mnt/vectorized/control/redpanda.identity.sh", node_id, host.ip)
+        return node
+    
+    def add_node(self, host, node_id):
+        rest = []
+        for node in self.nodes:
+            if node.ip == host.ip:
+                raise Exception(f"node with ip={host.ip} is already added")
+            if node.id == node_id:
+                raise Exception(f"node with id={node_id} is already added")
+            rest.append(node.ip)
+        node = RedpandaNode(host.ip, node_id)
+        node.host = host
+        self.nodes.append(node)
+        logger.info(f"adding node id={node_id} ip={host.ip}")
+        ssh("ubuntu@" + host.ip, "/mnt/vectorized/control/redpanda.identity.sh", node_id, host.ip, ",".join(rest))
+        return node
+    
+    def rm_node(self, node):
+        logger.info(f"removing node id={node.id} ip={node.ip}")
+        self.nodes = list(filter(lambda x: x.id!=node.id, self.nodes))
+        ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.clean.data.sh")
+    
+    def get_view(self, node):
+        r = requests.get(f"http://{node.ip}:9644/v1/cluster_view")
+        if r.status_code != 200:
+            raise HTTPErrorException(r)
+        
+        view = r.json()
+
+        reduced = dict()
+        reduced["version"] = view["version"]
+        reduced["brokers"] = list(map(
+            lambda x: {
+                "node_id": x["node_id"],
+                "membership_status": x["membership_status"],
+                "is_alive": x["is_alive"]
+            },
+            view["brokers"]))
+        logger.debug(f"cluster view from: {node.ip}: {json.dumps(reduced)}")
+        return r.json()
+    
+    def get_stable_view(self, nodes=None, timeout_s=10):
+        if nodes == None:
+            nodes = self.nodes
+        begin = time.time()
+        while True:
+            random.shuffle(nodes)
+            msg = ",".join(map(lambda node: f"{node.id}", nodes))
+            logger.info(f"wait stable view from nodes: {msg}")
+            if time.time() - begin > timeout_s:
+                raise TimeoutException(f"can't fetch stable view {timeout_s} sec")
+            common_view = None
+            for node in nodes:
+                node_view = None
+                try:
+                    node_view = self.get_view(node)
+                except:
+                    common_view = None
+                    logger.exception("error on getting view from {node.ip}")
+                    break
+                if node == nodes[0]:
+                    common_view = node_view
+                if common_view["version"] != node_view["version"]:
+                    logger.debug(f"get version:{node_view['version']} while already observed:{common_view['version']} before")
+                    common_view = None
+                    break
+            if common_view != None:
+                return common_view
+            sleep(1)
     
     def heal(self):
         for node in self.nodes:
@@ -59,13 +149,13 @@ class RedpandaCluster:
         ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.clean.sh")
     
     def kill_everywhere(self):
-        for node in self.nodes:
+        for node in self.hosts:
             logger.debug(f"stopping a redpanda instance on {node.ip}")
             self.kill(node)
     
     def wait_killed(self, timeout_s=10):
         begin = time.time()
-        for node in self.nodes:
+        for node in self.hosts:
             while True:
                 if time.time() - begin > timeout_s:
                     raise TimeoutException(f"redpanda stuck and can't be stopped in {timeout_s} sec")
@@ -75,13 +165,13 @@ class RedpandaCluster:
                 sleep(1)
     
     def clean_everywhere(self):
-        for node in self.nodes:
+        for node in self.hosts:
             logger.debug(f"cleaning a redpanda instance on {node.ip}")
             self.clean(node)
     
     def launch_everywhere(self, settings):
         for node in self.nodes:
-            logger.debug(f"starting a redpanda instance on {node.ip} with {json.dumps(settings)}")
+            logger.info(f"starting a redpanda instance on {node.ip} with {json.dumps(settings)}")
             for key in settings.keys():
                 ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.config.sh", key, settings[key])
             self.launch(node)
@@ -98,7 +188,7 @@ class RedpandaCluster:
                 sleep(1)
     
     def brokers(self):
-        return ",".join(map(lambda x: x.ip+":9092", self.nodes))
+        return ",".join([x.ip+":9092" for x in self.hosts])
     
     def create_topic(self, topic, replication, partitions, cleanup="delete"):
         ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions, "-c", f"cleanup.policy={cleanup}")

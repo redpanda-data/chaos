@@ -79,8 +79,17 @@ class RWSubscribeSingleFault(AbstractSingleFault):
         self.redpanda_cluster.kill_everywhere()
         self.redpanda_cluster.wait_killed(timeout_s=10)
         self.redpanda_cluster.clean_everywhere()
+
+        for host in self.redpanda_cluster.hosts:
+            node_id = self.redpanda_cluster.get_id()
+            if host == self.redpanda_cluster.hosts[0]:
+                self.redpanda_cluster.add_seed(host, node_id)
+            else:
+                self.redpanda_cluster.add_node(host, node_id)
+
         self.redpanda_cluster.launch_everywhere(self.read_config(["settings", "redpanda"], {}))
         self.redpanda_cluster.wait_alive(timeout_s=10)
+        self.redpanda_cluster.get_stable_view(timeout_s=60)
 
         sleep(5)
         # waiting for the controller to be up before creating a topic
