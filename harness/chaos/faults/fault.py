@@ -18,3 +18,7 @@ class Fault(ABC):
 class RecoverableFault(Fault):
     def __init__(self, fault_config):
         super().__init__(FaultType.RECOVERABLE, fault_config)
+
+class OneoffFault(Fault):
+    def __init__(self, fault_config):
+        super().__init__(FaultType.ONEOFF, fault_config)
