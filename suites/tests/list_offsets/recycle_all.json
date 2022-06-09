@@ -1,0 +1,20 @@
+{
+    "name": "list-offsets / java / recycle all",
+    "scenario": "single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "list-offsets / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "concurrency": 2
+        }
+    },
+    "fault": "recycle_all",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

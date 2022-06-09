@@ -7,7 +7,6 @@ import time
 from chaos.checks.all import CHECKS
 from chaos.faults.all import FAULTS
 from chaos.faults.types import FaultType
-from chaos.workloads.all import WORKLOADS, wait_all_workloads_killed
 from time import sleep
 from chaos.checks.result import Result
 import copy
@@ -105,12 +104,15 @@ class AbstractSingleFault(ABC):
             self.redpanda_cluster.kill_everywhere()
             self.redpanda_cluster.wait_killed(timeout_s=10)
             mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
-            for node in self.redpanda_cluster.nodes:
+            for node in self.redpanda_cluster.hosts:
                 mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
                 chaos_logger.info(f"fetching logs from {node.ip}")
-                scp(
-                    f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log.*",
-                    f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/")
+                try:
+                    scp(
+                        f"ubuntu@{node.ip}:/mnt/vectorized/redpanda/log.*",
+                        f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}/")
+                except:
+                    chaos_logger.info(f"error on fetching from {node.ip}")
             self.is_redpanda_log_fetched = True
     
     def remove_logs(self):

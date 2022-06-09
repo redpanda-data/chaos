@@ -13,7 +13,8 @@
         "reads_writes/idempotency/pause_leader.json",
         "reads_writes/idempotency/reconfigure_313.json",
         "reads_writes/idempotency/reconfigure_kill_11.json",
-        "reads_writes/idempotency/rolling_restart.json"
+        "reads_writes/idempotency/rolling_restart.json",
+        "reads_writes/idempotency/recycle_all.json"
     ],
     "settings": {
         "test": {

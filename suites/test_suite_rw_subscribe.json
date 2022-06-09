@@ -14,7 +14,8 @@
         "rw_subscribe/baseline.json",
         "rw_subscribe/transfer_group_leadership.json",
         "rw_subscribe/transfer_topic_leadership.json",
-        "rw_subscribe/stop_client.json"
+        "rw_subscribe/stop_client.json",
+        "rw_subscribe/recycle_all.json"
     ],
     "settings": {
         "test": {

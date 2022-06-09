@@ -11,8 +11,8 @@ docker-compose -f docker/docker-compose6.2.yaml --project-directory . down --rem
 docker-compose -f docker/docker-compose6.2.yaml --project-directory . rm -f || true
 docker-compose -f docker/docker-compose6.yaml --project-directory . down --remove-orphans || true
 docker-compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
-docker-compose -f docker/docker-compose3.yaml --project-directory . down --remove-orphans || true
-docker-compose -f docker/docker-compose3.yaml --project-directory . rm -f || true
+docker-compose -f docker/docker-compose4.yaml --project-directory . down --remove-orphans || true
+docker-compose -f docker/docker-compose4.yaml --project-directory . rm -f || true
 
 if [ ! -f id_ed25519 ]; then
   ssh-keygen -t ed25519 -f id_ed25519 -N ""
@@ -23,9 +23,11 @@ rm -rf ./docker/bind_mounts
 mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda/data
 mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda/data
 mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda/data
+mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda/data
 mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda/coredump
 mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda/coredump
 mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda/coredump
+mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda/coredump
 
 mkdir -p ./docker/bind_mounts/control/mnt/vectorized/experiments
 
@@ -33,4 +35,4 @@ mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs
 
 chmod a+rw -R ./docker/bind_mounts
 
-docker-compose -f docker/docker-compose3.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))
+docker-compose -f docker/docker-compose4.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))

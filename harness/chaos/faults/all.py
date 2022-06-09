@@ -26,6 +26,7 @@ from chaos.faults.isolate_client_topic_leader import IsolateClientTopicLeader
 from chaos.faults.stop_client import StopClient
 from chaos.faults.combinator_as_oneoff import AsOneoffCombinator
 from chaos.faults.combinator_repeat import RepeatCombinator
+from chaos.faults.recycle_all import RecycleAllFault
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -55,5 +56,6 @@ FAULTS = {
     "isolate_client_topic_leader": IsolateClientTopicLeader,
     "stop_client": StopClient,
     "as_oneoff": lambda config: AsOneoffCombinator(FAULTS, config),
-    "repeat": lambda config: RepeatCombinator(FAULTS, config)
+    "repeat": lambda config: RepeatCombinator(FAULTS, config),
+    "recycle_all": RecycleAllFault
 }

@@ -5,7 +5,7 @@ services:
       - DEB_PATH
     build:
       args:
-        REDPANDA_CLUSTER_SIZE: 3
+        REDPANDA_CLUSTER_SIZE: 4
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     privileged: true
@@ -21,7 +21,7 @@ services:
       - DEB_PATH
     build:
       args:
-        REDPANDA_CLUSTER_SIZE: 3
+        REDPANDA_CLUSTER_SIZE: 4
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     depends_on:
@@ -39,7 +39,7 @@ services:
       - DEB_PATH
     build:
       args:
-        REDPANDA_CLUSTER_SIZE: 3
+        REDPANDA_CLUSTER_SIZE: 4
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     depends_on:
@@ -52,18 +52,37 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
+  redpanda4:
+    environment:
+      - DEB_PATH
+    build:
+      args:
+        REDPANDA_CLUSTER_SIZE: 4
+      context: .
+      dockerfile: ./docker/redpanda/Dockerfile
+    depends_on:
+      - "redpanda1"
+    privileged: true
+    container_name: redpanda4
+    hostname: redpanda4
+    networks:
+      - chaos
+    volumes:
+      - ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - $DEB_PATH:/mnt/vectorized/redpanda.deb
   client1:
     environment:
       - DEB_PATH
     build:
       args:
-        REDPANDA_CLUSTER_SIZE: 3
+        REDPANDA_CLUSTER_SIZE: 4
       context: .
       dockerfile: ./docker/client/Dockerfile
     depends_on:
       - "redpanda1"
       - "redpanda2"
       - "redpanda3"
+      - "redpanda4"
     privileged: true
     container_name: client1
     hostname: client1
@@ -77,7 +96,7 @@ services:
       - DEB_PATH
     build:
       args:
-        REDPANDA_CLUSTER_SIZE: 3
+        REDPANDA_CLUSTER_SIZE: 4
         WORKLOAD_CLUSTER_SIZE: 1
       context: .
       dockerfile: ./docker/control/Dockerfile
@@ -85,6 +104,7 @@ services:
       - "redpanda1"
       - "redpanda2"
       - "redpanda3"
+      - "redpanda4"
       - "client1"
     privileged: true
     container_name: control

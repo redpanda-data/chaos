@@ -1,0 +1,34 @@
+{
+    "name": "tx-money / java / recycle all",
+    "scenario": "tx_money_single_fault",
+    "accounts": 6,
+    "replication": 3,
+    "workload": {
+        "name": "tx-money / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "producers": 3,
+            "retries": 5
+        }
+    },
+    "settings": {
+        "setup": {
+            "wait_leader_timeout_s": {
+                "controller": 30,
+                "account": 20,
+                "id_allocator": 20,
+                "tx": 20
+            },
+            "leadship_transfer_timeout_s": 20,
+            "wait_progress_timeout_s": 20,
+            "reconfigure_timeout_s": 20
+        }
+    },
+    "fault": "recycle_all",
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
