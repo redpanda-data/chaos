@@ -4,6 +4,7 @@
         "list_offsets/baseline.json",
         "list_offsets/isolate_leader.json",
         "list_offsets/kill_all.json",
+        "list_offsets/recycle_all.json",
         "list_offsets/kill_leader.json"
     ],
     "settings": {

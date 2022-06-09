@@ -28,7 +28,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         "reconfigure_11_kill", "reconfigure_313", "reconfigure_kill_11",
         "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
         "isolate_all", "rolling_restart", "decommission_leader", "pause_all",
-        "repeat", "as_oneoff", "kill_partition"
+        "repeat", "as_oneoff", "kill_partition", "recycle_all"
     }
 
     SUPPORTED_CHECKS = {
@@ -71,7 +71,6 @@ class SingleTopicSingleFault(AbstractSingleFault):
             self.fault = FAULTS[self.fault["name"]](self.fault)
         
         self.config["brokers"] = self.redpanda_cluster.brokers()
-
         self.save_config()
         
         logger.info(f"undoing redpanda faults")
@@ -82,7 +81,7 @@ class SingleTopicSingleFault(AbstractSingleFault):
         self.redpanda_cluster.wait_killed(timeout_s=10)
         self.redpanda_cluster.clean_everywhere()
         
-        for host in self.redpanda_cluster.hosts:
+        for host in self.redpanda_cluster.hosts[0:3]:
             node_id = self.redpanda_cluster.get_id()
             if host == self.redpanda_cluster.hosts[0]:
                 self.redpanda_cluster.add_seed(host, node_id)

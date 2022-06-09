@@ -29,7 +29,8 @@
         "tx_subscribe/transfer_group_leadership.json",
         "tx_subscribe/transfer_source_leadership.json",
         "tx_subscribe/transfer_target_leadership.json",
-        "tx_subscribe/transfer_tx_leadership.json"
+        "tx_subscribe/transfer_tx_leadership.json",
+        "tx_subscribe/recycle_all.json"
     ],
     "settings": {
         "test": {

@@ -15,7 +15,8 @@
         "tx_money/reconfigure_313_account.json",
         "tx_money/reconfigure_313_tx.json",
         "tx_money/transfer_account_leadership.json",
-        "tx_money/transfer_tx_leadership.json"
+        "tx_money/transfer_tx_leadership.json",
+        "tx_money/recycle_all.json"
     ],
     "settings": {
         "test": {
