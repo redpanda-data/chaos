@@ -25,7 +25,7 @@ class RWSubscribeSingleFault(AbstractSingleFault):
         "isolate_all", "rolling_restart", 
         "pause_all", "kill_partition", "as_oneoff",
         "hijack_tx_ids", "isolate_tx_all", "reconfigure_313", "kill_follower",
-        "isolate_client_topic_leader", "stop_client", "recycle_all"
+        "isolate_client_topic_leader", "stop_client", "recycle_all", "recycle_storm"
     }
 
     SUPPORTED_CHECKS = {
