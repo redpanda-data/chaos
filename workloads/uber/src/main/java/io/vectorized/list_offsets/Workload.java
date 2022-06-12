@@ -8,10 +8,7 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import java.util.concurrent.ExecutionException;
 import java.lang.Thread;
-import org.apache.kafka.common.errors.TimeoutException;
-import org.apache.kafka.common.errors.NotLeaderOrFollowerException;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.util.ArrayList;
@@ -56,6 +53,11 @@ public class Workload {
 
     synchronized long get_op() {
         return ++this.last_op;
+    }
+
+    private long last_error_id = 0;
+    private synchronized long get_error_id() {
+        return ++this.last_error_id;
     }
 
     synchronized String get_key() {
@@ -205,8 +207,12 @@ public class Workload {
                 }
             } catch (Exception e) {
                 log(thread_id, "err");
-                System.out.println(e);
-                e.printStackTrace();
+                var eid = get_error_id();
+                synchronized(this) {
+                    System.out.println("=== " + eid + " error on KafkaProducer ctor thread:" + thread_id);
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
                 failed(thread_id);
                 continue;
             }
@@ -218,31 +224,27 @@ public class Workload {
                 succeeded(thread_id);
                 log(thread_id, "ok\t" + m.offset());
                 update_known_offset(m.offset());
-            } catch (ExecutionException e) {
-                var cause = e.getCause();
-                if (cause != null) {
-                    if (cause instanceof TimeoutException) {
-                        log(thread_id, "time");
-                        timedout(thread_id);
-                        continue;
-                    } else if (cause instanceof NotLeaderOrFollowerException) {
-                        log(thread_id, "err");
-                        failed(thread_id);
-                        continue;
-                    }
-                }
- 
-                log(thread_id, "err");
-                System.out.println(e);
-                failed(thread_id);
             } catch (Exception e) {
                 log(thread_id, "err");
-                System.out.println(e);
-                e.printStackTrace();
+                var eid = get_error_id();
+                synchronized(this) {
+                    System.out.println("=== " + eid + " error on send thread:" + thread_id);
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
+                try {
+                    producer.close();
+                } catch (Exception e1) {}
+                producer = null;
                 failed(thread_id);
             }
         }
-        producer.close();
+
+        if (producer != null) {
+            try {
+                producer.close();
+            } catch (Exception e1) {}
+        }
     }
 
     private void listOffsetProcess(int thread_id) throws Exception {
@@ -290,8 +292,12 @@ public class Workload {
                 }
             } catch (Exception e) {
                 log(thread_id, "err");
-                System.out.println(e);
-                e.printStackTrace();
+                var eid = get_error_id();
+                synchronized(this) {
+                    System.out.println("=== " + eid + " error on AdminClient ctor thread:" + thread_id);
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
                 failed(thread_id);
                 continue;
             }
@@ -306,23 +312,17 @@ public class Workload {
                     log(thread_id, "violation\t" + "listOffset observed offset:" + offset + " after offset:" + known_offset + " was already known");
                 }
                 update_known_offset(offset);
-            } catch (ExecutionException e) {
-                var cause = e.getCause();
-                if (cause != null) {
-                    if (cause instanceof TimeoutException) {
-                        timedout(thread_id);
-                        continue;
-                    } else if (cause instanceof NotLeaderOrFollowerException) {
-                        failed(thread_id);
-                        continue;
-                    }
-                }
-                System.out.println(e);
-                e.printStackTrace();
-                failed(thread_id);
             } catch (Exception e) {
-                System.out.println(e);
-                e.printStackTrace();
+                var eid = get_error_id();
+                synchronized(this) {
+                    System.out.println("=== " + eid + " error on AdminClient listOffset thread:" + thread_id);
+                    System.out.println(e);
+                    e.printStackTrace();
+                }
+                try {
+                    client.close();
+                } catch (Exception e1) { }
+                client = null;
                 failed(thread_id);
             }
         }
