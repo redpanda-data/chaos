@@ -215,10 +215,7 @@ def validate(config, workload_dir):
             "result": Result.FAILED if has_violation else Result.PASSED
         }
     except:
-        e, v = sys.exc_info()[:2]
-        trace = traceback.format_exc()
-        logger.debug(v)
-        logger.debug(trace)
+        logger.exception("error on analyzing consistency")
         
         return {
             "result": Result.UNKNOWN
