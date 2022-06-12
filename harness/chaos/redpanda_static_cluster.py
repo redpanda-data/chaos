@@ -11,6 +11,13 @@ from chaos.types import TimeoutException
 import logging
 logger = logging.getLogger("chaos")
 
+class HTTPErrorException(Exception):
+    def __init__(self, response):
+        self.response = response
+    
+    def __str__(self) -> str:
+        return f"error code: {self.response.status_code} content: {self.response.content}"
+
 class RedpandaNode:
     def __init__(self, ip, id):
         self.ip = ip
@@ -250,9 +257,7 @@ class RedpandaCluster:
     def admin_decommission(self, node, to_decommission_node):
         r = requests.put(f"http://{node.ip}:9644/v1/brokers/{to_decommission_node.id}/decommission")
         if r.status_code != 200:
-            logger.error(f"status code: {r.status_code}")
-            logger.error(f"content: {r.content}")
-            raise Exception(f"Can't decommission {to_decommission_node.ip} from {node.ip}")
+            raise HTTPErrorException(r)
     
     def admin_brokers(self, node):
         r = requests.get(f"http://{node.ip}:9644/v1/brokers")
