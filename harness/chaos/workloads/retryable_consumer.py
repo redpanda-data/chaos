@@ -36,7 +36,7 @@ class RetryableConsumer:
                     self.consumer.close()
                 except:
                     pass
-            self.logger.debug("Attempting to init a consumer")
+            self.logger.debug(f"Attempting to init a consumer using {self.brokers}")
             self.consumer = Consumer(config)
             self.consumer.assign([TopicPartition(topic, 0, OFFSET_BEGINNING)])
             msgs = self.consumer.consume(timeout=timeout)
