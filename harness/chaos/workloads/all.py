@@ -4,7 +4,6 @@ from chaos.workloads.tx_single_reads_writes import tx_single_reads_writes
 from chaos.workloads.tx_money import tx_money
 from chaos.workloads.tx_subscribe import tx_subscribe
 from chaos.workloads.rw_subscribe import rw_subscribe
-from chaos.workloads.tx_poll import tx_poll
 
 import logging
 
@@ -58,22 +57,13 @@ def tx_subscribe_workload(nodes_path):
     writing_java.name = "tx-subscribe / java"
     return tx_subscribe.Workload(writing_java, nodes_path)
 
-def tx_poll_workload(nodes_path):
-    writing_java = tx_poll.Control()
-    writing_java.launch = "/mnt/vectorized/control/tx-poll.java.start.sh"
-    writing_java.alive = "/mnt/vectorized/control/tx-poll.java.alive.sh"
-    writing_java.kill = "/mnt/vectorized/control/tx-poll.java.stop.sh"
-    writing_java.name = "tx-poll / java"
-    return tx_poll.Workload(writing_java, nodes_path)
-
 WORKLOADS = {
     "tx-single-reads-writes / java": tx_single_reads_writes_workload,
     "reads-writes / java": reads_writes_workload,
     "rw-subscribe / java": rw_subscribe_workload,
     "list-offsets / java": list_offsets_workload,
     "tx-money / java": tx_money_workload,
-    "tx-subscribe / java": tx_subscribe_workload,
-    "tx-poll / java": tx_poll_workload
+    "tx-subscribe / java": tx_subscribe_workload
 }
 
 def wait_all_workloads_killed(nodes_path):
