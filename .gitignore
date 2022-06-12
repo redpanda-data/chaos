@@ -5,6 +5,7 @@ debs/
 experiments/
 mnt/
 results/
+results*/
 history/
 terraform.tfstate
 terraform.tfstate.backup
