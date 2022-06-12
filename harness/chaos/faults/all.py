@@ -9,6 +9,7 @@ from chaos.faults.kill_leader import KillLeaderFault
 from chaos.faults.kill_tx_leader import KillTxLeaderFault
 from chaos.faults.kill_tx_follower import KillTxFollowerFault
 from chaos.faults.kill_all import KillAllFault
+from chaos.faults.kill_partition import KillPartitionFault
 from chaos.faults.pause_follower import PauseFollowerFault
 from chaos.faults.pause_leader import PauseLeaderFault
 from chaos.faults.pause_all import PauseAllFault
@@ -49,6 +50,7 @@ FAULTS = {
     "reconfigure_kill_11": ReconfigureKill11Fault,
     "rolling_restart": RollingRestartFault,
     "decommission_leader": DecommissionLeaderFault,
+    "kill_partition": KillPartitionFault,
     "hijack_tx_ids": HijackTxIDsFault,
     "isolate_client_topic_leader": IsolateClientTopicLeader,
     "stop_client": StopClient,
