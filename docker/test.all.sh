@@ -12,7 +12,6 @@ set -e
 
 ./docker/rebuild6.sh
 ./docker/up6.sh
-./docker/test.suite.sh test_suite_reads_writes_decommission.json
 ./docker/test.suite.sh test_suite_tx_money.json
 ./docker/test.suite.sh test_suite_tx_reads_writes.json
 ./docker/test.suite.sh test_suite_rw_subscribe.json
