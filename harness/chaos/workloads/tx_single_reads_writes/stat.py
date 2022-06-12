@@ -172,11 +172,8 @@ def collect(config, workload_dir):
         last_state = dict()
         last_time = None
 
-        throughput = dict()
-
         faults = []
         recoveries = []
-        info = None
 
         latency_seen_history = []
         latency_ok_history = []
@@ -335,6 +332,11 @@ def collect(config, workload_dir):
                     last_time = end
                 else:
                     raise Exception(f"unknown state: {new_state}")
+        
+        if not(should_measure):
+            return {
+                "result": Result.NODATA
+            }
 
         duration_ms = 0
         max_latency_us = 0
