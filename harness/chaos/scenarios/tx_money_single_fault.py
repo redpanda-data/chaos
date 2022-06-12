@@ -22,7 +22,7 @@ class TxMoneySingleFault(AbstractSingleFault):
         "baseline", "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
         "isolate_all", "rolling_restart", "kill_tx_leader", "kill_tx_follower",
         "isolate_tx_leader", "isolate_tx_follower", "pause_all",
-        "hijack_tx_ids", "isolate_tx_all", "reconfigure_313", "kill_follower"
+        "hijack_tx_ids", "isolate_tx_all", "reconfigure_313", "kill_follower", "kill_partition"
     }
 
     SUPPORTED_CHECKS = {
