@@ -6,6 +6,54 @@ Set `DEB_PATH` with path to the redpanda deb package, e.g.
 export DEB_PATH="$HOME/redpanda_21.11.5-1-af88fa16_amd64.deb"
 ```
 
+## Test locally (docker & docker-compose)
+
+Requirements:
+    - docker
+    - docker-compose
+    - python3
+
+Don't forget to add current user to docker group: https://docs.docker.com/engine/install/linux-postinstall
+
+### All in one
+
+Run all tests with a single command:
+
+    ./docker/test.all.sh
+
+### Fine granularity
+
+Or use individual commands for fine granularity.
+
+Build docker images:
+
+    ./docker/rebuild3.sh
+
+Start local cluster:
+
+    ./docker/up3.sh
+
+Run a specific test suite:
+
+    ./docker/test.suite.sh suites/test_suite_reads_writes.json
+
+Run a specific test suite `n` times, e.g. three times:
+
+    ./docker/test.suite.sh suites/test_suite_reads_writes.json 3
+
+Run a specific test:
+
+    ./docker/test.test.sh suites/tests/reads_writes/pause_leader.json
+
+Copy test & redpanda logs (find them in the `results` folder):
+
+    ./docker/fetch.logs.sh
+
+# Dev help
+
+ - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new workload (writing sub-workflow)
+ - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new fault injection
+
 ## Test on AWS (terraform & ansible)
 
 Install terraform and ansible:
@@ -44,51 +92,3 @@ Copy test & redpanda logs (find them in the `results` folder):
 Cleanup:
 
     terraform destroy
-
-## Test locally (docker & docker-compose)
-
-Requirements:
-    - docker
-    - docker-compose
-    - python3
-
-Don't forget to add current user to docker group: https://docs.docker.com/engine/install/linux-postinstall
-
-### All in one
-
-Run all tests with a single command:
-
-    ./docker/test.all.sh
-
-### Fine granularity
-
-Or use individual commands for fine granularity.
-
-Build docker images:
-
-    ./docker/rebuild3.sh
-
-Start local cluster:
-
-    ./docker/up3.sh
-
-Run a specific test suite:
-
-    ./docker/test.suite.sh test_suite_reads_writes.json
-
-Run a specific test suite `n` times, e.g. three times:
-
-    ./docker/test.suite.sh test_suite_reads_writes.json 3
-
-Run a specific test:
-
-    ./docker/test.test.sh reads_writes/pause_leader.json
-
-Copy test & redpanda logs (find them in the `results` folder):
-
-    ./docker/fetch.logs.sh
-
-# Dev help
-
- - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new workload (writing sub-workflow)
- - [example](https://github.com/vectorizedio/chaos/pull/1) of adding new fault injection

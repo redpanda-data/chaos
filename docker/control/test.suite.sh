@@ -2,7 +2,7 @@
 
 set -e
 
-suite_path="/mnt/vectorized/suites/$1"
+suite_path="/mnt/vectorized/$1"
 repeat=$2
 now=$(date +%s)
 
