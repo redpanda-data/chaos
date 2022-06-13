@@ -19,7 +19,7 @@
     ],
     "settings": {
         "test": {
-            "remove_logs_on_success": false
+            "remove_logs_on_success": true
         },
         "suite": {
             "should_retry_on_transient_errors": true,
