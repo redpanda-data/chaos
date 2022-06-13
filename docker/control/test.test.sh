@@ -2,7 +2,7 @@
 
 set -e
 
-test_path="/mnt/vectorized/suites/tests/$1"
+test_path="/mnt/vectorized/$1"
 repeat=$2
 now=$(date +%s)
 
