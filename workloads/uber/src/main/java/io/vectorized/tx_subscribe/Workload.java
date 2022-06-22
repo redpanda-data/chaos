@@ -15,8 +15,6 @@ import java.util.LinkedList;
 import java.util.Queue;
 import org.apache.kafka.common.TopicPartition;
 
-import io.vectorized.tx_subscribe.App;
-
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -25,14 +23,8 @@ import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import java.time.Duration;
 import java.util.concurrent.Semaphore;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
-import java.util.HashSet;
 import java.util.Collection;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.AdminClientConfig;
-import org.apache.kafka.clients.CommonClientConfigs;
 
 public class Workload {
     private static class TrackingRebalanceListener implements ConsumerRebalanceListener {
@@ -141,6 +133,11 @@ public class Workload {
     private long last_op_id = 0;
     private synchronized long get_op_id() {
         return ++this.last_op_id;
+    }
+
+    private long last_error_id = 0;
+    private synchronized long get_error_id() {
+        return ++this.last_error_id;
     }
 
     HashMap<Integer, Semaphore> produce_limiter;
@@ -328,9 +325,10 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e1) {
-                log(pid, "err");
+                var eid = get_error_id();
+                log(pid, "err\t" + eid);
                 synchronized (this) {
-                    System.out.println("=== error on KafkaProducer ctor pid:" + pid);
+                    System.out.println("=== " + eid + " error on KafkaProducer ctor pid:" + pid);
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
@@ -361,10 +359,10 @@ public class Workload {
                 offset = producer.send(new ProducerRecord<String, String>(args.source, partition, args.server, "" + op.oid)).get().offset();
                 producer.commitTransaction();
             } catch (Exception e1) {
-                log(pid, "err");
-
+                var eid = get_error_id();
+                log(pid, "err\t" + eid);
                 synchronized (this) {
-                    System.out.println("=== error on send pid:" + pid);
+                    System.out.println("=== " + eid + " error on send pid:" + pid);
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
@@ -504,10 +502,10 @@ public class Workload {
                     log(sid, "constructed");
                 }
             } catch (Exception e1) {
-                log(sid, "err");
-
+                var eid = get_error_id();
+                log(sid, "err\t" + eid);
                 synchronized (this) {
-                    System.out.println("=== error on KafkaConsumer ctor");
+                    System.out.println("=== " + eid + " error on KafkaConsumer ctor");
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
@@ -530,10 +528,10 @@ public class Workload {
                     log(sid, "constructed");
                 }
             } catch (Exception e1) {
-                log(sid, "err");
-
+                var eid = get_error_id();
+                log(sid, "err\t" + eid);
                 synchronized (this) {
-                    System.out.println("=== error on KafkaProducer ctor");
+                    System.out.println("=== " + eid + " error on KafkaProducer ctor");
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
@@ -553,10 +551,10 @@ public class Workload {
             try {
                 records = consumer.poll(Duration.ofMillis(10000));
             } catch (Exception e1) {
-                log(sid, "log\terr");
-
+                var eid = get_error_id();
+                log(sid, "log\terr\t" + eid);
                 synchronized (this) {
-                    System.out.println("=== error on poll");
+                    System.out.println("=== " + eid + " error on poll");
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
@@ -586,22 +584,23 @@ public class Workload {
                     offsets.put(new TopicPartition(args.source, record.partition()), new OffsetAndMetadata(record.offset() + 1));
                     producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
                 } catch (Exception e1) {
+                    var eid1 = get_error_id();
                     synchronized (this) {
-                        System.out.println("=== error on send or sendOffsetsToTransaction");
+                        System.out.println("=== " + eid1 + " error on send or sendOffsetsToTransaction");
                         System.out.println(e1);
                         e1.printStackTrace();
                     }
 
                     try {
-                        log(sid, "brt");
+                        log(sid, "brt\t" + eid1);
                         producer.abortTransaction();
                         log(sid, "ok");
                         failed(sid);
                     } catch (Exception e2) {
-                        log(sid, "err");
-
+                        var eid2 = get_error_id();
+                        log(sid, "err\t" + eid2);
                         synchronized(this) {
-                            System.out.println("=== error on abort");
+                            System.out.println("=== " + eid2 + " error on abort");
                             System.out.println(e2);
                             e2.printStackTrace();
                         }
@@ -620,10 +619,10 @@ public class Workload {
                     log(sid, "ok");
                     succeeded(sid);
                 } catch (Exception e1) {
-                    log(sid, "err");
-                    
+                    var eid = get_error_id();
+                    log(sid, "err\t" + eid);
                     synchronized (this) {
-                        System.out.println("=== error on commit");
+                        System.out.println("=== " + eid + " error on commit");
                         System.out.println(e1);
                         e1.printStackTrace();
                     }
@@ -726,8 +725,10 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e) {
-                log(rid, "err");
+                var eid = get_error_id();
+                log(rid, "err\t" + eid);
                 synchronized (this) {
+                    System.out.println("=== " + eid + " error on KafkaConsumer ctor + seek");
                     System.out.println(e);
                     e.printStackTrace();
                 }
