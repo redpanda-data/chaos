@@ -279,38 +279,6 @@ public class Workload {
     }
 
     private void producingProcess(int pid, int partition) throws Exception {
-        Properties props = new Properties();
-        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, args.brokers);
-        props.put(ProducerConfig.ACKS_CONFIG, "all");
-        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-        
-        // default value: 600000
-        props.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
-        // default value: 120000
-        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
-        // default value: 0
-        props.put(ProducerConfig.LINGER_MS_CONFIG, 0);
-        // default value: 60000
-        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 10000);
-        // default value: 1000
-        props.put(ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
-        // default value: 50
-        props.put(ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
-        // default value: 30000
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
-        // default value: 100
-        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
-        // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
-        // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
-        
-        props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
-        props.put(ProducerConfig.RETRIES_CONFIG, 5);
-        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, UUID.randomUUID().toString());
-
         log(pid, "started\t" + args.server + "\tproducing\t" + partition);
     
         Producer<String, String> producer = null;
@@ -319,8 +287,7 @@ public class Workload {
             try {
                 if (producer == null) {
                     log(pid, "constructing");
-                    producer = new KafkaProducer<>(props);
-                    producer.initTransactions();
+                    producer = createProducer(UUID.randomUUID().toString());
                     log(pid, "constructed");
                     continue;
                 }
@@ -524,7 +491,7 @@ public class Workload {
             try {
                 if (producer == null) {
                     log(sid, "constructing\tstreaming-producer");
-                    producer = createProducer();
+                    producer = createProducer("tx-consume-" + args.idx);
                     log(sid, "constructed");
                 }
             } catch (Exception e1) {
@@ -829,7 +796,7 @@ public class Workload {
     }
 
 
-    private Producer<String, String> createProducer() {
+    private Producer<String, String> createProducer(String txId) {
         Producer<String, String> producer = null;
         
         Properties props = new Properties();
@@ -862,7 +829,7 @@ public class Workload {
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.RETRIES_CONFIG, 5);
         props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
-        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, "tx-consume-" + args.idx);
+        props.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, txId);
 
         producer =  new KafkaProducer<>(props);
         producer.initTransactions();
