@@ -4,7 +4,7 @@ set -e
 
 ./docker/rebuild4.sh
 ./docker/up4.sh
-if ! ./docker/alive4.sh; then
+if ! ./docker/ready4.sh; then
   ./docker/down4.sh
   exit 1
 fi
