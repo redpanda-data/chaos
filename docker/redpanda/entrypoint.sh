@@ -59,22 +59,21 @@ else
     --ips "${redpandas[redpanda1]}" &>>$LOG
 fi
 
-rpk config set redpanda.default_topic_partitions 1 &>>$LOG
-rpk config set redpanda.default_topic_replications 3 &>>$LOG
-rpk config set redpanda.transaction_coordinator_replication 3 &>>$LOG
-rpk config set redpanda.id_allocator_replication 3 &>>$LOG
-rpk config set redpanda.enable_leader_balancer false &>>$LOG
-rpk config set redpanda.enable_auto_rebalance_on_node_add false &>>$LOG
-rpk config set redpanda.enable_idempotence true &>>$LOG
-rpk config set redpanda.enable_transactions true &>>$LOG
-rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data" &>>$LOG
-rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump" &>>$LOG
-echo "setting production mode" >>$LOG
-rpk redpanda mode production &>>$LOG
-echo "tuning all" >>$LOG
+rpk config set redpanda.default_topic_partitions 1
+rpk config set redpanda.default_topic_replications 3
+rpk config set redpanda.transaction_coordinator_replication 3
+rpk config set redpanda.id_allocator_replication 3
+rpk config set redpanda.enable_leader_balancer false
+rpk config set redpanda.enable_auto_rebalance_on_node_add false
+rpk config set redpanda.enable_idempotence true
+rpk config set redpanda.enable_transactions true
+rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data"
+rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump"
+echo "setting production mode"
+rpk redpanda mode production
+echo "tuning all"
 if ! rpk redpanda tune all &>>$LOG; then
-  echo "tuning failed" >>$LOG
-  exit 1
+  echo "tuning returned non zero error code" >>$LOG
 fi
 
 echo "configured" >>$LOG

@@ -20,18 +20,11 @@ fi
 
 rm -rf ./docker/bind_mounts
 
-mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda/data
-mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda/data
-mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda/data
-mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda/data
-mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda/coredump
-mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda/coredump
-mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda/coredump
-mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda/coredump
-mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/entrypoint
-mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/entrypoint
-mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/entrypoint
-mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/entrypoint
+for redpanda in redpanda1 redpanda2 redpanda3 redpanda4; do
+  mkdir -p ./docker/bind_mounts/$redpanda/mnt/vectorized/redpanda/data
+  mkdir -p ./docker/bind_mounts/$redpanda/mnt/vectorized/redpanda/coredump
+  mkdir -p ./docker/bind_mounts/$redpanda/mnt/vectorized/entrypoint
+done
 
 mkdir -p ./docker/bind_mounts/control/mnt/vectorized/experiments
 mkdir -p ./docker/bind_mounts/control/mnt/vectorized/entrypoint

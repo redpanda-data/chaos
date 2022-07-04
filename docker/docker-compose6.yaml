@@ -15,6 +15,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   redpanda2:
     environment:
@@ -33,6 +34,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda2/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   redpanda3:
     environment:
@@ -51,6 +53,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda3/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   redpanda4:
     environment:
@@ -69,6 +72,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda4/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   redpanda5:
     environment:
@@ -87,6 +91,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda5/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda5/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   redpanda6:
     environment:
@@ -105,6 +110,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/redpanda6/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/redpanda6/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   client1:
     environment:
@@ -128,6 +134,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+      - ./docker/bind_mounts/client1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
   control:
     environment:
@@ -153,6 +160,7 @@ services:
       - chaos
     volumes:
       - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
+      - ./docker/bind_mounts/control/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_PATH:/mnt/vectorized/redpanda.deb
 networks:
   chaos:

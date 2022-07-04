@@ -5,7 +5,7 @@ set -e
 MAX_ATTEMPS=40
 
 abort() {
-  for node in redpanda1 redpanda2 redpanda3 redpanda4 client1 control; do
+  for node in redpanda1 redpanda2 redpanda3 redpanda4 redpanda5 redpanda6 client1 client2 control; do
     echo "## $node log"
     cat ./docker/bind_mounts/$node/mnt/vectorized/entrypoint/entrypoint.log
     echo "--------------"
@@ -14,7 +14,7 @@ abort() {
 }
 
 attempt=0
-for node in redpanda1 redpanda2 redpanda3 redpanda4 client1 control; do
+for node in redpanda1 redpanda2 redpanda3 redpanda4 redpanda5 redpanda6 client1 client2 control; do
   until docker exec $node /bin/bash -c "[ -f /mnt/vectorized/ready ]" 2>/dev/null; do
     echo "node $node isn't initialized"
     sleep 1s
