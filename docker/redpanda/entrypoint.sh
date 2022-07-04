@@ -3,11 +3,12 @@
 set -e
 
 MAX_ATTEMPS=30
+LOG=/mnt/vectorized/entrypoint/entrypoint.log
 
-echo "starting redpanda node" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "starting redpanda node" >>$LOG
 
 if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
-  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>/mnt/vectorized/entrypoint/entrypoint.log
+  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>$LOG
   exit 1
 fi
 
@@ -27,16 +28,16 @@ for host in "${!redpandas[@]}"; do
   attempt=0
   redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
   while [ "${redpandas[$host]}" == "" ]; do
-    echo "can't resolve redpanda host $host" >>/mnt/vectorized/entrypoint/entrypoint.log
+    echo "can't resolve redpanda host $host" >>$LOG
     sleep 1s
     redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
     ((attempt = attempt + 1))
     if [[ $attempt -eq $MAX_ATTEMPS ]]; then
-      echo "retry limit exhausted" >>/mnt/vectorized/entrypoint/entrypoint.log
+      echo "retry limit exhausted" >>$LOG
       exit 1
     fi
   done
-  echo "$host resolves to ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
+  echo "$host resolves to ${redpandas[$host]}" >>$LOG
 done
 
 mkdir -p /mnt/vectorized/redpanda/data
@@ -45,31 +46,33 @@ mkdir -p /mnt/vectorized/redpanda/coredump
 me=$(hostname)
 myip="${redpandas[$me]}"
 
-echo "configuring redpanda" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "configuring redpanda" >>$LOG
 
 if [ "$me" == "redpanda1" ]; then
   rpk config bootstrap \
     --id ${node_ids[$me]} \
-    --self $myip
+    --self $myip &>>$LOG
 else
   rpk config bootstrap \
     --id ${node_ids[$me]} \
     --self $myip \
-    --ips "${redpandas[redpanda1]}"
+    --ips "${redpandas[redpanda1]}" &>>$LOG
 fi
 
-rpk config set redpanda.default_topic_partitions 1
-rpk config set redpanda.default_topic_replications 3
-rpk config set redpanda.transaction_coordinator_replication 3
-rpk config set redpanda.id_allocator_replication 3
-rpk config set redpanda.enable_leader_balancer false
-rpk config set redpanda.enable_auto_rebalance_on_node_add false
-rpk config set redpanda.enable_idempotence true
-rpk config set redpanda.enable_transactions true
-rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data"
-rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump"
-rpk redpanda mode production
-rpk redpanda tune all
+rpk config set redpanda.default_topic_partitions 1 &>>$LOG
+rpk config set redpanda.default_topic_replications 3 &>>$LOG
+rpk config set redpanda.transaction_coordinator_replication 3 &>>$LOG
+rpk config set redpanda.id_allocator_replication 3 &>>$LOG
+rpk config set redpanda.enable_leader_balancer false &>>$LOG
+rpk config set redpanda.enable_auto_rebalance_on_node_add false &>>$LOG
+rpk config set redpanda.enable_idempotence true &>>$LOG
+rpk config set redpanda.enable_transactions true &>>$LOG
+rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data" &>>$LOG
+rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump" &>>$LOG
+rpk redpanda mode production &>>$LOG
+rpk redpanda tune all &>>$LOG
+
+echo "configured" >>$LOG
 
 cp /etc/redpanda/redpanda.yaml /mnt/vectorized/redpanda.yaml
 chown -R ubuntu:ubuntu /etc/redpanda
@@ -81,12 +84,12 @@ for host in "${!redpandas[@]}"; do
 done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
-echo "starting ssh" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "starting ssh" >>$LOG
 
 service ssh start
 
 touch /mnt/vectorized/ready
 
-echo "node is ready" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "node is ready" >>$LOG
 
 sleep infinity

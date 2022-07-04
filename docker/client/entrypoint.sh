@@ -3,11 +3,12 @@
 set -e
 
 MAX_ATTEMPS=30
+LOG=/mnt/vectorized/entrypoint/entrypoint.log
 
-echo "starting client node" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "starting client node" >>$LOG
 
 if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
-  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>/mnt/vectorized/entrypoint/entrypoint.log
+  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>$LOG
   exit 1
 fi
 
@@ -27,16 +28,16 @@ for host in "${!redpandas[@]}"; do
   attempt=0
   redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
   while [ "${redpandas[$host]}" == "" ]; do
-    echo "can't resolve redpanda host $host" >>/mnt/vectorized/entrypoint/entrypoint.log
+    echo "can't resolve redpanda host $host" >>$LOG
     sleep 1s
     redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
     ((attempt = attempt + 1))
     if [[ $attempt -eq $MAX_ATTEMPS ]]; then
-      echo "retry limit exhausted" >>/mnt/vectorized/entrypoint/entrypoint.log
+      echo "retry limit exhausted" >>$LOG
       exit 1
     fi
   done
-  echo "$host (redpanda node) resolves to ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
+  echo "$host (redpanda node) resolves to ${redpandas[$host]}" >>$LOG
 done
 
 rm -rf /mnt/vectorized/redpanda.nodes
@@ -45,12 +46,12 @@ for host in "${!redpandas[@]}"; do
 done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
-echo "starting ssh" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "starting ssh" >>$LOG
 
 service ssh start
 
 touch /mnt/vectorized/ready
 
-echo "node is ready" >>/mnt/vectorized/entrypoint/entrypoint.log
+echo "node is ready" >>$LOG
 
 sleep infinity
