@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=10
+MAX_ATTEMPS=30
 
 echo "starting control node" >>/mnt/vectorized/entrypoint/entrypoint.log
 
@@ -42,6 +42,7 @@ for host in "${!redpandas[@]}"; do
       exit 1
     fi
   done
+  echo "$host (redpanda node) resolves to ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 
 for host in "${!clients[@]}"; do
@@ -57,6 +58,7 @@ for host in "${!clients[@]}"; do
       exit 1
     fi
   done
+  echo "$host (client node) resolves to ${clients[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 
 rm -rf /mnt/vectorized/redpanda.nodes
@@ -86,6 +88,7 @@ for host in "${!redpandas[@]}"; do
     fi
   done
   ssh-keyscan "${redpandas[$host]}" 2>/dev/null >>/home/ubuntu/.ssh/known_hosts
+  echo "ssh-keyscan ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 
 for host in "${!clients[@]}"; do
@@ -100,9 +103,12 @@ for host in "${!clients[@]}"; do
     fi
   done
   ssh-keyscan "${clients[$host]}" 2>/dev/null >>/home/ubuntu/.ssh/known_hosts
+  echo "ssh-keyscan ${clients[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 chown ubuntu:ubuntu /home/ubuntu/.ssh/known_hosts
 
 touch /mnt/vectorized/ready
+
+echo "node is ready" >>/mnt/vectorized/entrypoint/entrypoint.log
 
 sleep infinity

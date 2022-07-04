@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=10
+MAX_ATTEMPS=30
 
 echo "starting redpanda node" >>/mnt/vectorized/entrypoint/entrypoint.log
 
@@ -36,6 +36,7 @@ for host in "${!redpandas[@]}"; do
       exit 1
     fi
   done
+  echo "$host resolves to ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 
 mkdir -p /mnt/vectorized/redpanda/data
@@ -43,6 +44,8 @@ mkdir -p /mnt/vectorized/redpanda/coredump
 
 me=$(hostname)
 myip="${redpandas[$me]}"
+
+echo "configuring redpanda" >>/mnt/vectorized/entrypoint/entrypoint.log
 
 if [ "$me" == "redpanda1" ]; then
   rpk config bootstrap \
@@ -78,8 +81,12 @@ for host in "${!redpandas[@]}"; do
 done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
+echo "starting ssh" >>/mnt/vectorized/entrypoint/entrypoint.log
+
 service ssh start
 
 touch /mnt/vectorized/ready
+
+echo "node is ready" >>/mnt/vectorized/entrypoint/entrypoint.log
 
 sleep infinity

@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=10
+MAX_ATTEMPS=30
 
 echo "starting client node" >>/mnt/vectorized/entrypoint/entrypoint.log
 
@@ -36,6 +36,7 @@ for host in "${!redpandas[@]}"; do
       exit 1
     fi
   done
+  echo "$host (redpanda node) resolves to ${redpandas[$host]}" >>/mnt/vectorized/entrypoint/entrypoint.log
 done
 
 rm -rf /mnt/vectorized/redpanda.nodes
@@ -44,8 +45,12 @@ for host in "${!redpandas[@]}"; do
 done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
+echo "starting ssh" >>/mnt/vectorized/entrypoint/entrypoint.log
+
 service ssh start
 
 touch /mnt/vectorized/ready
+
+echo "node is ready" >>/mnt/vectorized/entrypoint/entrypoint.log
 
 sleep infinity

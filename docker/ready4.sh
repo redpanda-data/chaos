@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=10
+MAX_ATTEMPS=40
 
 abort() {
   echo "## control log"
