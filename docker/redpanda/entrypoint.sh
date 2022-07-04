@@ -2,8 +2,12 @@
 
 set -e
 
+MAX_ATTEMPS=10
+
+echo "starting redpanda node" >>/mnt/vectorized/entrypoint/entrypoint.log
+
 if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
-  echo 'error: unable to read /mnt/vectorized/redpanda.deb'
+  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>/mnt/vectorized/entrypoint/entrypoint.log
   exit 1
 fi
 
@@ -20,10 +24,17 @@ for ((i = 1; i <= REDPANDA_CLUSTER_SIZE; i++)); do
 done
 
 for host in "${!redpandas[@]}"; do
+  attempt=0
   redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
   while [ "${redpandas[$host]}" == "" ]; do
+    echo "can't resolve redpanda host $host" >>/mnt/vectorized/entrypoint/entrypoint.log
     sleep 1s
     redpandas[$host]=$(getent hosts $host | awk '{ print $1 }')
+    ((attempt = attempt + 1))
+    if [[ $attempt -eq $MAX_ATTEMPS ]]; then
+      echo "retry limit exhausted" >>/mnt/vectorized/entrypoint/entrypoint.log
+      exit 1
+    fi
   done
 done
 
@@ -68,4 +79,7 @@ done
 chown ubuntu:ubuntu /mnt/vectorized/redpanda.nodes
 
 service ssh start
+
+touch /mnt/vectorized/ready
+
 sleep infinity
