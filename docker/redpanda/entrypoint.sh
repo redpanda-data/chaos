@@ -72,7 +72,10 @@ rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump" &>>$LOG
 echo "setting production mode" >>$LOG
 rpk redpanda mode production &>>$LOG
 echo "tuning all" >>$LOG
-rpk redpanda tune all &>>$LOG
+if ! rpk redpanda tune all &>>$LOG; then
+  echo "tuning failed" >>$LOG
+  exit 1
+fi
 
 echo "configured" >>$LOG
 
