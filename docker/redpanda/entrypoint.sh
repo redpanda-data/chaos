@@ -69,7 +69,9 @@ rpk config set redpanda.enable_idempotence true &>>$LOG
 rpk config set redpanda.enable_transactions true &>>$LOG
 rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data" &>>$LOG
 rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump" &>>$LOG
+echo "setting production mode" >>$LOG
 rpk redpanda mode production &>>$LOG
+echo "tuning all" >>$LOG
 rpk redpanda tune all &>>$LOG
 
 echo "configured" >>$LOG
