@@ -28,10 +28,16 @@ mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda/coredump
 mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda/coredump
 mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda/coredump
 mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda/coredump
+mkdir -p ./docker/bind_mounts/redpanda1/mnt/vectorized/entrypoint
+mkdir -p ./docker/bind_mounts/redpanda2/mnt/vectorized/entrypoint
+mkdir -p ./docker/bind_mounts/redpanda3/mnt/vectorized/entrypoint
+mkdir -p ./docker/bind_mounts/redpanda4/mnt/vectorized/entrypoint
 
 mkdir -p ./docker/bind_mounts/control/mnt/vectorized/experiments
+mkdir -p ./docker/bind_mounts/control/mnt/vectorized/entrypoint
 
 mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs
+mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/entrypoint
 
 chmod a+rw -R ./docker/bind_mounts
 

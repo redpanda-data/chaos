@@ -4,6 +4,10 @@ set -e
 
 ./docker/rebuild4.sh
 ./docker/up4.sh
+if ! ./docker/alive4.sh; then
+  ./docker/down4.sh
+  exit 1
+fi
 ./docker/test.suite.sh suites/test_suite_idempotency.json
 ./docker/test.suite.sh suites/test_suite_list_offsets.json
 ./docker/test.suite.sh suites/test_suite_reads_writes.json
