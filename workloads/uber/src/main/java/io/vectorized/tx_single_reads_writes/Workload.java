@@ -65,6 +65,11 @@ public class Workload {
         return ++this.last_tx_id;
     }
 
+    private long last_error_id = 0;
+    private synchronized long get_error_id() {
+        return ++this.last_error_id;
+    }
+
     private long past_us;
     private synchronized void log(int thread_id, String message) throws Exception {
         var now_us = System.nanoTime() / 1000;
@@ -253,13 +258,14 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e1) {
+                var eid = get_error_id();
                 synchronized(this) {
-                    System.out.println("=== err on constructing KafkaProducer");
+                    System.out.println("=== " + eid + " err on constructing KafkaProducer");
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
                 
-                log(wid, "err");
+                log(wid, "err\t" + eid);
                 try {
                     if (producer != null) {
                         producer.close();
@@ -316,9 +322,10 @@ public class Workload {
                     }
                 }
             } catch (Exception e1) {
-                log(wid, "log\terr\t" + last_oid);
+                var eid = get_error_id();
+                log(wid, "log\terr\t" + eid);
                 synchronized(this) {
-                    System.out.println("=== error on produce => aborting tx");
+                    System.out.println("=== " + eid + " error on produce => aborting tx");
                     System.out.println(e1);
                     e1.printStackTrace();
 
@@ -343,12 +350,13 @@ public class Workload {
                         succeeded(wid);
                     }
                 } catch (Exception e2) {
+                    var eid = get_error_id();
                     synchronized(this) {
-                        System.out.println("=== error on abort => reset producer");
+                        System.out.println("=== " + eid + " error on abort => reset producer");
                         System.out.println(e2);
                         e2.printStackTrace();
                     }
-                    log(wid, "err");
+                    log(wid, "err\t" + eid);
                     failed(wid);
                     try {
                         producer.close();
@@ -387,8 +395,9 @@ public class Workload {
                 log(wid, "ok");
                 succeeded(wid);
             } catch (Exception e1) {
+                var eid = get_error_id();
                 synchronized(this) {
-                    System.out.println("=== error on commit => reset producer");
+                    System.out.println("=== " + eid + " error on commit => reset producer");
                     System.out.println(e1);
                     e1.printStackTrace();
                     if (tx.status == TxStatus.COMMITTED) {
@@ -399,7 +408,7 @@ public class Workload {
                         violation(wid, "a tx with failed commit can't have status: " + tx.status.name());
                     }
                 }
-                log(wid, "err");
+                log(wid, "err\t" + eid);
                 failed(wid);
                 try {
                     producer.close();
@@ -476,10 +485,11 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e) {
-                log(rid, "err");
+                var eid = get_error_id();
+                log(rid, "err\t" + eid);
 
                 synchronized(this) {
-                    System.out.println("=== err on constructing KafkaConsumer");
+                    System.out.println("=== " + eid + " err on constructing KafkaConsumer");
                     System.out.println(e);
                     e.printStackTrace();
                 }
