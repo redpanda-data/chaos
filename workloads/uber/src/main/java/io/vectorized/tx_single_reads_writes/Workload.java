@@ -42,6 +42,9 @@ public class Workload {
     }
 
     public volatile boolean is_active = false;
+
+    public volatile boolean is_paused_before_send = false;
+    public volatile boolean is_paused_before_abort = false;
     
     private volatile App.InitBody args;
     private BufferedWriter opslog;
@@ -311,6 +314,12 @@ public class Workload {
 
                     synchronized(this) {
                         tx.ops.add(op);
+
+                        while (is_paused_before_send) {
+                            try {
+                                this.wait();
+                            } catch (Exception e) { }
+                        }
                     }
                     var offset = producer.send(new ProducerRecord<String, String>(args.topic, args.server, tx.tid + "\t" + last_oid)).get().offset();
                     log(wid, "log\twriten\t" + last_oid + "@" + offset);
@@ -341,6 +350,14 @@ public class Workload {
 
             if (should_abort) {
                 try {
+                    synchronized(this) {
+                        while (is_paused_before_abort) {
+                            try {
+                                this.wait();
+                            } catch (Exception e) { }
+                        }
+                    }
+
                     log(wid, "brt");
                     producer.abortTransaction();
                     log(wid, "ok");
