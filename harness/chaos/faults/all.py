@@ -28,6 +28,7 @@ from chaos.faults.combinator_as_oneoff import AsOneoffCombinator
 from chaos.faults.combinator_repeat import RepeatCombinator
 from chaos.faults.recycle_all import RecycleAllFault
 from chaos.faults.recycle_storm import RecycleStormFault
+from chaos.faults.trigger_kip_360 import TriggerKIP360
 
 FAULTS = {
     "isolate_controller": IsolateControllerFault,
@@ -51,6 +52,7 @@ FAULTS = {
     "reconfigure_313": Reconfigure313Fault,
     "reconfigure_kill_11": ReconfigureKill11Fault,
     "rolling_restart": RollingRestartFault,
+    "trigger_kip_360": TriggerKIP360,
     "decommission_leader": DecommissionLeaderFault,
     "kill_partition": KillPartitionFault,
     "hijack_tx_ids": HijackTxIDsFault,
