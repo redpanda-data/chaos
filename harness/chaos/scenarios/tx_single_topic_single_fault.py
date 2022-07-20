@@ -25,7 +25,8 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         "pause_follower", "pause_leader", "kill_all", "isolate_clients_kill_leader",
         "isolate_all", "rolling_restart", "kill_tx_leader", "kill_tx_follower",
         "isolate_tx_leader", "isolate_tx_follower", "recycle_all",
-        "hijack_tx_ids", "isolate_tx_all", "pause_all", "kill_partition"
+        "hijack_tx_ids", "isolate_tx_all", "pause_all", "kill_partition", "repeat",
+        "as_oneoff", "trigger_kip_360"
     }
 
     SUPPORTED_CHECKS = {

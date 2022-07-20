@@ -1,0 +1,35 @@
+{
+    "name": "tx-single-reads-writes / java / kip 360 test",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-single-reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 1,
+            "writes": 1,
+            "retries": 5,
+            "transaction_timeout_config": 600000
+        }
+    },
+    "fault": {
+        "name": "repeat",
+        "subject": {
+            "name": "as_oneoff",
+            "subject": {
+                "name": "trigger_kip_360"
+            },
+            "delay_s": 12
+        },
+        "times": 6,
+        "delay_s": 3,
+        "alias": "kip_360_test"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
