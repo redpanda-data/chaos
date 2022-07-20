@@ -141,6 +141,36 @@ public class App
             res.status(200);
             return "";
         });
+
+        post("/pause_before_send", (req, res) -> {
+            workload.is_paused_before_send = true;
+            res.status(200);
+            return "";
+        });
+
+        post("/resume_before_send", (req, res) -> {
+            workload.is_paused_before_send = false;
+            synchronized (workload) {
+                workload.notifyAll();
+            }
+            res.status(200);
+            return "";
+        });
+
+        post("/pause_before_abort", (req, res) -> {
+            workload.is_paused_before_abort = true;
+            res.status(200);
+            return "";
+        });
+
+        post("/resume_before_abort", (req, res) -> {
+            workload.is_paused_before_abort = false;
+            synchronized (workload) {
+                workload.notifyAll();
+            }
+            res.status(200);
+            return "";
+        });
     }
 
     public static void main( String[] args ) throws Exception

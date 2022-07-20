@@ -183,6 +183,30 @@ class Workload:
         if r.status_code != 200:
             raise Exception(f"unexpected status code: {r.status_code}")
 
+    def pause_before_send(self, node, timeout_s=10):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/pause_before_send", timeout=timeout_s)
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
+
+    def resume_before_send(self, node, timeout_s=10):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/resume_before_send", timeout=timeout_s)
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
+
+    def pause_before_abort(self, node, timeout_s=10):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/pause_before_abort", timeout=timeout_s)
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
+
+    def resume_before_abort(self, node, timeout_s=10):
+        ip = node.ip
+        r = requests.post(f"http://{ip}:8080/resume_before_abort", timeout=timeout_s)
+        if r.status_code != 200:
+            raise Exception(f"unexpected status code: {r.status_code}")
+
     def analyze(self, config):
         logger.debug(f"analyzing {config['experiment_id']}")
 
