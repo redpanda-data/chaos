@@ -14,6 +14,7 @@ public class App
         public int writes;
         public int reads;
         public int retries = 0;
+        public int transaction_timeout_config = 60000;
     }
     
     public static class InitBody {
