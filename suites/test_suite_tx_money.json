@@ -24,7 +24,8 @@
         },
         "suite": {
             "should_retry_on_transient_errors": true,
-            "retries": 4
+            "retries": 4,
+            "retried_tests": 2
         }
     }
 }
