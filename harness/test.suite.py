@@ -51,6 +51,7 @@ if "ignore_transient_errors" in suite["settings"]["suite"]:
 if "at_least_one_passes" in suite["settings"]["suite"]:
     at_least_one_passes = suite["settings"]["suite"]["at_least_one_passes"]
 
+retried_tests = sys.maxsize
 retries = 0
 if "should_retry_on_transient_errors" in suite["settings"]["suite"]:
     should_retry_on_transient_errors = suite["settings"]["suite"]["should_retry_on_transient_errors"]
@@ -63,6 +64,8 @@ if "should_retry_on_transient_errors" in suite["settings"]["suite"]:
             retries = suite["settings"]["suite"]["retries"]
         else:
             raise Exception(f"retry should be provided when should_retry_on_transient_errors")
+        if "retried_tests" in suite["settings"]["suite"]:
+            retried_tests = suite["settings"]["suite"]["retried_tests"]
 
 for test_path in suite["tests"]:
     test_path = os.path.join(os.path.dirname(args.suite), "tests", test_path)
@@ -96,9 +99,14 @@ for i in range(0, args.repeat):
         if name not in results["test_runs"]:
             results["test_runs"][name] = {}
         
+        if retried_tests == 0:
+            retries = 0
+
         attempt = 0
         passed = True
         while attempt <= retries:
+            if attempt == 1 and retried_tests > 0:
+                retried_tests -= 1
             attempt += 1
             experiment_id = str(int(time.time()))
 
