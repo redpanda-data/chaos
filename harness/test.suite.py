@@ -105,8 +105,6 @@ for i in range(0, args.repeat):
         attempt = 0
         passed = True
         while attempt <= retries:
-            if attempt == 1 and retried_tests > 0:
-                retried_tests -= 1
             attempt += 1
             experiment_id = str(int(time.time()))
 
@@ -148,6 +146,10 @@ for i in range(0, args.repeat):
             if passed:
                 break
         
+        if retries > 0:
+            if not passed and retried_tests > 0:
+                retried_tests -= 1
+
         if not passed:
             results["result"] = Result.FAILED
             with open(f"/mnt/vectorized/experiments/{args.run_id}.json", "w") as info:
