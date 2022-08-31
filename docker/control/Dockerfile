@@ -6,7 +6,8 @@ ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
 ARG WORKLOAD_CLUSTER_SIZE
 ENV WORKLOAD_CLUSTER_SIZE=${WORKLOAD_CLUSTER_SIZE}
-RUN apt update -y
+RUN apt update -y --fix-missing 
+RUN apt upgrade -y
 RUN apt install -f -y
 RUN apt install -y curl wget iptables python3-pip gnuplot --fix-missing
 RUN apt install -y iputils-ping vim tmux less ssh sudo --fix-missing
