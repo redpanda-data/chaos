@@ -15,7 +15,7 @@ class HijackTxIDsFault:
     def execute(self, scenario):
         for tx_id in self.fault_config["ids"]:
             attempt = 0
-            while True:                
+            while True:
                 logger.debug(f"hijacking {tx_id}")
                 try:
                     producer = Producer({

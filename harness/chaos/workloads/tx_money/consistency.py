@@ -9,6 +9,7 @@ from chaos.checks.result import Result
 from chaos.workloads.tx_money.log_utils import State, cmds, transitions, phantoms
 import logging
 import os
+from time import sleep
 
 logger = logging.getLogger("consistency")
 
@@ -136,12 +137,25 @@ def validate(config, workload_dir):
                     raise Exception(f"unknown state: {new_state}")
         
         if not has_violation:
+            sync_producer = None
+
             total = 0
             # making sure all ongoing transactions has finished
             sync_producer = None
             for i in range(0, config["workload"]["settings"]["producers"]):
-                sync_producer = SyncTxProducer(config["brokers"], config["workload"]["settings"]["retries"], f"tx-{i}")
-                sync_producer.init()
+                attempt = 0
+                while True:
+                    logger.debug(f"hijacking tx-{i} tx.id")
+                    try:
+                        sync_producer = SyncTxProducer(config["brokers"], config["workload"]["settings"]["retries"], f"tx-{i}")
+                        sync_producer.init()
+                        break
+                    except KafkaException as e:
+                        if attempt > 6:
+                            raise e
+                    attempt += 1
+                    if attempt % 2 == 0:
+                        sleep(1)
             
             RETRIES=5
             for i in range(0, config["accounts"]):
