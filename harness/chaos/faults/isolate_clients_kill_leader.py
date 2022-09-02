@@ -36,4 +36,5 @@ class IsolateClientsKillLeader:
             ssh("ubuntu@"+node.ip, "/mnt/vectorized/control/network.heal.sh", *redpanda_nodes)
     
     def heal(self, scenario):
-        ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.start.sh")
+        tx_log_level = scenario.read_config(["settings", "log-level", "tx"], "info")
+        ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)

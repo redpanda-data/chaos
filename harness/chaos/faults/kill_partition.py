@@ -36,5 +36,6 @@ class KillPartitionFault:
             ssh("ubuntu@"+replica.ip, "/mnt/vectorized/control/redpanda.stop.sh")
     
     def heal(self, scenario):
+        tx_log_level = scenario.read_config(["settings", "log-level", "tx"], "info")
         for replica in self.replicas:
-            ssh("ubuntu@"+replica.ip, "/mnt/vectorized/control/redpanda.start.sh")
+            ssh("ubuntu@"+replica.ip, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)

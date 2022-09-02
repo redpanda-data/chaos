@@ -37,7 +37,8 @@ class ReconfigureKill11Fault:
 
     def heal(self, scenario):
         logger.debug(f"healing {scenario.topic}'s new leader {self.new_leader.ip}")
-        ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.start.sh")
+        tx_log_level = scenario.read_config(["settings", "log-level", "tx"], "info")
+        ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)
         timeout_s = self.fault_config["timeout_s"]
         begin = time.time()
         while True:
