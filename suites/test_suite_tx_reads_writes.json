@@ -3,7 +3,7 @@
     "tests": [
         "tx_single_reads_writes/baseline.json",
         "tx_single_reads_writes/hijack_tx_ids.json",
-        "tx_single_reads_writes/kip_360_test.json.json",
+        "tx_single_reads_writes/kip_360_test.json",
         "tx_single_reads_writes/isolate_data_follower.json",
         "tx_single_reads_writes/isolate_data_leader.json",
         "tx_single_reads_writes/isolate_tx_all.json",
