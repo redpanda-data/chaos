@@ -65,6 +65,10 @@ public class Workload {
     public void event(String name) throws Exception {
         log(-1, "event\t" + name);
     }
+    long eid_gen = 0;
+    private synchronized long get_eid() {
+        return eid_gen++;
+    }
 
     private volatile ArrayList<Thread> threads;
     private volatile Random random;
@@ -100,8 +104,12 @@ public class Workload {
                 try {
                     transferProcess(j);
                 } catch(Exception e) {
-                    System.out.println(e);
-                    e.printStackTrace();
+                    var eid = get_eid();
+                    synchronized (this) {
+                        System.out.println("### err " + eid);
+                        System.out.println(e);
+                        e.printStackTrace();
+                    }
                     try {
                         opslog.flush();
                         opslog.close();
@@ -203,9 +211,15 @@ public class Workload {
                     continue;
                 }
             } catch (Exception e1) {
-                log(wid, "err");
-                System.out.println(e1);
-                e1.printStackTrace();
+                var eid = get_eid();
+                log(wid, "err\t"+eid);
+
+                synchronized(this) {
+                    System.out.println("### err " + eid);
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
+
                 failed(wid);
                 try {
                     if (producer != null) {
@@ -231,20 +245,29 @@ public class Workload {
                 f1.get();
                 f2.get();
             } catch (Exception e1) {
-                System.out.println("error on produce => aborting tx");
-                System.out.println(e1);
-                e1.printStackTrace();
+                var eid = get_eid();
+                synchronized (this) {
+                    System.out.println("### err " + eid);
+                    System.out.println("error on produce => aborting tx");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
     
                 try {
-                    log(wid, "brt");
+                    log(wid, "brt\t"+eid);
                     producer.abortTransaction();
                     log(wid, "ok");
                     failed(wid);
                 } catch (Exception e2) {
-                    System.out.println("error on abort => reset producer");
-                    System.out.println(e2);
-                    e2.printStackTrace();
-                    log(wid, "err");
+                    eid = get_eid();
+                    synchronized (this) {
+                        System.out.println("### err " + eid);
+                        System.out.println("error on abort => reset producer");
+                        System.out.println(e2);
+                        e2.printStackTrace();
+                    }
+
+                    log(wid, "err\t" + eid);
                     try {
                         producer.close();
                     } catch (Exception e3) {}
@@ -261,10 +284,15 @@ public class Workload {
                 progress(wid);
                 succeeded(wid);
             } catch (Exception e1) {
-                System.out.println("error on commit => reset producer");
-                System.out.println(e1);
-                e1.printStackTrace();
-                log(wid, "err");
+                var eid = get_eid();
+                synchronized (this) {
+                    System.out.println("### err " + eid);
+                    System.out.println("error on commit => reset producer");
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
+
+                log(wid, "err\t" + eid);
                 failed(wid);
                 try {
                     producer.close();
