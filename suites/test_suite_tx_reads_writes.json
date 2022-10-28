@@ -25,7 +25,7 @@
         "test": {
             "remove_logs_on_success": true,
             "log-level": {
-                "tx": "info"
+                "default": "info"
             }
         },
         "suite": {

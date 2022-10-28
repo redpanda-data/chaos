@@ -135,8 +135,18 @@ class RedpandaCluster:
         for node in self.nodes:
             ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/network.heal.all.sh")
 
-    def launch(self, node, tx_log_level="info"):
-        ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)
+    def launch(self, node, log_levels = None):
+        if log_levels == None:
+            log_levels = {}
+        log_levels = log_levels.copy()
+        if "default" not in log_levels:
+            log_levels["default"] = "info"
+        default = log_levels["default"]
+        del log_levels["default"]
+        if len(log_levels) == 0:
+            log_levels["tx"] = default
+        levels_arg = ":".join([f"{k}={v}" for k, v in log_levels.items()])
+        ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.start.sh", default, levels_arg)
     
     def is_alive(self, node):
         result = ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.alive.sh")
@@ -169,12 +179,12 @@ class RedpandaCluster:
             logger.debug(f"cleaning a redpanda instance on {node.ip}")
             self.clean(node)
     
-    def launch_everywhere(self, settings, tx_log_level="info"):
+    def launch_everywhere(self, settings, log_levels=None):
         for node in self.nodes:
             logger.info(f"starting a redpanda instance on {node.ip} with {json.dumps(settings)}")
             for key in settings.keys():
                 ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.config.sh", key, settings[key])
-            self.launch(node, tx_log_level=tx_log_level)
+            self.launch(node, log_levels)
 
     def wait_alive(self, timeout_s=10):
         begin = time.time()
