@@ -72,6 +72,22 @@ class AbstractSingleFault(ABC):
         with open(f"/mnt/vectorized/experiments/{self.config['experiment_id']}/info.json", "w") as info:
             info.write(json.dumps(self.config, indent=2))
     
+    def default_log_level(self):
+        log_levels = self.read_config(["settings", "log-level"], { "default": "info" })
+        if "default" not in log_levels:
+            log_levels["default"] = "info"
+        return log_levels["default"]
+    
+    def log_levels(self):
+        log_levels = self.read_config(["settings", "log-level"], { "default": "info" })
+        if "default" not in log_levels:
+            log_levels["default"] = "info"
+        default = log_levels["default"]
+        del log_levels["default"]
+        if len(log_levels) == 0:
+            log_levels["tx"] = default
+        return ":".join([f"{k}={v}" for k, v in log_levels.items()])
+    
     def fetch_workload_logs(self):
         if self.workload_cluster != None:
             chaos_logger.info(f"fetching workload logs")

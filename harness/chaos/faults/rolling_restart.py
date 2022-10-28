@@ -16,14 +16,15 @@ class RollingRestartFault:
         if "full" in self.fault_config:
             full = self.fault_config["full"]
 
-        tx_log_level = scenario.read_config(["settings", "log-level", "tx"], "info")
+        default = scenario.default_log_level()
+        log_levels = scenario.log_levels()
         
         if full:
             for replica in scenario.redpanda_cluster.nodes:
                 logger.debug(f"killing {replica.ip}")
                 ssh("ubuntu@" + replica.ip, "/mnt/vectorized/control/redpanda.stop.sh")
                 logger.debug(f"starting {replica.ip}")
-                ssh("ubuntu@" + replica.ip, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)
+                ssh("ubuntu@" + replica.ip, "/mnt/vectorized/control/redpanda.start.sh", default, log_levels)
                 if replica != scenario.redpanda_cluster.nodes[-1]:
                     sleep(self.fault_config["period_s"])
             return
@@ -42,6 +43,6 @@ class RollingRestartFault:
             logger.debug(f"killing {replica}")
             ssh("ubuntu@" + replica, "/mnt/vectorized/control/redpanda.stop.sh")
             logger.debug(f"starting {replica}")
-            ssh("ubuntu@" + replica, "/mnt/vectorized/control/redpanda.start.sh", tx_log_level)
+            ssh("ubuntu@" + replica, "/mnt/vectorized/control/redpanda.start.sh", default, log_levels)
             if replica != sequence[-1]:
                 sleep(self.fault_config["period_s"])
