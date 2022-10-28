@@ -420,6 +420,8 @@ public class Workload {
             if (should_reset) {
                 should_reset = false;
 
+                log(sid, "log\tresetting");
+
                 if (consumer != null) {
                     try {
                         consumer.close();
@@ -825,6 +827,8 @@ public class Workload {
         props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
         // default value: 300000
         props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
+
+        props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 10000);
         
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.RETRIES_CONFIG, 5);
