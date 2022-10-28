@@ -1,5 +1,5 @@
 {
-    "name": "tx-subscribe / java / transfer topic leadership",
+    "name": "rw-subscribe / java / transfer topic leadership",
     "scenario": "rw_subscribe_single_fault",
     "topic": "topic1",
     "partitions": 1,
