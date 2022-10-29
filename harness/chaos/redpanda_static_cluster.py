@@ -7,16 +7,26 @@ import sys
 import traceback
 import random
 from chaos.types import TimeoutException
+from requests.exceptions import ConnectionError
 
 import logging
 logger = logging.getLogger("chaos")
 
 class HTTPErrorException(Exception):
-    def __init__(self, response):
-        self.response = response
+    def __init__(self, r):
+        self.code = r.status_code
+        self.message = r.content
+        try:
+            body = r.json()
+            if "code" in body:
+                code = body["code"]
+            if "message" in body:
+                message = body["message"]
+        except ValueError:
+            pass
     
     def __str__(self) -> str:
-        return f"error code: {self.response.status_code} content: {self.response.content}"
+        return f"error code: {self.code} content: {self.message}"
 
 class RedpandaNode:
     def __init__(self, ip, id):
@@ -117,9 +127,17 @@ class RedpandaCluster:
                 node_view = None
                 try:
                     node_view = self.get_view(node)
+                except HTTPErrorException as e:
+                    common_view = None
+                    logger.info(f"not ok response from {node.ip} code={e.code}: {e.message}")
+                    break
+                except ConnectionError:
+                    common_view = None
+                    logger.info(f"connection error on getting view from {node.ip}")
+                    break
                 except:
                     common_view = None
-                    logger.exception("error on getting view from {node.ip}")
+                    logger.exception(f"error on getting view from {node.ip}")
                     break
                 if node == nodes[0]:
                     common_view = node_view
