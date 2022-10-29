@@ -36,6 +36,7 @@ class Reconfigure313Fault:
             raise Exception(f"topic {topic} doesn't have replication factor of 3")
 
         new_leader = None
+        old_leader = replicas_info.leader
         self.old_replicas = set(replicas_info.replicas)
 
         candidates = []
@@ -60,11 +61,12 @@ class Reconfigure313Fault:
             if time.time() - begin > timeout_s:
                 raise TimeoutException(f"can't reconfigure {topic} within {timeout_s} sec")
             replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
-            if replicas_info.leader == new_leader and replicas_info.status == "done" and len(replicas_info.replicas)==1:
+            if replicas_info.leader != old_leader:
                 break
             logger.debug(f"isn't reconfigured status={replicas_info.status} leader={replicas_info.leader.id} len(replicas)={len(replicas_info.replicas)}")
             time.sleep(1)
-        logger.debug(f"reconfigured {namespace}/{topic}/{partition} to [{new_leader.ip}]")
+        
+        logger.debug(f"reconfigured {namespace}/{topic}/{partition} to [{','.join(map(lambda x:x.ip, replicas_info.replicas))}]")
 
     def heal(self, scenario):
         timeout_s = self.fault_config["timeout_s"]
