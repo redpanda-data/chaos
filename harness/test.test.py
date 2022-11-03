@@ -79,3 +79,6 @@ for i in range(0, args.repeat):
         info.write(json.dumps(results, indent=2))
     with open(f"/mnt/vectorized/experiments/latest.json", "w") as info:
         info.write(json.dumps(results, indent=2))
+    
+    if results["test_runs"][test["name"]][experiment_id] == "FAILED":
+        break
