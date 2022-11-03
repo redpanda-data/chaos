@@ -20,6 +20,7 @@ if ! ./docker/ready6.sh; then
   ./docker/down6.sh
   exit 1
 fi
+./docker/test.suite.sh suites/test_suite_tx_compact.json
 ./docker/test.suite.sh suites/test_suite_tx_money.json
 ./docker/test.suite.sh suites/test_suite_tx_reads_writes.json
 ./docker/test.suite.sh suites/test_suite_rw_subscribe.json
