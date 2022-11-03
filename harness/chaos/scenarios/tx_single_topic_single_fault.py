@@ -15,7 +15,7 @@ logger = logging.getLogger("chaos")
 
 class TxSingleTopicSingleFault(AbstractSingleFault):
     SUPPORTED_WORKLOADS = {
-        "tx-single-reads-writes / java", "tx-writes / java"
+        "tx-single-reads-writes / java", "tx-writes / java", "tx-compact / java"
     }
 
     SUPPORTED_FAULTS = {
@@ -95,8 +95,10 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         # waiting for the controller to be up before creating a topic
         self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=30)
 
+        cleanup = self.read_config(["settings", "cleanup"], "delete")
+
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
-        self.redpanda_cluster.create_topic(self.topic, self.replication, 1)
+        self.redpanda_cluster.create_topic(self.topic, self.replication, 1, cleanup)
         # waiting for the topic to come online
         self.redpanda_cluster.wait_leader(self.topic, replication=self.replication, timeout_s=20)
 
@@ -141,7 +143,7 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         self._reconfigure(others, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
         # reconfigure tx to use other nodes
         self._reconfigure(others, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
-        
+
         try:
             self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
         except TimeoutException:
