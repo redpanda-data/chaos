@@ -1,0 +1,22 @@
+{
+    "name": "tx-compact / java / baseline",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-compact / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "writers": 2,
+            "edge_readers": 2,
+            "hist_readers": 2
+        }
+    },
+    "fault": null,
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}

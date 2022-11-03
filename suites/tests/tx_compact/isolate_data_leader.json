@@ -1,0 +1,27 @@
+{
+    "name": "tx-compact / java / isolate data leader",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-compact / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "writers": 2,
+            "edge_readers": 2,
+            "hist_readers": 2
+        }
+    },
+    "fault": {
+        "name": "isolate_leader",
+        "topic": "topic1",
+        "alias": "isolate_data_leader"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" },
+        { "name": "progress_during_fault", "min-delta": 100 }
+    ]
+}

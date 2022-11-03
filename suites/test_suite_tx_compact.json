@@ -1,0 +1,42 @@
+{
+    "name": "all",
+    "tests": [
+        "tx_compact/baseline.json",
+        "tx_compact/hijack_tx_ids.json",
+        "tx_compact/isolate_data_follower.json",
+        "tx_compact/isolate_data_leader.json",
+        "tx_compact/isolate_tx_all.json",
+        "tx_compact/isolate_tx_follower.json",
+        "tx_compact/isolate_tx_leader.json",
+        "tx_compact/kill_data_follower.json",
+        "tx_compact/kill_data_leader.json",
+        "tx_compact/kill_tx_follower.json",
+        "tx_compact/kill_tx_leader.json",
+        "tx_compact/pause_data_leader.json",
+        "tx_compact/pause_tx_leader.json",
+        "tx_compact/reconfigure_313_data.json",
+        "tx_compact/reconfigure_313_tx.json",
+        "tx_compact/transfer_data_leadership.json",
+        "tx_compact/transfer_tx_leadership.json",
+        "tx_compact/recycle_all.json"
+    ],
+    "settings": {
+        "test": {
+            "redpanda": {
+                "redpanda.compacted_log_segment_size": 1048577,
+                "redpanda.log_cleanup_policy": "compact",
+                "redpanda.log_segment_size": 1048577
+            },
+            "cleanup": "compact",
+            "remove_logs_on_success": false,
+            "log-level": {
+                "default": "info"
+            }
+        },
+        "suite": {
+            "should_retry_on_transient_errors": true,
+            "retries": 4,
+            "retried_tests": 2
+        }
+    }
+}

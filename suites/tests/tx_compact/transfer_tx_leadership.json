@@ -1,0 +1,28 @@
+{
+    "name": "tx-compact / java / transfer tx leadership",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "workload": {
+        "name": "tx-compact / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "writers": 2,
+            "edge_readers": 2,
+            "hist_readers": 2
+        }
+    },
+    "fault": {
+        "name": "leadership_transfer",
+        "topic": "tx",
+        "namespace": "kafka_internal",
+        "partition": 0,
+        "alias": "transfer_tx_leadership"
+    },
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
