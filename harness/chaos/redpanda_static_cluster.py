@@ -8,6 +8,7 @@ import traceback
 import random
 from chaos.types import TimeoutException
 from requests.exceptions import ConnectionError
+from requests.exceptions import ReadTimeout
 
 import logging
 logger = logging.getLogger("chaos")
@@ -315,6 +316,9 @@ class RedpandaCluster:
                 info = self._get_stable_details(nodes, topic, partition=partition, namespace=namespace, replication=replication)
                 if info == None:
                     sleep(1)
+            except ReadTimeout:
+                logger.debug("request timed out")
+                sleep(1)
             except:
                 e, v = sys.exc_info()[:2]
                 trace = traceback.format_exc()
@@ -340,7 +344,7 @@ class RedpandaCluster:
     
     def _get_details(self, node, namespace, topic, partition):
         ip = node.ip
-        r = requests.get(f"http://{ip}:9644/v1/partitions/{namespace}/{topic}/{partition}")
+        r = requests.get(f"http://{ip}:9644/v1/partitions/{namespace}/{topic}/{partition}", timeout=1)
         if r.status_code != 200:
             logger.error(f"status code: {r.status_code}")
             logger.error(f"content: {r.content}")
