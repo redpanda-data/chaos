@@ -95,8 +95,17 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         # waiting for the controller to be up before creating a topic
         self.redpanda_cluster.wait_leader("controller", namespace="redpanda", replication=len(self.redpanda_cluster.nodes), timeout_s=30)
 
+        retention_ms = 604800000
+        if self.config.get("retention_ms") != None:
+            retention_ms = self.config["retention_ms"]
+
+        segment_bytes = 1073741824
+        if self.config.get("segment_bytes") != None:
+            segment_bytes = self.config["segment_bytes"]
+
+
         logger.info(f"creating \"{self.topic}\" topic with replication factor {self.replication}")
-        self.redpanda_cluster.create_topic(self.topic, self.replication, 1)
+        self.redpanda_cluster.create_topic(self.topic, self.replication, 1, retention_ms=retention_ms, segment_bytes=segment_bytes)
         # waiting for the topic to come online
         self.redpanda_cluster.wait_leader(self.topic, replication=self.replication, timeout_s=20)
 
