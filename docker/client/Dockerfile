@@ -20,6 +20,12 @@ COPY --chown=ubuntu:ubuntu control /mnt/vectorized/control
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/control
 RUN pip3 install sh
 RUN pip3 install flask
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends gcc git libssl-dev g++ make && \
+  cd /tmp && git clone https://github.com/edenhill/librdkafka.git && \
+  cd librdkafka && git checkout tags/v1.9.0 && \
+  ./configure --prefix=/usr && make -j4 && make install && \
+  cd ../ && rm -rf librdkafka
 RUN pip3 install confluent_kafka
 RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
