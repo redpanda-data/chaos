@@ -24,6 +24,12 @@ COPY docker/control/test.suite.sh /mnt/vectorized/test.suite.sh
 RUN pip3 install sh
 RUN pip3 install flask
 RUN pip3 install pyyaml
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends gcc git libssl-dev g++ make && \
+  cd /tmp && git clone https://github.com/edenhill/librdkafka.git && \
+  cd librdkafka && git checkout tags/v1.9.0 && \
+  ./configure --prefix=/usr && make -j4 && make install && \
+  cd ../ && rm -rf librdkafka
 RUN pip3 install confluent_kafka
 COPY --chown=ubuntu:ubuntu harness /mnt/vectorized/harness
 COPY --chown=ubuntu:ubuntu suites /mnt/vectorized/suites
