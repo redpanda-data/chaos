@@ -16,6 +16,9 @@
             "retries": 5
         }
     },
+    "settings": {
+        "fail_on_interruption": true
+    },
     "fault": {
         "name": "stop_client"
     },
