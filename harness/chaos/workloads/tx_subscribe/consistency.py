@@ -5,6 +5,7 @@ from sh import mkdir, rm
 import traceback
 from chaos.checks.result import Result
 from chaos.workloads.tx_subscribe.log_utils import State, cmds, threads
+from chaos.scenarios.abstract_single_fault import read_config
 import logging
 import os
 from collections import deque
@@ -79,6 +80,7 @@ class LogPlayer:
         self.curr_state = dict()
         self.thread_type = dict()
         self.has_violation = False
+        self.errors = 0
 
         self.ts_us = None
     
@@ -127,6 +129,8 @@ class LogPlayer:
             return
         if new_state == State.LOG:
             return
+        if new_state == State.ERROR:
+            self.errors += 1
         
         thread_id = int(parts[0])
         if thread_id not in self.curr_state:
@@ -154,6 +158,8 @@ def validate(config, workload_dir):
     logger.addHandler(handler)
 
     has_errors = True
+
+    fail_on_interruption = read_config(config, ["settings", "fail_on_interruption"], False)
     
     try:
         has_violation = False
@@ -169,6 +175,10 @@ def validate(config, workload_dir):
                 if player.is_violation(last_line):
                     player.apply(last_line)
             has_violation = has_violation or player.has_violation
+            if fail_on_interruption:
+                if player.errors > 0:
+                    logger.error(f"client {node} had {player.errors} interruptions")
+                    has_violation = True
         has_errors = has_violation
 
         return {

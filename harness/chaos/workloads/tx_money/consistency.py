@@ -7,6 +7,7 @@ from confluent_kafka import KafkaException, Producer
 from chaos.workloads.retryable_consumer import RetryableConsumer
 from chaos.checks.result import Result
 from chaos.workloads.tx_money.log_utils import State, cmds, transitions, phantoms
+from chaos.scenarios.abstract_single_fault import read_config
 import logging
 import os
 from time import sleep
@@ -87,11 +88,15 @@ def validate(config, workload_dir):
     handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s"))
     logger.addHandler(handler)
 
+    fail_on_interruption = read_config(config, ["settings", "fail_on_interruption"], False)
+
     has_errors = True
     
     try:
         last_state = dict()
         has_violation = False
+
+        errors = 0
 
         with open(os.path.join(workload_dir, "workload.log"), "r") as workload_file:
             for line in workload_file:
@@ -123,7 +128,7 @@ def validate(config, workload_dir):
                 elif new_state == State.OK:
                     pass
                 elif new_state == State.ERROR:
-                    pass
+                    errors+=1
                 elif new_state == State.EVENT:
                     pass
                 elif new_state == State.LOG:
@@ -136,6 +141,11 @@ def validate(config, workload_dir):
                 else:
                     raise Exception(f"unknown state: {new_state}")
         
+        if fail_on_interruption:
+            if errors>0:
+                logger.error(f"a client had {errors} interruptions")
+                has_violation = True
+
         if not has_violation:
             sync_producer = None
 
