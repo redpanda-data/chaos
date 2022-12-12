@@ -22,6 +22,13 @@ class ProgressException(Exception):
 chaos_logger = logging.getLogger("chaos")
 tasks_logger = logging.getLogger("tasks")
 
+def read_config(root, path, default):
+    for node in path:
+        if node not in root:
+            return default
+        root = root[node]
+    return root
+
 class AbstractSingleFault(ABC):
     SUPPORTED_WORKLOADS = set()
     SUPPORTED_FAULTS = set()
@@ -194,12 +201,7 @@ class AbstractSingleFault(ABC):
             chaos_logger.debug(f"{namespace}/{topic}/{partition} leader: {new_leader.ip} (id={new_leader.id})")
 
     def read_config(self, path, default):
-        root = self.config
-        for node in path:
-            if node not in root:
-                return default
-            root = root[node]
-        return root
+        return read_config(self.config, path, default)
 
     @abstractmethod
     def prepare_experiment(self, config, experiment_id):
