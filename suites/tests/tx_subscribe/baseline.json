@@ -16,6 +16,9 @@
             "retries": 5
         }
     },
+    "settings": {
+        "fail_on_interruption": true
+    },
     "fault": null,
     "checks": [
         { "name": "redpanda_process_liveness" }

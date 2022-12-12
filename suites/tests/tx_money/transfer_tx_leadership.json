@@ -25,7 +25,8 @@
             "leadship_transfer_timeout_s": 20,
             "wait_progress_timeout_s": 20,
             "reconfigure_timeout_s": 20
-        }
+        },
+        "fail_on_interruption": true
     },
     "fault": {
         "name": "leadership_transfer",
