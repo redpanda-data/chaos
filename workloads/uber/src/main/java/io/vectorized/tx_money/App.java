@@ -13,6 +13,7 @@ public class App
     public static class WorkflowSettings {
         public int producers = 1;
         public int retries = 0;
+        public int timeout_ms = 30000;
     }
     
     public static class InitBody {
