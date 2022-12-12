@@ -218,8 +218,8 @@ class RedpandaCluster:
     def brokers(self):
         return ",".join([x.ip+":9092" for x in self.hosts])
     
-    def create_topic(self, topic, replication, partitions, cleanup="delete"):
-        ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions, "-c", f"cleanup.policy={cleanup}")
+    def create_topic(self, topic, replication, partitions, cleanup="delete", retention_ms=604800000, segment_bytes=1073741824):
+        ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions, "-c", f"cleanup.policy={cleanup}", "-c", f"retention.ms={retention_ms}", "-c", f"segment.bytes={segment_bytes}")
     
     def reconfigure(self, leader, replicas, topic, partition=0, namespace="kafka"):
         payload = []

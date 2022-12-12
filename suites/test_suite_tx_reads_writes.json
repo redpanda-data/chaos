@@ -17,6 +17,7 @@
         "tx_single_reads_writes/pause_tx_leader.json",
         "tx_single_reads_writes/reconfigure_313_data.json",
         "tx_single_reads_writes/reconfigure_313_tx.json",
+        "tx_single_reads_writes/retention.json",
         "tx_single_reads_writes/transfer_data_leadership.json",
         "tx_single_reads_writes/transfer_tx_leadership.json",
         "tx_single_reads_writes/recycle_all.json"

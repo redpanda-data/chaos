@@ -1,0 +1,24 @@
+{
+    "name": "tx-single-reads-writes / java / baseline",
+    "scenario": "tx_single_table_single_fault",
+    "topic": "topic1",
+    "replication": 3,
+    "retention_ms": 10,
+    "segment_bytes": 15000,
+    "workload": {
+        "name": "tx-single-reads-writes / java",
+        "checks": [
+            { "name": "consistency" },
+            { "name": "stat" }
+        ],
+        "settings": {
+            "reads": 3,
+            "writes": 2,
+            "retries": 5
+        }
+    },
+    "fault": null,
+    "checks": [
+        { "name": "redpanda_process_liveness" }
+    ]
+}
