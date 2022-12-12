@@ -230,6 +230,8 @@ public class Workload {
                 producer = null;
                 continue;
             }
+
+            boolean should_abort = random.nextInt(2)==0;
     
             var acc1 = "acc" + random.nextInt(this.args.accounts);
             var acc2 = acc1;
@@ -279,8 +281,13 @@ public class Workload {
             }
     
             try {
-                log(wid, "cmt");
-                producer.commitTransaction();
+                if (should_abort) {
+                    log(wid, "brt");
+                    producer.abortTransaction();
+                } else {
+                    log(wid, "cmt");
+                    producer.commitTransaction();
+                }
                 log(wid, "ok");
                 progress(wid);
                 succeeded(wid);
@@ -288,7 +295,7 @@ public class Workload {
                 var eid = get_eid();
                 synchronized (this) {
                     System.out.println("### err " + eid);
-                    System.out.println("error on commit => reset producer");
+                    System.out.println("error on commit/abort => reset producer");
                     System.out.println(e1);
                     e1.printStackTrace();
                 }
