@@ -60,7 +60,7 @@ def validate(config, workload_dir):
                 elif new_state == State.CONSTRUCTED:
                     pass
                 elif new_state == State.ABORT:
-                    pass
+                    inflight[thread_id].clear()
                 elif new_state == State.SEEN:
                     pass
                 elif new_state == State.ERROR:
