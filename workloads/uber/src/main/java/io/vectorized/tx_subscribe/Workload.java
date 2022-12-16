@@ -324,6 +324,53 @@ public class Workload {
                 log(pid, "send\t" + op.oid);
                 producer.beginTransaction();
                 offset = producer.send(new ProducerRecord<String, String>(args.source, partition, args.server, "" + op.oid)).get().offset();
+            } catch (Exception e1) {
+                var eid1 = get_error_id();
+                synchronized (this) {
+                    System.out.println("=== " + eid1 + " error on send pid:" + pid);
+                    System.out.println(e1);
+                    e1.printStackTrace();
+                }
+
+                boolean should_reset = false;
+
+                try {
+                    log(pid, "brt\t" + eid1);
+                    producer.abortTransaction();
+                    log(pid, "ok");
+                } catch (Exception e2) {
+                    should_reset = true;
+                    var eid2 = get_error_id();
+                    log(pid, "err\t" + eid2);
+                    synchronized(this) {
+                        System.out.println("=== " + eid2 + " error on abort");
+                        System.out.println(e2);
+                        e2.printStackTrace();
+                    }
+                }
+
+                synchronized(this) {
+                    if (op.status == OpProduceStatus.SEEN) {
+                        producing_records.remove(op.oid);
+                    }
+                    if (op.status == OpProduceStatus.SKIPPED) {
+                        producing_records.remove(op.oid);
+                    }
+                    op.status = OpProduceStatus.UNKNOWN;
+                }
+
+                if (should_reset) {
+                    try {
+                        producer.close();
+                    } catch (Exception e3) {}
+                    producer = null;
+                }
+
+                continue;
+            }
+
+            try {
+                log(pid, "cmt");
                 producer.commitTransaction();
             } catch (Exception e1) {
                 var eid = get_error_id();
@@ -548,10 +595,11 @@ public class Workload {
                 try {
                     log(sid, "tx");
                     producer.beginTransaction();
-                    producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + record.key() + "\t" + record.partition() + "\t" + oid));
+                    var f = producer.send(new ProducerRecord<String, String>(args.target, args.server, "" + record.key() + "\t" + record.partition() + "\t" + oid));
                     var offsets = new HashMap<TopicPartition, OffsetAndMetadata>();
                     offsets.put(new TopicPartition(args.source, record.partition()), new OffsetAndMetadata(record.offset() + 1));
                     producer.sendOffsetsToTransaction(offsets, consumer.groupMetadata());
+                    f.get();
                 } catch (Exception e1) {
                     var eid1 = get_error_id();
                     synchronized (this) {
