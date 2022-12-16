@@ -38,7 +38,9 @@ threads = {
         State.STARTED: [State.CONSTRUCTING],
         State.CONSTRUCTING: [State.CONSTRUCTED, State.ERROR],
         State.CONSTRUCTED: [State.SEND, State.CONSTRUCTING],
-        State.SEND: [State.OK, State.ERROR],
+        State.SEND: [State.ABORT, State.COMMIT, State.ERROR],
+        State.ABORT: [State.OK, State.ERROR],
+        State.COMMIT: [State.OK, State.ERROR],
         State.OK: [State.SEND, State.CONSTRUCTING],
         State.ERROR: [State.CONSTRUCTING]
     },
