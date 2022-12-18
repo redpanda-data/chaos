@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 import os
-from sh import scp, mkdir, rm
+from sh import ssh, scp, mkdir, rm
 import json
 import sh
 import time
@@ -129,6 +129,13 @@ class AbstractSingleFault(ABC):
             mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
             for node in self.redpanda_cluster.hosts:
                 mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
+
+                trim_logs_on_success = self.read_config(["settings", "trim_logs_on_success"], True)
+                if trim_logs_on_success:
+                    if self.config["result"]==Result.PASSED:
+                        chaos_logger.info(f"trimming logs on {node.ip}")
+                        ssh(f"ubuntu@{node.ip}", "python3 /mnt/vectorized/control/trim_logs.py /mnt/vectorized/redpanda")
+
                 chaos_logger.info(f"fetching logs from {node.ip}")
                 try:
                     scp(
