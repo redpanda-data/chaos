@@ -36,8 +36,9 @@
         "test": {
             "remove_logs_on_success": true,
             "log-level": {
-                "default": "info"
-            }
+                "default": "trace"
+            },
+            "trim_logs_on_success": true
         },
         "suite": {
             "should_retry_on_transient_errors": true,
