@@ -41,6 +41,7 @@ class AbstractSingleFault(ABC):
         self.config = None
         self.is_workload_log_fetched = False
         self.is_redpanda_log_fetched = False
+        self.is_redpanda_stopped = False
 
     def normalize_fault(self, fault_config):
         if fault_config == None:
@@ -119,13 +120,36 @@ class AbstractSingleFault(ABC):
                     pass
             self.is_workload_log_fetched = True
     
+    def catch_log_errors(self):
+        if not self.is_redpanda_stopped:
+            chaos_logger.info(f"stopping redpanda")
+            self.redpanda_cluster.kill_everywhere()
+            self.redpanda_cluster.wait_killed(timeout_s=10)
+            self.is_redpanda_stopped = True
+        cfg = None
+        for check_cfg in self.config["checks"]:
+            if check_cfg["name"] == "catch_log_errors":
+                cfg = check_cfg
+                break
+        if cfg == None:
+            return
+        for node in self.redpanda_cluster.hosts:
+            pattern = cfg["pattern"]
+            matches = ssh(f"ubuntu@{node.ip}", f"bash -c \"grep '{pattern}' /mnt/vectorized/redpanda/log.* | wc -l\"")
+            matches = matches.strip()
+            if matches != "0":
+                chaos_logger.error(f"found {matches} matches of '{pattern}' on {node.ip}")
+                self.config["result"]=Result.FAILED
+    
     def fetch_redpanda_logs(self):
         if self.redpanda_cluster != None:
             if self.is_redpanda_log_fetched:
                 return
-            chaos_logger.info(f"stopping redpanda")
-            self.redpanda_cluster.kill_everywhere()
-            self.redpanda_cluster.wait_killed(timeout_s=10)
+            if not self.is_redpanda_stopped:
+                chaos_logger.info(f"stopping redpanda")
+                self.redpanda_cluster.kill_everywhere()
+                self.redpanda_cluster.wait_killed(timeout_s=10)
+                self.is_redpanda_stopped = True
             mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda")
             for node in self.redpanda_cluster.hosts:
                 mkdir("-p", f"/mnt/vectorized/experiments/{self.config['experiment_id']}/redpanda/{node.ip}")
@@ -309,6 +333,8 @@ class AbstractSingleFault(ABC):
             for check_cfg in self.config["checks"]:
                 if check_cfg["name"] == "progress_during_fault":
                     continue
+                if check_cfg["name"] == "catch_log_errors":
+                    continue
                 check = CHECKS[check_cfg["name"]]
                 result = check().check(self)
                 for key in result:
@@ -317,8 +343,11 @@ class AbstractSingleFault(ABC):
             self.save_config()
 
             self.config = self.workload_cluster.analyze(copy.deepcopy(self.config))
-            chaos_logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
             self.save_config()
+
+            self.catch_log_errors()
+            self.save_config()
+            chaos_logger.info(f"experiment {self.config['experiment_id']} result: {self.config['result']}")
 
             if self.config["result"] == Result.FAILED:
                 if "exit_on_violation" in self.config:
