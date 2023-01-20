@@ -29,7 +29,7 @@ class RWSubscribeSingleFault(AbstractSingleFault):
     }
 
     SUPPORTED_CHECKS = {
-        "redpanda_process_liveness", "progress_during_fault"
+        "redpanda_process_liveness", "progress_during_fault", "catch_log_errors"
     }
 
     def __init__(self):
