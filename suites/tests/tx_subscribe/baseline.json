@@ -21,6 +21,7 @@
     },
     "fault": null,
     "checks": [
-        { "name": "redpanda_process_liveness" }
+        { "name": "redpanda_process_liveness" },
+        { "name": "catch_log_errors", "pattern": "a producer id is already involved in a tx with tx_seq" }
     ]
 }

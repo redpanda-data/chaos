@@ -29,6 +29,7 @@
     },
     "checks": [
         { "name": "redpanda_process_liveness" },
-        { "name": "progress_during_fault", "min-delta": 100, "selector": "any" }
+        { "name": "progress_during_fault", "min-delta": 100, "selector": "any" },
+        { "name": "catch_log_errors", "pattern": "a producer id is already involved in a tx with tx_seq" }
     ]
 }
