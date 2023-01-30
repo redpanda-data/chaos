@@ -26,7 +26,7 @@ RUN apt-get update && \
   cd librdkafka && git checkout tags/v1.9.0 && \
   ./configure --prefix=/usr && make -j4 && make install && \
   cd ../ && rm -rf librdkafka
-RUN pip3 install confluent_kafka
+RUN pip3 install 'confluent_kafka==1.9.2'
 RUN mkdir -p /mnt/vectorized/workloads
 COPY workloads /mnt/vectorized/workloads
 RUN cd /mnt/vectorized/workloads/uber && \

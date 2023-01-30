@@ -30,7 +30,7 @@ RUN apt-get update && \
   cd librdkafka && git checkout tags/v1.9.0 && \
   ./configure --prefix=/usr && make -j4 && make install && \
   cd ../ && rm -rf librdkafka
-RUN pip3 install confluent_kafka
+RUN pip3 install 'confluent_kafka==1.9.2'
 COPY --chown=ubuntu:ubuntu harness /mnt/vectorized/harness
 COPY --chown=ubuntu:ubuntu suites /mnt/vectorized/suites
 CMD /mnt/vectorized/entrypoint.sh
