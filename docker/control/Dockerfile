@@ -21,7 +21,7 @@ RUN chown ubuntu:ubuntu -R /home/ubuntu/.ssh
 COPY docker/control/entrypoint.sh /mnt/vectorized/entrypoint.sh
 COPY docker/control/test.test.sh /mnt/vectorized/test.test.sh
 COPY docker/control/test.suite.sh /mnt/vectorized/test.suite.sh
-RUN pip3 install sh
+RUN pip3 install 'sh==1.14.3'
 RUN pip3 install flask
 RUN pip3 install pyyaml
 RUN apt-get update && \
