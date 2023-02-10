@@ -18,7 +18,7 @@ COPY --chown=ubuntu:ubuntu id_ed25519.pub /home/ubuntu/.ssh/authorized_keys
 COPY docker/client/entrypoint.sh /mnt/vectorized/entrypoint.sh
 COPY --chown=ubuntu:ubuntu control /mnt/vectorized/control
 RUN chown ubuntu:ubuntu -R /mnt/vectorized/control
-RUN pip3 install sh
+RUN pip3 install 'sh==1.14.3'
 RUN pip3 install flask
 RUN apt-get update && \
   apt-get install -y --no-install-recommends gcc git libssl-dev g++ make && \
