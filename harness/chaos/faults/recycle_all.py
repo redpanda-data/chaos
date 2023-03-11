@@ -27,6 +27,7 @@ class RecycleAllFault(OneoffFault):
             raise Exception("cant find free host")
         
         timeout_s=self.read_config(["timeout_s"], 120)
+        controller_timeout_s=self.read_config(["controller_timeout_s"], 10)
 
         nodes = list(scenario.redpanda_cluster.nodes)
         random.shuffle(nodes)
@@ -40,6 +41,8 @@ class RecycleAllFault(OneoffFault):
             node = scenario.redpanda_cluster.add_node(candidate, node_id)
             scenario.redpanda_cluster.launch(node)
 
+            controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=controller_timeout_s)
+            logger.debug(f"controller id={controller.id} ip={controller.ip}")
             logger.debug(f"decommissioning id={target.id} ip={target.ip}")
             scenario.redpanda_cluster.admin_decommission(target, target)
             begin = time.time()
@@ -69,11 +72,14 @@ class RecycleAllFault(OneoffFault):
 
     def decommission_add(self, scenario):
         timeout_s=self.read_config(["timeout_s"], 120)
+        controller_timeout_s=self.read_config(["controller_timeout_s"], 10)
 
         nodes = list(scenario.redpanda_cluster.nodes)
         random.shuffle(nodes)
 
         for target in nodes:
+            controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=controller_timeout_s)
+            logger.debug(f"controller id={controller.id} ip={controller.ip}")
             logger.debug(f"decommissioning id={target.id} ip={target.ip}")
             scenario.redpanda_cluster.admin_decommission(target, target)
             begin = time.time()
