@@ -9,6 +9,9 @@ import random
 from chaos.faults.types import FaultType
 from chaos.types import TimeoutException
 from chaos.faults.fault import OneoffFault
+from chaos.scenarios.consts import NODE_ALIVE_AFTER_RESTART_S
+from chaos.scenarios.consts import STABLE_VIEW_AFTER_RESTART_S
+from chaos.scenarios.consts import CONTROLLER_AVAILABLE_AFTER_RESTART_S
 
 logger = logging.getLogger("chaos")
 
@@ -27,7 +30,7 @@ class RecycleAllFault(OneoffFault):
             raise Exception("cant find free host")
         
         timeout_s=self.read_config(["timeout_s"], 120)
-        controller_timeout_s=self.read_config(["controller_timeout_s"], 10)
+        controller_timeout_s=self.read_config(["controller_timeout_s"], CONTROLLER_AVAILABLE_AFTER_RESTART_S)
 
         nodes = list(scenario.redpanda_cluster.nodes)
         random.shuffle(nodes)
@@ -40,6 +43,8 @@ class RecycleAllFault(OneoffFault):
             logger.info(f"adding id={node_id} ip={candidate.ip}")
             node = scenario.redpanda_cluster.add_node(candidate, node_id)
             scenario.redpanda_cluster.launch(node)
+            scenario.redpanda_cluster.wait_alive(node=node, timeout_s=NODE_ALIVE_AFTER_RESTART_S)
+            scenario.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
 
             controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=controller_timeout_s)
             logger.debug(f"controller id={controller.id} ip={controller.ip}")
@@ -72,7 +77,7 @@ class RecycleAllFault(OneoffFault):
 
     def decommission_add(self, scenario):
         timeout_s=self.read_config(["timeout_s"], 120)
-        controller_timeout_s=self.read_config(["controller_timeout_s"], 10)
+        controller_timeout_s=self.read_config(["controller_timeout_s"], CONTROLLER_AVAILABLE_AFTER_RESTART_S)
 
         nodes = list(scenario.redpanda_cluster.nodes)
         random.shuffle(nodes)
@@ -109,6 +114,8 @@ class RecycleAllFault(OneoffFault):
             node = scenario.redpanda_cluster.add_node(target.host, node_id)
             logger.info(f"adding id={node.id} ip={node.ip}")
             scenario.redpanda_cluster.launch(node)
+            scenario.redpanda_cluster.wait_alive(node=node, timeout_s=NODE_ALIVE_AFTER_RESTART_S)
+            scenario.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
     
     def execute(self, scenario):
         if len(scenario.redpanda_cluster.nodes) == 3:
