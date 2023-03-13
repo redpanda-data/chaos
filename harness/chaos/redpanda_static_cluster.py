@@ -205,9 +205,9 @@ class RedpandaCluster:
                 ssh("ubuntu@" + node.ip, "/mnt/vectorized/control/redpanda.config.sh", key, settings[key])
             self.launch(node, log_levels)
 
-    def wait_alive(self, timeout_s=10):
+    def wait_alive(self, node=None, timeout_s=10):
         begin = time.time()
-        for node in self.nodes:
+        def wait_node_alive(node):
             while True:
                 if time.time() - begin > timeout_s:
                     raise TimeoutException(f"redpanda process isn't running withing {timeout_s} sec")
@@ -215,6 +215,11 @@ class RedpandaCluster:
                 if self.is_alive(node):
                     break
                 sleep(1)
+        if node != None:
+            wait_node_alive(node)
+        else:
+            for node in self.nodes:
+                wait_node_alive(node)
     
     def brokers(self):
         return ",".join([x.ip+":9092" for x in self.hosts])

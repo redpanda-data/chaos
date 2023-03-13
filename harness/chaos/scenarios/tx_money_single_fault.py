@@ -2,6 +2,9 @@ from chaos.scenarios.abstract_single_fault import AbstractSingleFault
 from sh import mkdir
 from chaos.faults.all import FAULTS
 from chaos.workloads.all import WORKLOADS, wait_all_workloads_killed
+from chaos.scenarios.consts import NODE_ALIVE_AFTER_RESTART_S
+from chaos.scenarios.consts import STABLE_VIEW_AFTER_RESTART_S
+from chaos.scenarios.consts import CONTROLLER_AVAILABLE_AFTER_RESTART_S
 from time import sleep
 from chaos.checks.result import Result
 import copy
@@ -86,8 +89,8 @@ class TxMoneySingleFault(AbstractSingleFault):
 
         log_levels = self.read_config(["settings", "log-level"], { "default": "info" })
         self.redpanda_cluster.launch_everywhere(self.read_config(["settings", "redpanda"], {}), log_levels)
-        self.redpanda_cluster.wait_alive(timeout_s=10)
-        self.redpanda_cluster.get_stable_view(timeout_s=60)
+        self.redpanda_cluster.wait_alive(timeout_s=NODE_ALIVE_AFTER_RESTART_S)
+        self.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
 
         sleep(5)
         # waiting for the controller to be up before creating a topic
@@ -95,7 +98,7 @@ class TxMoneySingleFault(AbstractSingleFault):
             "controller",
             namespace="redpanda",
             replication=len(self.redpanda_cluster.nodes),
-            timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "controller"], 30))
+            timeout_s=self.read_config(["settings", "setup", "wait_leader_timeout_s", "controller"], CONTROLLER_AVAILABLE_AFTER_RESTART_S))
 
         for i in range(0, self.accounts):
             logger.info(f"creating \"acc{i}\" topic with replication factor {self.replication}")
