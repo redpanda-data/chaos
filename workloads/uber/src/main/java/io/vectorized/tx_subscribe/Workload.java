@@ -872,9 +872,9 @@ public class Workload {
         // default value: 100
         props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
         // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 10000);
+        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000);
         // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 10000);
+        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 1000);
 
         props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 10000);
         
