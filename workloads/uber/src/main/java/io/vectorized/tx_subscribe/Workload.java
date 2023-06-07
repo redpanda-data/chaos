@@ -858,25 +858,25 @@ public class Workload {
         // default value: 600000
         props.put(ProducerConfig.CONNECTIONS_MAX_IDLE_MS_CONFIG, 60000);
         // default value: 120000
-        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 10000);
+        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 16000);
         // default value: 0
         props.put(ProducerConfig.LINGER_MS_CONFIG, 0);
         // default value: 60000
-        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 10000);
+        props.put(ProducerConfig.MAX_BLOCK_MS_CONFIG, 16000);
         // default value: 1000
         props.put(ProducerConfig.RECONNECT_BACKOFF_MAX_MS_CONFIG, 1000);
         // default value: 50
         props.put(ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
         // default value: 30000
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 10000);
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 16000);
         // default value: 100
         props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
         // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 1000);
+        props.put(ProducerConfig.METADATA_MAX_AGE_CONFIG, 5000);
         // default value: 300000
-        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 1000);
+        props.put(ProducerConfig.METADATA_MAX_IDLE_CONFIG, 5000);
 
-        props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 10000);
+        props.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 16000);
         
         props.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         props.put(ProducerConfig.RETRIES_CONFIG, 5);
