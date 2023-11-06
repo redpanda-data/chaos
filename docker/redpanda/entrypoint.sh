@@ -67,6 +67,8 @@ rpk config set redpanda.enable_leader_balancer false
 rpk config set redpanda.enable_auto_rebalance_on_node_add false
 rpk config set redpanda.enable_idempotence true
 rpk config set redpanda.enable_transactions true
+rpk config set redpanda.advertised_rpc_api "{address: $me, port: 33145}"
+rpk config set redpanda.advertised_kafka_api "[{address: $me, port: 9092}]"
 rpk config set redpanda.data_directory "/mnt/vectorized/redpanda/data"
 rpk config set rpk.coredump_dir "/mnt/vectorized/redpanda/coredump"
 echo "setting production mode"
