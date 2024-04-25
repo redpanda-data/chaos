@@ -1,9 +1,28 @@
 # How to use chaos testing
 
-Set `DEB_PATH` with path to the redpanda deb package, e.g.
+Create a directory `DEB_DIR` to house required deb packages. `DEB_DIR` must be set in environment
+when chaos tests are started.
 
+Example:
 ```
-export DEB_PATH="$HOME/redpanda_21.11.5-1-af88fa16_amd64.deb"
+export DEB_DIR=/var/tmp/my_chaos_debs/
+mkdir $DEB_DIR
+```
+
+Place Redpanda .deb files into /var/tmp/my_chaos_deb/.
+
+For the latest Redpanda versions, there should be:
+* `$DEB_DIR/redpanda.deb`
+* `$DEB_DIR/redpanda-tuner.deb`
+* `$DEB_DIR/redpanda-rpk.deb`
+
+Also set `DEB_FILE_LIST` variable to the list of deb files in `DEB_DIR`, in the desired install (`dpkg -i`) order.
+
+It should be a quoted, space delimited string.
+
+Example:
+```
+export DEB_FILE_LIST="redpanda-rpk.deb redpanda-tuner.deb redpanda.deb"
 ```
 
 ## Test locally (docker & docker-compose)
@@ -15,7 +34,7 @@ Requirements:
 
 Don't forget to add current user to docker group: https://docs.docker.com/engine/install/linux-postinstall
 
-### All in one
+### All in one (with docker-compose)
 
 Run all tests with a single command:
 
@@ -67,23 +86,23 @@ Provision redpanda nodes, client & control node:
 
 Deploy redpanda & test harness:
 
-    ansible-playbook deploy.yml
+    ansible-playbook deploy.yml --key-file=./id_ed25519
 
 Run a default test suite (`suites/test_suite_all.json`):
 
-    ansible-playbook playbooks/test.suite.yml
+    ansible-playbook playbooks/test.suite.yml --key-file=./id_ed25519
 
 Run a default test suite `n` times:
 
-    ansible-playbook playbooks/test.suite.yml -e repeat=n
+    ansible-playbook playbooks/test.suite.yml -e repeat=n --key-file=./id_ed25519
 
 Run a specific test suite:
 
-    ansible-playbook playbooks/test.suite.yml -e suite_path=test_suite_all.json
+    ansible-playbook playbooks/test.suite.yml -e suite_path=test_suite_all.json --key-file=./id_ed25519
 
 Run a specific test:
 
-    ansible-playbook playbooks/test.test.yml -e test_path=writing_kafka_clients/kill_leader.json
+    ansible-playbook playbooks/test.test.yml -e test_path=writing_kafka_clients/kill_leader.json --key-file=./id_ed25519
 
 Copy test & redpanda logs (find them in the `results` folder):
 

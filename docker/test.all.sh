@@ -5,6 +5,7 @@ set -e
 ./docker/rebuild4.sh
 ./docker/up4.sh
 if ! ./docker/ready4.sh; then
+  echo "cluster did not reach ready state"
   ./docker/down4.sh
   exit 1
 fi
