@@ -2,8 +2,12 @@
 
 set -e
 
-if [ "$DEB_PATH" == "" ]; then
-  echo "env var DEB_PATH must contain a path to redpanda deb file"
+if [ "$DEB_DIR" == "" ]; then
+  echo "env var $DEB_DIR must contain a dir path where deb files live"
+  exit 1
+fi
+if [ "$DEB_FILE_LIST" == "" ]; then
+  echo "env var $DEB_FILE_LIST must contain a list of deb filenames, in space delimited format"
   exit 1
 fi
 
@@ -32,6 +36,6 @@ mkdir -p ./docker/bind_mounts/control/mnt/vectorized/entrypoint
 mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs
 mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/entrypoint
 
-chmod a+rw -R ./docker/bind_mounts
+chmod -R a+rw ./docker/bind_mounts
 
 docker-compose -f docker/docker-compose4.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))

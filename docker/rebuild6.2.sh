@@ -29,6 +29,6 @@ for client in client1 client2; do
   mkdir -p ./docker/bind_mounts/$client/mnt/vectorized/entrypoint
 done
 
-chmod a+rw -R ./docker/bind_mounts
+chmod -R a+rw ./docker/bind_mounts
 
 docker-compose -f docker/docker-compose6.2.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))

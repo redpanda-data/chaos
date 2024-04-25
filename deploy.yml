@@ -52,17 +52,23 @@
 - name: install redpanda
   hosts: redpanda:client:control
   vars:
-    deb_path: "{{ lookup('env', 'DEB_PATH') }}"
-    deb_name: "{{ deb_path | basename }}"
+    deb_dir: "{{ lookup('env', 'DEB_DIR') }}"
+    deb_file_list: "{{ lookup('env', 'DEB_FILE_LIST') | split }}"
   tasks:
-    - name: copy deb
+    - assert:
+        that:
+          - "deb_file_list | length > 0"
+        fail_msg: "Please set DEB_FILE_LIST env var to space delimited string of deb filenames."
+    - name: copy debs
       copy:
-        src: "{{ deb_path }}"
-        dest: /mnt/vectorized/{{ deb_name }}
-    - name: install deb
+        src: "{{ deb_dir }}/{{ item }}"
+        dest: "/mnt/vectorized/{{ item }}"
+      loop: "{{ deb_file_list }}"
+    - name: install debs
       become_user: root
       shell: |
-        dpkg --force-confold -i /mnt/vectorized/{{ deb_name }}
+        dpkg --force-confold -i  /mnt/vectorized/{{ item }}
+      loop: "{{ deb_file_list }}"
     - name: disable redpanda systemd service
       systemd:
         name: redpanda

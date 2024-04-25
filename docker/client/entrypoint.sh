@@ -7,12 +7,14 @@ LOG=/mnt/vectorized/entrypoint/entrypoint.log
 
 echo "starting client node" >>$LOG
 
-if [[ ! -r /mnt/vectorized/redpanda.deb ]]; then
-  echo "/mnt/vectorized/redpanda.deb doesn't exist" >>$LOG
-  exit 1
-fi
+for DEB in $DEB_FILE_LIST; do
+  if [[ ! -r "/mnt/vectorized/deb/$DEB" ]]; then
+    echo "/mnt/vectorized/deb/$DEB doesn't exist" >>$LOG
+    exit 1
+  fi
+  dpkg --force-confold -i "/mnt/vectorized/deb/$DEB"
+done
 
-dpkg --force-confold -i /mnt/vectorized/redpanda.deb
 systemctl disable redpanda
 systemctl disable wasm_engine
 

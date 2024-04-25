@@ -2,7 +2,8 @@ version: '3'
 services:
   redpanda1:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -16,10 +17,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   redpanda2:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -35,10 +37,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda2/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   redpanda3:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -54,10 +57,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda3/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   redpanda4:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -73,10 +77,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda4/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   redpanda5:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -92,10 +97,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda5/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda5/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   redpanda6:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -111,10 +117,11 @@ services:
     volumes:
       - ./docker/bind_mounts/redpanda6/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
       - ./docker/bind_mounts/redpanda6/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   client1:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -135,10 +142,11 @@ services:
     volumes:
       - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
       - ./docker/bind_mounts/client1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
   control:
     environment:
-      - DEB_PATH
+      - DEB_DIR
+      - DEB_FILE_LIST
     build:
       args:
         REDPANDA_CLUSTER_SIZE: 6
@@ -161,7 +169,7 @@ services:
     volumes:
       - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
       - ./docker/bind_mounts/control/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
-      - $DEB_PATH:/mnt/vectorized/redpanda.deb
+      - $DEB_DIR:/mnt/vectorized/deb
 networks:
   chaos:
     driver: bridge
