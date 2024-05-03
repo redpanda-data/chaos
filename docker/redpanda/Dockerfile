@@ -4,6 +4,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
+
+RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
 RUN apt update -y --fix-missing 
 RUN apt upgrade -y
 RUN apt install -f -y
