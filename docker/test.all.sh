@@ -2,7 +2,7 @@
 
 set -e
 
-./docker/rebuild4.sh
+./docker/rebuild4.sh || exit 10 # use arbitrary exit code to retry on
 ./docker/up4.sh
 if ! ./docker/ready4.sh; then
   echo "cluster did not reach ready state"
@@ -15,7 +15,7 @@ fi
 ./docker/fetch.logs.sh
 ./docker/down4.sh
 
-./docker/rebuild6.sh
+./docker/rebuild6.sh || exit 10 # use arbitrary exit code to retry on
 ./docker/up6.sh
 if ! ./docker/ready6.sh; then
   ./docker/down6.sh
@@ -28,7 +28,7 @@ fi
 ./docker/fetch.logs.sh
 ./docker/down6.sh
 
-./docker/rebuild6.2.sh
+./docker/rebuild6.2.sh || exit 10 # use arbitrary exit code to retry on
 ./docker/up6.2.sh
 if ! ./docker/ready6.2.sh; then
   ./docker/down6.2.sh
