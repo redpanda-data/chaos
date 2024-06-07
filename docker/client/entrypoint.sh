@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=30
+MAX_ATTEMPS=60
 LOG=/mnt/vectorized/entrypoint/entrypoint.log
 
 echo "starting client node" >>$LOG

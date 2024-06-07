@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=10
+MAX_ATTEMPS=30
 
 test_path="/mnt/vectorized/$1"
 repeat=$2

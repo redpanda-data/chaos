@@ -2,7 +2,7 @@
 
 set -e
 
-MAX_ATTEMPS=40
+MAX_ATTEMPS=60
 
 abort() {
   for node in redpanda1 redpanda2 redpanda3 redpanda4 redpanda5 redpanda6 client1 client2 control; do
