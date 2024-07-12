@@ -11,12 +11,12 @@ if [ "$DEB_FILE_LIST" == "" ]; then
   exit 1
 fi
 
-docker-compose -f docker/docker-compose6.2.yaml --project-directory . down --remove-orphans || true
-docker-compose -f docker/docker-compose6.2.yaml --project-directory . rm -f || true
-docker-compose -f docker/docker-compose6.yaml --project-directory . down --remove-orphans || true
-docker-compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
-docker-compose -f docker/docker-compose4.yaml --project-directory . down --remove-orphans || true
-docker-compose -f docker/docker-compose4.yaml --project-directory . rm -f || true
+docker compose -f docker/docker-compose6.2.yaml --project-directory . down --remove-orphans || true
+docker compose -f docker/docker-compose6.2.yaml --project-directory . rm -f || true
+docker compose -f docker/docker-compose6.yaml --project-directory . down --remove-orphans || true
+docker compose -f docker/docker-compose6.yaml --project-directory . rm -f || true
+docker compose -f docker/docker-compose4.yaml --project-directory . down --remove-orphans || true
+docker compose -f docker/docker-compose4.yaml --project-directory . rm -f || true
 
 if [ ! -f id_ed25519 ]; then
   ssh-keygen -t ed25519 -f id_ed25519 -N ""
@@ -38,4 +38,4 @@ mkdir -p ./docker/bind_mounts/client1/mnt/vectorized/entrypoint
 
 chmod -R a+rw ./docker/bind_mounts
 
-docker-compose -f docker/docker-compose4.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))
+docker compose -f docker/docker-compose4.yaml --project-directory . build --build-arg USER_ID=$(id -u $(whoami))
