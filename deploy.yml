@@ -149,47 +149,32 @@
 - name: install client dependencies
   hosts: client
   tasks:
-    - name: install pip
-      package: 
-        name: python3-pip
-        state: present
-        update_cache: yes
-    - name: add pip dependencies
-      become_user: root
-      shell: |
-        pip3 install sh
-        pip3 install flask
-        pip3 install confluent_kafka
-    - name: install java
-      package: 
-        name: openjdk-11-jdk
-        state: present
-        update_cache: yes
-    - name: install maven
-      package: 
-        name: maven
+    - name: install dependencies
+      package:
+        name:
+          - python3-pip
+          - python3-flask
+          - python3-sh
+          - python3-confluent-kafka
+          - openjdk-11-jdk
+          - maven
         state: present
         update_cache: yes
 
 - name: install control dependencies
   hosts: control
   tasks:
-    - name: install pip
-      package: 
-        name: python3-pip
+    - name: install dependencies
+      package:
+        name:
+          - python3-pip
+          - python3-flask
+          - python3-sh
+          - python3-confluent-kafka
+          - gnuplot
         state: present
         update_cache: yes
-    - name: add pip dependencies
-      become_user: root
-      shell: |
-        pip3 install sh
-        pip3 install flask
-        pip3 install confluent_kafka
-    - name: install gnuplot
-      package: 
-        name: gnuplot
-        state: present
-        update_cache: yes
+        
     - name: create experiments dir
       file:
         state: directory
