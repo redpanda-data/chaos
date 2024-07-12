@@ -2,4 +2,4 @@
 
 set -e
 
-docker-compose -f docker/docker-compose6.2.yaml --project-directory . down
+docker compose -f docker/docker-compose6.2.yaml --project-directory . down
