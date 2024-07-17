@@ -42,7 +42,8 @@ class RecycleAllFault(OneoffFault):
             node_id = scenario.redpanda_cluster.get_id()
             logger.info(f"adding id={node_id} ip={candidate.ip}")
             node = scenario.redpanda_cluster.add_node(candidate, node_id)
-            scenario.redpanda_cluster.launch(node)
+            log_levels = self.read_config(["settings", "log-level"], { "default": "info" })
+            scenario.redpanda_cluster.launch(node, log_levels)
             scenario.redpanda_cluster.wait_alive(node=node, timeout_s=NODE_ALIVE_AFTER_RESTART_S)
             scenario.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
 
@@ -113,7 +114,8 @@ class RecycleAllFault(OneoffFault):
             node_id = scenario.redpanda_cluster.get_id()
             node = scenario.redpanda_cluster.add_node(target.host, node_id)
             logger.info(f"adding id={node.id} ip={node.ip}")
-            scenario.redpanda_cluster.launch(node)
+            log_levels = self.read_config(["settings", "log-level"], { "default": "info" })
+            scenario.redpanda_cluster.launch(node, log_levels)
             scenario.redpanda_cluster.wait_alive(node=node, timeout_s=NODE_ALIVE_AFTER_RESTART_S)
             scenario.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
     
