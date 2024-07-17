@@ -1,4 +1,4 @@
-from sh import gnuplot, rm, cd
+from sh import gnuplot, rm
 import jinja2
 import sys
 import traceback

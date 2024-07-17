@@ -1,7 +1,5 @@
 from sh import ssh
-from sh import cd
-from sh import mkdir
-from sh import python3
+
 import json
 import requests
 import os
