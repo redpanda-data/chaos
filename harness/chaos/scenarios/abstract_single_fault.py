@@ -98,6 +98,10 @@ class AbstractSingleFault(ABC):
         return log_levels["default"]
 
     def log_levels(self):
+        return ":".join(
+            [f"{k}={v}" for k, v in self.log_levels_dict().items()])
+
+    def log_levels_dict(self):
         log_levels = self.read_config(["settings", "log-level"],
                                       {"default": "info"})
         if "default" not in log_levels:
@@ -106,7 +110,8 @@ class AbstractSingleFault(ABC):
         del log_levels["default"]
         if len(log_levels) == 0:
             log_levels["tx"] = default
-        return ":".join([f"{k}={v}" for k, v in log_levels.items()])
+
+        return log_levels
 
     def fetch_workload_logs(self):
         if self.workload_cluster != None:
