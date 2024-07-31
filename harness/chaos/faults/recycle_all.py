@@ -115,6 +115,7 @@ class RecycleAllFault(OneoffFault):
             node = scenario.redpanda_cluster.add_node(target.host, node_id)
             logger.info(f"adding id={node.id} ip={node.ip}")
             log_levels = scenario.log_levels_dict()
+            log_levels['default'] = scenario.default_log_level()
             scenario.redpanda_cluster.launch(node, log_levels)
             scenario.redpanda_cluster.wait_alive(node=node, timeout_s=NODE_ALIVE_AFTER_RESTART_S)
             scenario.redpanda_cluster.get_stable_view(timeout_s=STABLE_VIEW_AFTER_RESTART_S)
