@@ -868,7 +868,12 @@ public class Workload {
         // default value: 50
         props.put(ProducerConfig.RECONNECT_BACKOFF_MS_CONFIG, 50);
         // default value: 30000
-        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 16000);
+        // A low timeout helps fail fast if the target broker is
+        // unresponsive due to failure injection and retry again
+        // to a different broker. This helps the client recover
+        // quicker and make progress which is validated by certain
+        // tests.
+        props.put(ProducerConfig.REQUEST_TIMEOUT_MS_CONFIG, 8000);
         // default value: 100
         props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 100);
         // default value: 300000
