@@ -1,4 +1,6 @@
 import os
+import uuid
+
 import yaml
 import logging.config
 import logging
@@ -106,7 +108,7 @@ for i in range(0, args.repeat):
         passed = True
         while attempt <= retries:
             attempt += 1
-            experiment_id = str(int(time.time()))
+            experiment_id = f'{int(time.time())}-{str(uuid.uuid1())}'
 
             mkdir("-p", f"/mnt/vectorized/experiments/{experiment_id}")
             handler = FileHandler(f"/mnt/vectorized/experiments/{experiment_id}/log")

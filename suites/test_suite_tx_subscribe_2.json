@@ -1,0 +1,30 @@
+{
+    "name": "all",
+    "tests": [
+        "tx_subscribe/kill_group_follower.json",
+        "tx_subscribe/kill_group_leader.json",
+        "tx_subscribe/kill_source_leader.json",
+        "tx_subscribe/kill_target_follower.json",
+        "tx_subscribe/kill_target_leader.json",
+        "tx_subscribe/kill_tx_follower.json",
+        "tx_subscribe/kill_tx_leader.json",
+        "tx_subscribe/pause_group_leader.json",
+        "tx_subscribe/pause_source_leader.json",
+        "tx_subscribe/pause_target_leader.json",
+        "tx_subscribe/pause_tx_leader.json"
+    ],
+    "settings": {
+        "test": {
+            "remove_logs_on_success": true,
+            "log-level": {
+                "default": "trace"
+            },
+            "trim_logs_on_success": true
+        },
+        "suite": {
+            "should_retry_on_transient_errors": true,
+            "retries": 4,
+            "retried_tests": 2
+        }
+    }
+}

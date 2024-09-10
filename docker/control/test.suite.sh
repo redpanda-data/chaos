@@ -7,6 +7,8 @@ MAX_ATTEMPS=30
 suite_path="/mnt/vectorized/$1"
 repeat=$2
 now=$(date +%s)
+rand_suffix=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 7 | tr '[:upper:]' '[:lower:]')
+run_id="${now}-${rand_suffix}"
 
 if [ ! -f $suite_path ]; then
   echo "suite $suite_path doesn't exist"
@@ -28,8 +30,9 @@ until [ -f /mnt/vectorized/ready ]; do
   fi
 done
 
+echo >&1 "Running test suite $suite_path (run_id=${run_id})"
 sudo -i -u ubuntu bash <<EOF
-    python3 /mnt/vectorized/harness/test.suite.py --run_id $now --suite $suite_path --repeat $repeat
+    python3 /mnt/vectorized/harness/test.suite.py --run_id $run_id --suite $suite_path --repeat $repeat
 EOF
 
 chmod -R o+rwx /mnt/vectorized/experiments

@@ -1,0 +1,53 @@
+name: static checks and tests
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+jobs:
+  shfmt-check:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    - name: Setup shfmt
+      run: |
+        wget 'https://github.com/mvdan/sh/releases/download/v3.9.0/shfmt_v3.9.0_linux_amd64' -O shfmt
+        chmod +x shfmt
+    - name: Check format
+      run: ./shfmt -i 2 -s -d .
+
+  pyright-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install pyright==1.1.378
+      # TODO(jackie) also run on the entire chaos project
+      - run: pyright docker_parallel_runner.py
+
+  ruff-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install ruff==0.4.10
+      # TODO(jackie) also run on the entire chaos project
+      - run: ruff check --output-format=github docker_parallel_runner.py
+
+  python-unit-tests:
+    strategy:
+      matrix:
+        # We use 3.7 in CI Chaos jobs
+        python_version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python_version }}
+      - run: python test_docker_parallel_runner.py

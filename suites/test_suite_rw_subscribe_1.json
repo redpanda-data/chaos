@@ -1,0 +1,26 @@
+{
+    "name": "all",
+    "tests": [
+        "rw_subscribe/restart_group.json",
+        "rw_subscribe/rolling_restart.json",
+        "rw_subscribe/kill_group.json",
+        "rw_subscribe/kill_all.json",
+        "rw_subscribe/isolate_topic_leader.json",
+        "rw_subscribe/isolate_group_leader.json",
+        "rw_subscribe/pause_group_leader.json"
+    ],
+    "settings": {
+        "test": {
+            "remove_logs_on_success": true,
+            "log-level": {
+                "default": "trace"
+            },
+            "trim_logs_on_success": true
+        },
+        "suite": {
+            "should_retry_on_transient_errors": true,
+            "retries": 4,
+            "retried_tests": 2
+        }
+    }
+}
