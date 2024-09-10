@@ -42,7 +42,10 @@ Run all tests with a single command:
 
 ### Fine granularity
 
-Or use individual commands for fine granularity.
+Or use individual commands for fine granularity.  You must set COMPOSE_PROJECT_NAME in env var. If you are unsure,
+just set to `default`. I.e.
+
+    export COMPOSE_PROJECT_NAME=default
 
 Build docker images:
 

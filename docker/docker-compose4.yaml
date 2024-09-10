@@ -10,13 +10,13 @@ services:
       context: .
       dockerfile: ./docker/redpanda/Dockerfile
     privileged: true
-    container_name: redpanda1
+    container_name: ${COMPOSE_PROJECT_NAME}-redpanda1
     hostname: redpanda1
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
-      - ./docker/bind_mounts/redpanda1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda1/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
   redpanda2:
     environment:
@@ -30,13 +30,13 @@ services:
     depends_on:
       - "redpanda1"
     privileged: true
-    container_name: redpanda2
+    container_name: ${COMPOSE_PROJECT_NAME}-redpanda2
     hostname: redpanda2
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
-      - ./docker/bind_mounts/redpanda2/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda2/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda2/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
   redpanda3:
     environment:
@@ -50,13 +50,13 @@ services:
     depends_on:
       - "redpanda1"
     privileged: true
-    container_name: redpanda3
+    container_name: ${COMPOSE_PROJECT_NAME}-redpanda3
     hostname: redpanda3
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
-      - ./docker/bind_mounts/redpanda3/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda3/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda3/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
   redpanda4:
     environment:
@@ -70,13 +70,13 @@ services:
     depends_on:
       - "redpanda1"
     privileged: true
-    container_name: redpanda4
+    container_name: ${COMPOSE_PROJECT_NAME}-redpanda4
     hostname: redpanda4
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
-      - ./docker/bind_mounts/redpanda4/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda4/mnt/vectorized/redpanda:/mnt/vectorized/redpanda
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-redpanda4/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
   client1:
     environment:
@@ -93,13 +93,13 @@ services:
       - "redpanda3"
       - "redpanda4"
     privileged: true
-    container_name: client1
+    container_name: ${COMPOSE_PROJECT_NAME}-client1
     hostname: client1
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
-      - ./docker/bind_mounts/client1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-client1/mnt/vectorized/workloads/logs:/mnt/vectorized/workloads/logs
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-client1/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
   control:
     environment:
@@ -118,13 +118,13 @@ services:
       - "redpanda4"
       - "client1"
     privileged: true
-    container_name: control
+    container_name: ${COMPOSE_PROJECT_NAME}-control
     hostname: control
     networks:
       - chaos
     volumes:
-      - ./docker/bind_mounts/control/mnt/vectorized/experiments:/mnt/vectorized/experiments
-      - ./docker/bind_mounts/control/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-control/mnt/vectorized/experiments:/mnt/vectorized/experiments
+      - ./docker/bind_mounts/${COMPOSE_PROJECT_NAME}-control/mnt/vectorized/entrypoint:/mnt/vectorized/entrypoint
       - $DEB_DIR:/mnt/vectorized/deb
 networks:
   chaos:

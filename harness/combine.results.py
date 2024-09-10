@@ -4,7 +4,8 @@ from chaos.checks.result import Result
 import re
 import json
 
-result_pattern = re.compile("""^\d+\.json$""")
+# allow suffixed result file names
+result_pattern = re.compile("""^\d+(-\w+)?\.json$""")
 
 def combine(path):
     if not isdir(path):
@@ -30,6 +31,6 @@ def combine(path):
                 combined["test_runs"][test_key][test_run_key] = status
         combined["result"] = Result.more_severe(combined["result"], result["result"])
     with open(join(path,"all.json"), "w") as all_file:
-        all_file.write(json.dumps(combined, indent=2))
+        all_file.write(json.dumps(combined, indent=2, sort_keys=True))
 
 combine("results")
