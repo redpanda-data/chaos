@@ -312,7 +312,16 @@ def run_one(suite: Suite) -> Tuple[Suite, Optional[Exception]]:
     try:
         runner = get_suite_runner(suite.docker_compose_project_name, suite.rp_cluster_size, suite.client_count)
 
-        runner.rebuild()
+        rebuild_max_tries = 3
+        for i in range(rebuild_max_tries):
+            try:
+                runner.rebuild()
+            except Exception as e:
+                if i == rebuild_max_tries - 1:
+                    logging.error(f"Rebuild failed {rebuild_max_tries} times, giving up")
+                    raise
+                else:
+                    logging.error(f"Rebuild failed ({e}), retrying")
         runner.up()
 
         try:
