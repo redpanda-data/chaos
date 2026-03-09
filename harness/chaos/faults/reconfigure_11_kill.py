@@ -1,8 +1,6 @@
-import time
 import logging
 from sh import ssh
 from chaos.faults.types import FaultType
-from chaos.types import TimeoutException
 
 logger = logging.getLogger("chaos")
 
@@ -31,16 +29,9 @@ class Reconfigure11KillFault:
             new_leader = replica
         
         timeout_s = self.fault_config["timeout_s"]
-        begin = time.time()
         logger.debug(f"reconfiguring {scenario.topic} from {self.leader.ip} to {new_leader.ip}")
-        scenario.redpanda_cluster.reconfigure(controller, [new_leader], scenario.topic, partition=scenario.partition)
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't reconfigure {scenario.topic} within {timeout_s} sec")
-            replicas_info = scenario.redpanda_cluster.wait_details(scenario.topic, partition=scenario.partition, timeout_s=timeout_s)
-            if replicas_info.leader == new_leader and replicas_info.status == "done" and len(replicas_info.replicas)==1:
-                break
-            time.sleep(1)
+        scenario.redpanda_cluster.reconfigure(controller, [new_leader], scenario.topic, partition=scenario.partition, timeout_s=timeout_s,
+            post_action=lambda info: info.leader == new_leader and info.status == "done" and len(info.replicas) == 1)
         logger.debug(f"reconfigured {scenario.topic} from {self.leader.ip} to {new_leader.ip}")
         logger.debug(f"killing {scenario.topic}'s former leader {self.leader.ip}")
         ssh("ubuntu@"+self.leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")

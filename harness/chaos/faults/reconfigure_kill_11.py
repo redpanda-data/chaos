@@ -29,24 +29,29 @@ class ReconfigureKill11Fault:
                 continue
             self.new_leader = replica
         
+        def kill_new_leader(info):
+            logger.debug(f"killing {scenario.topic}'s new leader {self.new_leader.ip}")
+            ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
+            logger.debug(f"killed {scenario.topic}'s new leader {self.new_leader.ip}")
+            return True
+
         logger.debug(f"reconfiguring {scenario.topic} from {leader.ip} to {self.new_leader.ip}")
-        scenario.redpanda_cluster.reconfigure(controller, [self.new_leader], scenario.topic, partition=scenario.partition)
-        logger.debug(f"killing {scenario.topic}'s new leader {self.new_leader.ip}")
-        ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.stop.sh")
-        logger.debug(f"killed {scenario.topic}'s new leader {self.new_leader.ip}")
+        scenario.redpanda_cluster.reconfigure(controller, [self.new_leader], scenario.topic, partition=scenario.partition, post_action=kill_new_leader)
 
     def heal(self, scenario):
         logger.debug(f"healing {scenario.topic}'s new leader {self.new_leader.ip}")
         default = scenario.default_log_level()
         log_levels = scenario.log_levels()
         ssh("ubuntu@"+self.new_leader.ip, "/mnt/vectorized/control/redpanda.start.sh", default, log_levels)
+        controller = scenario.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=10)
         timeout_s = self.fault_config["timeout_s"]
-        begin = time.time()
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't reconfigure {scenario.topic} within {timeout_s} sec after healing {self.new_leader.ip}")
-            replicas_info = scenario.redpanda_cluster.wait_details(scenario.topic, partition=scenario.partition, timeout_s=timeout_s)
-            if replicas_info.leader == self.new_leader and replicas_info.status == "done" and len(replicas_info.replicas)==1:
-                break
-            time.sleep(1)
+        with scenario.redpanda_cluster.with_balancer_disabled(controller):
+            begin = time.time()
+            while True:
+                if time.time() - begin > timeout_s:
+                    raise TimeoutException(f"can't reconfigure {scenario.topic} within {timeout_s} sec after healing {self.new_leader.ip}")
+                replicas_info = scenario.redpanda_cluster.wait_details(scenario.topic, partition=scenario.partition, timeout_s=timeout_s)
+                if replicas_info.leader == self.new_leader and replicas_info.status == "done" and len(replicas_info.replicas)==1:
+                    break
+                time.sleep(1)
         logger.debug(f"reconfigured {scenario.topic} to [{self.new_leader.ip}]")
