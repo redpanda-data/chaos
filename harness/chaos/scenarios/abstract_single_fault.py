@@ -248,29 +248,21 @@ class AbstractSingleFault(ABC):
         controller = self.redpanda_cluster.wait_leader("controller",
                                                        namespace="redpanda",
                                                        timeout_s=timeout_s)
+
+        def check_target_replicas(info):
+            if info.status != "done":
+                return False
+            if len(info.replicas) != len(replicas):
+                return False
+            return all(node.id in is_target_node_id for node in info.replicas)
+
         self.redpanda_cluster.reconfigure(controller,
                                           replicas,
                                           topic,
                                           partition=partition,
-                                          namespace=namespace)
-        begin = time.time()
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(
-                    f"can't reconfigure {topic} within {timeout_s} sec")
-            replicas_info = self.redpanda_cluster.wait_details(
-                topic,
-                partition=partition,
-                namespace=namespace,
-                timeout_s=timeout_s)
-            if replicas_info.status == "done":
-                is_same = len(replicas_info.replicas) == len(replicas)
-                for node in replicas_info.replicas:
-                    if node.id not in is_target_node_id:
-                        is_same = False
-                if is_same:
-                    break
-            time.sleep(1)
+                                          namespace=namespace,
+                                          timeout_s=timeout_s,
+                                          post_action=check_target_replicas)
 
     def _transfer(self,
                   new_leader,

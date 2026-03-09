@@ -1,7 +1,5 @@
-import time
 import logging
 from chaos.faults.types import FaultType
-from chaos.types import TimeoutException
 
 logger = logging.getLogger("chaos")
 
@@ -54,18 +52,10 @@ class Reconfigure313Fault:
         if new_leader == None:
             new_leader = candidates[0]
         
-        begin = time.time()
         logger.debug(f"reconfiguring {namespace}/{topic}/{partition} to {new_leader.id} ({new_leader.ip})")
-        scenario.redpanda_cluster.reconfigure(controller, [new_leader], topic, partition=partition, namespace=namespace)
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't reconfigure {topic} within {timeout_s} sec")
-            replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
-            if replicas_info.leader != old_leader:
-                break
-            logger.debug(f"isn't reconfigured status={replicas_info.status} leader={replicas_info.leader.id} len(replicas)={len(replicas_info.replicas)}")
-            time.sleep(1)
-        
+        scenario.redpanda_cluster.reconfigure(controller, [new_leader], topic, partition=partition, namespace=namespace, timeout_s=timeout_s,
+            post_action=lambda info: info.leader != old_leader)
+
         logger.debug(f"reconfigured {namespace}/{topic}/{partition} to [{','.join(map(lambda x:x.ip, replicas_info.replicas))}]")
 
     def heal(self, scenario):
@@ -90,15 +80,7 @@ class Reconfigure313Fault:
         replicas = list(self.old_replicas)
         
         timeout_s = self.fault_config["timeout_s"]
-        begin = time.time()
         logger.debug(f"reconfiguring {namespace}/{topic}/{partition} to replication factor of 3")
-        scenario.redpanda_cluster.reconfigure(controller, replicas, topic, partition=partition, namespace=namespace)
-        while True:
-            if time.time() - begin > timeout_s:
-                raise TimeoutException(f"can't reconfigure {namespace}/{topic}/{partition} within {timeout_s} sec")
-            replicas_info = scenario.redpanda_cluster.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
-            if replicas_info.status == "done" and len(replicas_info.replicas)==3:
-                break
-            logger.debug(f"isn't reconfigured status={replicas_info.status} len(replicas)={len(replicas_info.replicas)}")
-            time.sleep(1)
+        scenario.redpanda_cluster.reconfigure(controller, replicas, topic, partition=partition, namespace=namespace, timeout_s=timeout_s,
+            post_action=lambda info: info.status == "done" and len(info.replicas) == 3)
         logger.debug(f"reconfigured {namespace}/{topic}/{partition} to replication factor of 3")
