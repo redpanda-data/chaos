@@ -45,6 +45,23 @@ class PartitionDetails:
         self.leader = None
         self.status = None
 
+class _BalancerDisabledContext:
+    def __init__(self, cluster, node):
+        self.cluster = cluster
+        self.node = node
+        self.prev_mode = None
+
+    def __enter__(self):
+        self.prev_mode = self.cluster.get_cluster_config(self.node, "partition_autobalancing_mode")
+        logger.info(f"disabling partition balancer (was {self.prev_mode})")
+        self.cluster.set_cluster_config(self.node, "partition_autobalancing_mode", "off")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        logger.info(f"re-enabling partition balancer (mode={self.prev_mode})")
+        self.cluster.set_cluster_config(self.node, "partition_autobalancing_mode", self.prev_mode)
+        return False
+
 class RedpandaCluster:
     def __init__(self, nodes_path):
         self.last_id = 0
@@ -391,3 +408,16 @@ class RedpandaCluster:
         if r.status_code != 200:
             return None
         return r.json()
+
+    def get_cluster_config(self, node, key):
+        result = ssh("ubuntu@" + node.ip, "rpk", "cluster", "config", "get", key)
+        value = result.strip()
+        logger.info(f"get cluster config {key}={value} from {node.ip}")
+        return value
+
+    def set_cluster_config(self, node, key, value):
+        ssh("ubuntu@" + node.ip, "rpk", "cluster", "config", "set", key, str(value))
+        logger.info(f"set cluster config {key}={value} via {node.ip}")
+
+    def with_balancer_disabled(self, node):
+        return _BalancerDisabledContext(self, node)
