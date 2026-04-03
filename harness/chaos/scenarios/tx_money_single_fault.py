@@ -149,47 +149,49 @@ class TxMoneySingleFault(AbstractSingleFault):
         data_nodes = self.redpanda_cluster.nodes[3:]
 
         reconfigure_timeout_s = self.read_config(["settings", "setup", "reconfigure_timeout_s"], 20)
-
-        # reconfigure id_allocator to use internal_nodes
-        self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
-        # reconfigure tx to use internal_nodes
-        self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
-
-        for i in range(0, self.accounts):
-            self._reconfigure(data_nodes, f"acc{i}", partition=0, namespace="kafka", timeout_s=reconfigure_timeout_s)
-        
-        self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
-
         leadership_transfer_timeout_s = self.read_config(["settings", "setup", "leadship_transfer_timeout_s"], 20)
-        # transfer controller to other[0]
-        self._transfer(
-            internal_nodes[0],
-            "controller",
-            partition=0,
-            namespace="redpanda",
-            timeout_s=leadership_transfer_timeout_s)
-        # transfer id_allocator to other[1]
-        self._transfer(
-            internal_nodes[1],
-            "id_allocator",
-            partition=0,
-            namespace="kafka_internal",
-            timeout_s=leadership_transfer_timeout_s)
-        # transfer tx to other[2]
-        self._transfer(
-            internal_nodes[2],
-            "tx",
-            partition=0,
-            namespace="kafka_internal",
-            timeout_s=leadership_transfer_timeout_s)
 
-        for i in range(0, self.accounts):
+        controller = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=20)
+        with self.redpanda_cluster.with_balancer_disabled(controller):
+            # reconfigure id_allocator to use internal_nodes
+            self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
+            # reconfigure tx to use internal_nodes
+            self._reconfigure(internal_nodes, "tx", partition=0, namespace="kafka_internal", timeout_s=reconfigure_timeout_s)
+
+            for i in range(0, self.accounts):
+                self._reconfigure(data_nodes, f"acc{i}", partition=0, namespace="kafka", timeout_s=reconfigure_timeout_s)
+
+            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+
+            # transfer controller to other[0]
             self._transfer(
-                data_nodes[i%len(data_nodes)],
-                f"acc{i}",
+                internal_nodes[0],
+                "controller",
                 partition=0,
-                namespace="kafka",
+                namespace="redpanda",
                 timeout_s=leadership_transfer_timeout_s)
+            # transfer id_allocator to other[1]
+            self._transfer(
+                internal_nodes[1],
+                "id_allocator",
+                partition=0,
+                namespace="kafka_internal",
+                timeout_s=leadership_transfer_timeout_s)
+            # transfer tx to other[2]
+            self._transfer(
+                internal_nodes[2],
+                "tx",
+                partition=0,
+                namespace="kafka_internal",
+                timeout_s=leadership_transfer_timeout_s)
+
+            for i in range(0, self.accounts):
+                self._transfer(
+                    data_nodes[i%len(data_nodes)],
+                    f"acc{i}",
+                    partition=0,
+                    namespace="kafka",
+                    timeout_s=leadership_transfer_timeout_s)
 
         self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
         warmup_s = self.read_config(["settings", "setup", "warmup_s"], 20)

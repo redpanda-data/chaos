@@ -140,33 +140,35 @@ class RWSubscribeSingleFault(AbstractSingleFault):
         internal_nodes = self.redpanda_cluster.nodes[0:3]
         data_nodes = self.redpanda_cluster.nodes[3:]
 
-        # reconfigure id_allocator to use internal_nodes
-        tasks_logger.info(f"reconfigure id_allocator")
-        self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
-        # reconfigure consumer groups to use internal_nodes
-        tasks_logger.info(f"reconfigure consumer groups")
-        self._reconfigure(internal_nodes, "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
+        controller = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=20)
+        with self.redpanda_cluster.with_balancer_disabled(controller):
+            # reconfigure id_allocator to use internal_nodes
+            tasks_logger.info(f"reconfigure id_allocator")
+            self._reconfigure(internal_nodes, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
+            # reconfigure consumer groups to use internal_nodes
+            tasks_logger.info(f"reconfigure consumer groups")
+            self._reconfigure(internal_nodes, "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
 
-        for partition in range(0, self.partitions):
-            tasks_logger.info(f"reconfigure topic {self.topic}/{partition}")
-            self._reconfigure(data_nodes, self.topic, partition=partition, namespace="kafka", timeout_s=20)
-        
-        tasks_logger.info(f"waiting for post reconfigure progress")
-        try:
-            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
-        except TimeoutException:
-            raise ProgressException()
+            for partition in range(0, self.partitions):
+                tasks_logger.info(f"reconfigure topic {self.topic}/{partition}")
+                self._reconfigure(data_nodes, self.topic, partition=partition, namespace="kafka", timeout_s=20)
 
-        tasks_logger.info(f"transfer controller leadership to {internal_nodes[0].id}")
-        self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=20)
-        tasks_logger.info(f"transfer id_allocator leadership to {internal_nodes[1].id}")
-        self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
-        tasks_logger.info(f"transfer consumer group leadership to {internal_nodes[1].id}")
-        self._transfer(internal_nodes[1], "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
+            tasks_logger.info(f"waiting for post reconfigure progress")
+            try:
+                self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+            except TimeoutException:
+                raise ProgressException()
 
-        for partition in range(0, self.partitions):
-            tasks_logger.info(f"transfer topic {self.topic}/{partition} leadership to {data_nodes[partition%len(data_nodes)].id}")
-            self._transfer(data_nodes[partition%len(data_nodes)], self.topic, partition=partition, namespace="kafka", timeout_s=20)
+            tasks_logger.info(f"transfer controller leadership to {internal_nodes[0].id}")
+            self._transfer(internal_nodes[0], "controller", partition=0, namespace="redpanda", timeout_s=20)
+            tasks_logger.info(f"transfer id_allocator leadership to {internal_nodes[1].id}")
+            self._transfer(internal_nodes[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
+            tasks_logger.info(f"transfer consumer group leadership to {internal_nodes[1].id}")
+            self._transfer(internal_nodes[1], "__consumer_offsets", partition=0, namespace="kafka", timeout_s=20)
+
+            for partition in range(0, self.partitions):
+                tasks_logger.info(f"transfer topic {self.topic}/{partition} leadership to {data_nodes[partition%len(data_nodes)].id}")
+                self._transfer(data_nodes[partition%len(data_nodes)], self.topic, partition=partition, namespace="kafka", timeout_s=20)
 
         tasks_logger.info(f"waiting for post transfer progress")
         try:

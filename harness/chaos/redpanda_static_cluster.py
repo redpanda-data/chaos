@@ -244,29 +244,32 @@ class RedpandaCluster:
     def create_topic(self, topic, replication, partitions, cleanup="delete"):
         ssh("ubuntu@" + self.nodes[0].ip, "rpk", "topic", "create", "--brokers", self.brokers(), topic, "-r", replication, "-p", partitions, "-c", f"cleanup.policy={cleanup}")
     
+    def do_reconfigure(self, leader, replicas, topic, partition=0, namespace="kafka", post_action=None, timeout_s=10):
+        payload = []
+        for replica in replicas:
+            payload.append({
+                "node_id": replica.id,
+                "core": 0
+            })
+        r = requests.post(f"http://{leader.ip}:9644/v1/partitions/{namespace}/{topic}/{partition}/replicas", json=payload)
+        if r.status_code != 200:
+            logger.error(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
+            raise Exception(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
+        if post_action is None:
+            return
+        begin = time.time()
+        while True:
+            if time.time() - begin > timeout_s:
+                raise TimeoutException(f"can't reconfigure {namespace}/{topic}/{partition} within {timeout_s} sec")
+            info = self.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
+            if post_action(info):
+                return info
+            logger.debug(f"waiting for reconfigure of {namespace}/{topic}/{partition}: status={info.status} leader={info.leader.id} replicas={len(info.replicas)}")
+            time.sleep(1)
+
     def reconfigure(self, leader, replicas, topic, partition=0, namespace="kafka", post_action=None, timeout_s=10):
         with self.with_balancer_disabled(leader):
-            payload = []
-            for replica in replicas:
-                payload.append({
-                    "node_id": replica.id,
-                    "core": 0
-                })
-            r = requests.post(f"http://{leader.ip}:9644/v1/partitions/{namespace}/{topic}/{partition}/replicas", json=payload)
-            if r.status_code != 200:
-                logger.error(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
-                raise Exception(f"Can't reconfigure, status:{r.status_code} body:{r.text}")
-            if post_action is None:
-                return
-            begin = time.time()
-            while True:
-                if time.time() - begin > timeout_s:
-                    raise TimeoutException(f"can't reconfigure {namespace}/{topic}/{partition} within {timeout_s} sec")
-                info = self.wait_details(topic, partition=partition, namespace=namespace, timeout_s=timeout_s)
-                if post_action(info):
-                    return info
-                logger.debug(f"waiting for reconfigure of {namespace}/{topic}/{partition}: status={info.status} leader={info.leader.id} replicas={len(info.replicas)}")
-                time.sleep(1)
+            return self.do_reconfigure(leader, replicas, topic, partition=partition, namespace=namespace, post_action=post_action, timeout_s=timeout_s)
 
     def _get_stable_details(self, nodes, topic, partition=0, namespace="kafka", replication=None):
         last_leader = -1
