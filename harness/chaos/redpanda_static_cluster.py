@@ -132,7 +132,7 @@ class RedpandaCluster:
     
     def get_stable_view(self, nodes=None, timeout_s=10):
         if nodes == None:
-            nodes = self.nodes
+            nodes = list(self.nodes)
         begin = time.time()
         while True:
             random.shuffle(nodes)
