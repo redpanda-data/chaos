@@ -256,13 +256,13 @@ class AbstractSingleFault(ABC):
                 return False
             return all(node.id in is_target_node_id for node in info.replicas)
 
-        self.redpanda_cluster.reconfigure(controller,
-                                          replicas,
-                                          topic,
-                                          partition=partition,
-                                          namespace=namespace,
-                                          timeout_s=timeout_s,
-                                          post_action=check_target_replicas)
+        self.redpanda_cluster.do_reconfigure(controller,
+                                             replicas,
+                                             topic,
+                                             partition=partition,
+                                             namespace=namespace,
+                                             timeout_s=timeout_s,
+                                             post_action=check_target_replicas)
 
     def _transfer(self,
                   new_leader,

@@ -142,24 +142,27 @@ class TxSingleTopicSingleFault(AbstractSingleFault):
         others = [node for node in self.redpanda_cluster.nodes if node.id not in is_topic_node_id]
         if len(others) != 3:
             raise Exception(f"len(others)={len(others)} isn't 3")
-        # reconfigure id_allocator to use other nodes
-        self._reconfigure(others, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
-        # reconfigure tx to use other nodes
-        self._reconfigure(others, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
 
-        try:
-            self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
-        except TimeoutException:
-            raise ProgressException()
+        controller = self.redpanda_cluster.wait_leader("controller", namespace="redpanda", timeout_s=20)
+        with self.redpanda_cluster.with_balancer_disabled(controller):
+            # reconfigure id_allocator to use other nodes
+            self._reconfigure(others, "id_allocator", partition=0, namespace="kafka_internal", timeout_s=20)
+            # reconfigure tx to use other nodes
+            self._reconfigure(others, "tx", partition=0, namespace="kafka_internal", timeout_s=20)
 
-        # transfer controller to other[0]
-        self._transfer(others[0], "controller", partition=0, namespace="redpanda", timeout_s=10)
+            try:
+                self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
+            except TimeoutException:
+                raise ProgressException()
 
-        # transfer id_allocator to other[1]
-        self._transfer(others[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
-        
-        # transfer tx to other[2]
-        self._transfer(others[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
+            # transfer controller to other[0]
+            self._transfer(others[0], "controller", partition=0, namespace="redpanda", timeout_s=10)
+
+            # transfer id_allocator to other[1]
+            self._transfer(others[1], "id_allocator", partition=0, namespace="kafka_internal", timeout_s=10)
+
+            # transfer tx to other[2]
+            self._transfer(others[2], "tx", partition=0, namespace="kafka_internal", timeout_s=10)
 
         try:
             self.workload_cluster.wait_progress(timeout_s=wait_progress_timeout_s)
