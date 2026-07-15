@@ -1,19 +1,28 @@
-FROM ubuntu:20.04
-LABEL maintainer="Denis Rystsov <denis@vectorized.io>"
+FROM debian:trixie
+LABEL maintainer="Chris Lee <chris.lee@redpanda.com>"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
 ARG WORKLOAD_CLUSTER_SIZE
 ENV WORKLOAD_CLUSTER_SIZE=${WORKLOAD_CLUSTER_SIZE}
+COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
+# venv on PATH for docker exec/CMD; sshd sessions get it via /etc/environment
+ENV VIRTUAL_ENV=/opt/venv \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries
-RUN apt update -y --fix-missing 
-RUN apt upgrade -y
-RUN apt install -f -y
-RUN apt install -y curl wget iptables python3-pip gnuplot --fix-missing
-RUN apt install -y iputils-ping vim tmux less ssh sudo --fix-missing
-RUN adduser --disabled-password --gecos "" ubuntu
+# single RUN so a failed `apt update` layer can never be cached separately
+# from the installs; Error-Mode=any makes failed index fetches fatal instead
+# of warnings
+RUN apt update -y -o APT::Update::Error-Mode=any \
+    && apt upgrade -y \
+    && apt install -y curl wget iptables python3 gnuplot \
+       iputils-ping vim tmux less ssh sudo \
+    && apt install -y --no-install-recommends gcc git libssl-dev g++ make python3-dev
+# create the ubuntu user (the harness ssh convention) unless the base ships one
+RUN id -u ubuntu >/dev/null 2>&1 || adduser --disabled-password --gecos "" ubuntu
 RUN usermod -aG sudo -u $USER_ID ubuntu
 RUN echo "ubuntu ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
 RUN mkdir -p /mnt/vectorized
@@ -23,15 +32,17 @@ RUN chown ubuntu:ubuntu -R /home/ubuntu/.ssh
 COPY docker/control/entrypoint.sh /mnt/vectorized/entrypoint.sh
 COPY docker/control/test.test.sh /mnt/vectorized/test.test.sh
 COPY docker/control/test.suite.sh /mnt/vectorized/test.suite.sh
-RUN pip3 install 'sh==1.14.3'
-RUN pip3 install flask
-RUN pip3 install pyyaml
-RUN apt-get update && apt-get install -y --no-install-recommends gcc git libssl-dev g++ make
 RUN cd /tmp && git clone --depth 1 --branch v1.9.0 https://github.com/edenhill/librdkafka.git && \
   cd librdkafka && \
   ./configure --prefix=/usr && make -j4 && make install && \
   cd ../ && rm -rf librdkafka
-RUN pip3 install 'confluent_kafka==1.9.2'
+# confluent-kafka builds from source against the librdkafka installed above
+COPY pyproject.toml uv.lock /mnt/vectorized/
+# wrapper (not a symlink: CPython resolves symlinks past the venv) so login
+# shells, sshd, and sudo secure_path all get the venv python
+RUN cd /mnt/vectorized && uv sync --frozen && \
+  printf '#!/bin/sh\nexec /opt/venv/bin/python3 "$@"\n' > /usr/local/bin/python3 && \
+  chmod +x /usr/local/bin/python3
 COPY --chown=ubuntu:ubuntu harness /mnt/vectorized/harness
 COPY --chown=ubuntu:ubuntu suites /mnt/vectorized/suites
 CMD /mnt/vectorized/entrypoint.sh

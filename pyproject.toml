@@ -1,0 +1,13 @@
+[project]
+name = "chaos-harness"
+version = "0.1.0"
+description = "Python dependencies for the chaos test harness containers"
+requires-python = ">=3.12"
+dependencies = [
+    "confluent-kafka==1.9.2",
+    "flask",
+    "jinja2",
+    "pyyaml",
+    "requests",
+    "sh==1.14.3",
+]
