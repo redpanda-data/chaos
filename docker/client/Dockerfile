@@ -4,8 +4,9 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG USER_ID
 ARG REDPANDA_CLUSTER_SIZE
 ENV REDPANDA_CLUSTER_SIZE=${REDPANDA_CLUSTER_SIZE}
-COPY --from=ghcr.io/astral-sh/uv:0.11 /uv /usr/local/bin/uv
-# venv on PATH for docker exec/CMD; sshd sessions get it via /etc/environment
+COPY --from=ghcr.io/astral-sh/uv:0.11.28 /uv /usr/local/bin/uv
+# venv on PATH for docker exec/CMD; ssh and sudo -i sessions reach it through
+# the /usr/local/bin/python3 wrapper installed after uv sync below
 ENV VIRTUAL_ENV=/opt/venv \
     UV_PROJECT_ENVIRONMENT=/opt/venv \
     PATH="/opt/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
